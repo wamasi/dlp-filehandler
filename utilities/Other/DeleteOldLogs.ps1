@@ -1,0 +1,4 @@
+$limit = (Get-Date).AddDays(-1)
+$path = "D:\Common\yt-dlp\1_vrv\1_log", "D:\Common\yt-dlp\1_vrv_O\1_log_O", "D:\Common\yt-dlp\2_funimation\2_log", "D:\Common\yt-dlp\2_funimation_O\2_log_O", "D:\Common\yt-dlp\3_hidive\3_log", "D:\Common\yt-dlp\3_hidive_O\3_log_O", "D:\Common\yt-dlp\4_paramountplus\4_log", "D:\Common\yt-dlp\4_paramountplus_O\4_log_O"
+Get-ChildItem -Path $path -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | Remove-Item -Force -Verbose
+Get-ChildItem -Path $path -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Force -Recurse -Verbose

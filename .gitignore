@@ -1,0 +1,7 @@
+*.exe
+config.xml
+.vscode/
+_shared/
+*_log/
+*_B
+*_C

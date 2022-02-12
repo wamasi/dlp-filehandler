@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+    <Directory>
+        <temp location="" />
+        <home location="" />
+        <ffmpeg location="" />
+    </Directory>
+    <Plex>
+        <hosturl url="" />
+        <plextoken token="" />
+        <library libraryid="" folder="" libraryname="" />
+        <library libraryid="" folder="" libraryname="" />
+        <library libraryid="" folder="" libraryname="" />
+    </Plex>
+    <Credentials>
+        <login site="" username="" password="" libraryid="" />
+        <login site="" username="" password="" libraryid="" />
+        <login site="" username="" password="" libraryid="" />
+        <login site="" username="" password="" libraryid="" />
+        <login site="" username="" password="" libraryid="" />
+        <login site="" username="" password="" libraryid="" />
+    </Credentials>
+</configuration>
