@@ -4,9 +4,19 @@ Script used to fetch files with yt-dlp, fix subtitles, embed into video file, re
 
 ## Getting Started
 
-Fill out config
+Fill out config with:
+- Paths to temp and destination folder for yt-dlp
+- Path the ffmpeg location
+- Url, Token, LibraryIds to to plex, 
+- Site credentials and corresponding LibraryId for final destination
 
 Install or download prereqs and map to PATH as needed.
+
+### Expected folder structure:
+- For yt-dlp temp: {drive}\tmp\
+- For yt-dlp home: {drive}\tmp\
+- For Filebot/SubtitleEdit staging: {drive}\tmp\
+- Final destination: {drive}\videos\{PlexLibraryFolder}\
 
 ## Prerequisites
 
