@@ -134,86 +134,115 @@ elseif ($createsupportfiles) {
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
         # if site support files (Config, archive, bat, cookie) are missing it will attempt to create an isdaily and non-isDaily set
+        # Creating shared directory
         $SharedF = "$PSScriptRoot\_shared"
         if (!(Test-Path $SharedF)) {
             New-Item ("$SharedF") -ItemType Directory
+            Write-Host "$SharedF directory missing. Creating..."
         }
         else {
-            Write-Host "$SharedF Directory exists"
+            Write-Host "$SharedF directory exists"
         }
-        $SCF = "$PSScriptRoot\" + $SN.SN
+        # Creating site directory
+        $SCC = "$PSScriptRoot\sites"
+        if (!(Test-Path $SCC)) {
+            New-Item ("$SCC") -ItemType Directory
+            Write-Host "$SCC directory missing. Creating..."
+        }
+        else {
+            Write-Host "$SCF directory exists"
+        }
+        # Creating site manual base directory
+        $SCF = "$SCC\" + $SN.SN
         if (!(Test-Path $SCF)) {
             New-Item ("$SCF") -ItemType Directory
+            Write-Host "$SCF directory missing. Creating..."
         }
         else {
-            Write-Host "$SCF Directory exists"
+            Write-Host "$SCF directory exists"
         }
-        $SCFC = "$PSScriptRoot\" + $SN.SN + "\yt-dlp.conf"
+        # Creating site manual base congfig
+        $SCFC = "$SCF\yt-dlp.conf"
         if (!(Test-Path $SCFC -PathType Leaf)) {
             New-Item ("$SCFC") -ItemType File
             $defaultconfig | Set-Content  $SCFC
             Write-Host "$SCFC created with default values."
         }
         else {
-            Write-Host "$SCFC File exists"
+            Write-Host "$SCFC file exists"
         }
-        $SCDF = "$PSScriptRoot\" + $SN.SN + "_D"
+        # Creating site daily base directory
+        $SCDF = "$SCF" + "_D"
         if (!(Test-Path $SCDF)) {
             New-Item ("$SCDF") -ItemType Directory
+            Write-Host "$SCDF directory missing. Creating..."
         }
         else {
-            Write-Host "$SCDF Directory exists"
+            Write-Host "$SCDF directory exists"
         }
-        $SCFDC = "$PSScriptRoot\" + $SN.SN + "_D\yt-dlp.conf"
+        # Creating site daily base config
+        $SCFDC = "$SCF" + "_D\yt-dlp.conf"
         if (!(Test-Path $SCFDC -PathType Leaf)) {
             New-Item ("$SCFDC") -ItemType File
             $defaultconfig | Set-Content  $SCFDC
             Write-Host "$SCFDC created with default values."
         }
         else {
-            Write-Host "$SCFDC File exists"
+            Write-Host "$SCFDC file exists"
         }
-        $SAF = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_A"
+        # Creating site manual archive
+        $SAF = "$SharedF\" + $SN.SN + "_A"
         if (!(Test-Path $SAF -PathType Leaf)) {
             New-Item ("$SAF") -ItemType File
+            Write-Host "$SAF file missing. Creating..."
         }
         else {
-            Write-Host "$SAF File exists"
+            Write-Host "$SAF file exists"
         }
-        $SBF = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_B"
+        # Creating site manual bat
+        $SBF = "$SharedF\" + $SN.SN + "_B"
         if (!(Test-Path $SBF -PathType Leaf)) {
             New-Item ("$SBF") -ItemType File
+            Write-Host "$SBF file missing. Creating..."
         }
         else {
-            Write-Host "$SBF File exists"
+            Write-Host "$SBF file exists"
         }
-        $SBC = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_C"
+        # Creating site manual cookie
+        $SBC = "$SharedF\" + $SN.SN + "_C"
         if (!(Test-Path $SBC -PathType Leaf)) {
             New-Item ("$SBC") -ItemType File
+            Write-Host "$SBC file missing. Creating..."
         }
         else {
-            Write-Host "$SBC File exists"
+            Write-Host "$SBC file exists"
         }
+        # Creating site daily archive
         $SADF = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_D_A"
         if (!(Test-Path $SADF -PathType Leaf)) {
             New-Item ("$SADF") -ItemType File
+            Write-Host "$SADF file missing. Creating..."
         }
         else {
-            Write-Host "$SADF File exists"
+            Write-Host "$SADF file exists"
         }
-        $SBDF = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_D_B"
+        # Creating site daily bate
+        $SBDF = "$SharedF\" + $SN.SN + "_D_B"
         if (!(Test-Path $SBDF -PathType Leaf)) {
             New-Item ("$SBDF") -ItemType File
+            Write-Host "$SBDF file missing. Creating..."
         }
         else {
-            Write-Host "$SBDF File exists"
+            Write-Host "$SBDF file exists"
         }
-        $SBDC = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_D_C"
+        # Creating site daily cookie
+        $SBDC = "$SharedF\" + $SN.SN + "_D_C"
         if (!(Test-Path $SBDC -PathType Leaf)) {
             New-Item ("$SBDC") -ItemType File
+            Write-Host "$SBDC file missing. Creating..."
         }
         else {
-            Write-Host "$SBDC File exists"
+            Write-Host "$SBDC file exists"
         }
     }
 }
@@ -272,11 +301,13 @@ else {
     Write-Host $SF
     Write-Host $SubFontDir
     # Base command for yt-dlp
+    $SiteFolder = "$PSScriptRoot\sites\"
+    $SiteShared = "$PSScriptRoot\_shared\"
     $dlpParams = 'yt-dlp'
     # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
     if ($isDaily) {
         $SiteType = $site + "_D"
-        $SiteFolder = "$PSScriptRoot\" + $SiteType
+        $SiteFolder = "$SiteFolder" + $SiteType
         $SiteTemp = "$TempDrive\" + $site.Substring(0, 1)
         if (!(Test-Path -Path $SiteTemp)) {
             try {
@@ -315,7 +346,7 @@ else {
     }
     else {
         $SiteType = $site
-        $SiteFolder = "$PSScriptRoot\" + $SiteType
+        $SiteFolder = "$SiteFolder" + $SiteType
         $SiteTemp = "$TempDrive\" + $site.Substring(0, 1) + "M"
         if (!(Test-Path -Path $SiteTemp)) {
             try {
@@ -373,7 +404,7 @@ else {
             Exit
         }
         else {
-            $CookieFile = "$PSScriptRoot\_shared\" + $SiteType + "_C"
+            $CookieFile = "$SiteShared" + $SiteType + "_C"
             if ((Test-Path -Path $CookieFile)) {
                 Write-Host "$(Get-Timestamp) - $CookieFile exists. Continuing..."
                 $dlpParams = $dlpParams + " --cookies $CookieFile"
@@ -395,7 +426,7 @@ else {
         Exit
     }
     # BAT - Always used for calling URLS
-    $BatFile = "$PSScriptRoot\_shared\" + $SiteType + "_B"
+    $BatFile = "$SiteShared" + $SiteType + "_B"
     if ((Test-Path -Path $BatFile)) {
         Write-Host "$(Get-Timestamp) - $BatFile file found. Continuing..."
         if (![String]::IsNullOrWhiteSpace((Get-Content $BatFile))) {
@@ -413,7 +444,7 @@ else {
     }
     # Whether archive file is used and which one
     if ($useArchive) {
-        $ArchiveFile = "$PSScriptRoot\_shared\" + $SiteType + "_A"
+        $ArchiveFile = "$SiteShared" + $SiteType + "_A"
         if ((Test-Path -Path $ArchiveFile)) {
             Write-Host "$(Get-Timestamp) - $ArchiveFile file found. Continuing..."
             $dlpParams = $dlpParams + " --download-archive $ArchiveFile"
@@ -456,7 +487,7 @@ else {
         }
     }
     # Creating associated log folder and file
-    $LFolderBase = "$PSScriptRoot\$SiteType\$SiteType" + "_log\"
+    $LFolderBase = "$SiteFolder\log\"
     $LFolder = "$LFolderBase\" + $Date
     $LFile = "$LFolder\$SiteType" + "_" + "$DateTime.log"
     New-Item -Path $LFolder -ItemType Directory -Force
