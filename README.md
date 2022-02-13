@@ -52,7 +52,7 @@ Plex
 
 # Parameters explained:
 |ARGS | Abbreviation | Description||
-|---|---|---|---
+|---|---|---|---|
 |-site | -s/-S | Tells the script what site its working with
 |-isDaily | -d/-D | will use different yt-dlp configs and files and temp/home folder structure.| If -D = true then it will use the _D suffix named files|
 |-useArchive | -a/-A | Will tell yt-dlp command to use or not use archive file.| If -A = true then it will use the _A suffix named files|
