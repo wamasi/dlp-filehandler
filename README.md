@@ -2,7 +2,8 @@
 
 Script used to fetch files with yt-dlp, fix subtitles, embed into video file, rename and move video files into media server folders.
 
-## Getting Started
+
+# Getting Started
 
 Fill out config with:
 - Paths to temp and destination folder for yt-dlp
@@ -12,17 +13,13 @@ Fill out config with:
 
 Install or download prereqs and map to PATH as needed.
 
-### Expected folder structure:
-- For yt-dlp temp: {drive}\tmp\
-- For yt-dlp home: {drive}\tmp\
-- For Filebot/SubtitleEdit staging: {drive}\tmp\
-- Final destination: {drive}\videos\{PlexLibraryFolder}\
 
-## Prerequisites
+# Prerequisites
 
 YT-dlp
 - Downloading videos
 - https://github.com/yt-dlp/yt-dlp
+  - Read this documenation first to understand how to setup your supporting files
 
 Ffmpeg
 - Video downloader used with yt-dlp, remux, copy and move files with yt-dlp
@@ -51,3 +48,36 @@ Mkvtoolnix
 Plex
 - Media Server
 - https://www.plex.tv/
+
+
+# Parameters explained:
+|ARGS | Abbreviation | Description||
+|---|---|---|---
+|-site | -s/-S | Tells the script what site its working with
+|-isDaily | -d/-D | will use different yt-dlp configs and files and temp/home folder structure.| If -D = true then it will use the _D suffix named files|
+|-useArchive | -a/-A | Will tell yt-dlp command to use or not use archive file.| If -A = true then it will use the _A suffix named files|
+|-useLogin | -l/-L | Tells yt-dlp command to use credentials stored in config xml.| If -L = false then it will use the _C suffix named files|
+|-useFilebot | -f/-F  | Tells script to run Filebot. Will take Plex folder name defined in config xml||
+|-useSubtitleEdit | se/SE  | Tells script to run SubetitleEdit to fix common problems with .srt files if they are present||
+|-useDebug | -b/-B | Shows minor additional info||
+|-help | -h/-H  | Shows this text||
+|-newconfig | -n/-N | Used to generate empty config if none is present||
+|-createsupportfiles | -su/-SU | creates support files like archives, batch and cookies files for sites in the config||
+
+
+# Expected folder structure:
+- For yt-dlp temp: {drive}\tmp\
+- For yt-dlp home: {drive}\tmp\
+- For Filebot/SubtitleEdit staging: {drive}\tmp\
+- Final destination: {drive}\videos\{PlexLibraryFolder}\
+
+
+# Steps to run:
+1. Run: "path\to\dlp-script.ps1 -N" to generate base XML
+   - Creates base XML config in root directory
+2. Fill out template in your path\to\the\config.xml
+3. Run: "path\to\dlp-script.ps1 -SU" to generate supporting files
+4. Setup up configs, batch, and cookie files as needed
+   - You'll end up with a set of manual and daily files per site
+5. Run: "path\to\dlp-script.ps1 {ARGS}" with applicable arguments
+   - As your script is running it will generate a log in the related site folder
