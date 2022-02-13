@@ -499,5 +499,5 @@ else {
         Write-Output "[Start] $DateTime - $site - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
     }
     # Runs execution
-    & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -site $site -SF $SF *>&1 | Tee-Object -FilePath $LFile -Append
+    & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -site $site -SF $SF -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId *>&1 | Tee-Object -FilePath $LFile -Append
 }

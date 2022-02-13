@@ -1,4 +1,4 @@
-param ($dlpParams, $useFilebot, $useSubtitleEdit, $site, $SF)
+param ($dlpParams, $useFilebot, $useSubtitleEdit, $site, $SF, $PlexHost, $PlexToken, $PlexLibId )
 # Function to check if file is locked by process before moving forward
 function checkLock {
     Param(
