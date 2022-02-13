@@ -134,6 +134,13 @@ elseif ($createsupportfiles) {
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
         # if site support files (Config, archive, bat, cookie) are missing it will attempt to create an isdaily and non-isDaily set
+        $SharedF = "$PSScriptRoot\_shared"
+        if (!(Test-Path $SharedF)) {
+            New-Item ("$SharedF") -ItemType Directory
+        }
+        else {
+            Write-Host "$SharedF Directory exists"
+        }
         $SCF = "$PSScriptRoot\" + $SN.SN
         if (!(Test-Path $SCF)) {
             New-Item ("$SCF") -ItemType Directory
