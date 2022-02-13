@@ -149,6 +149,18 @@ if ($useSubtitleEdit) {
                         }
                         Start-Sleep -Seconds 1
                     }
+                    While ($True) {
+                        if ((checkLock $tempvideo) -eq $True) {
+                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] -  $tempvideo File locked.  Waiting..."
+                            continue
+                        }
+                        else {
+                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $tempvideo File not locked. Setting default subtitle"
+                            mkvpropedit $tempvideo --edit track:s1 --set flag-default=1
+                            break
+                        }
+                        Start-Sleep -Seconds 1
+                    }
                     # If file doesn't exist yet then wait
                     while (!(Test-Path $tempvideo)) {
                         Start-Sleep 1
