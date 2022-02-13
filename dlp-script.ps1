@@ -1,6 +1,6 @@
 # Switch params for script
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [ValidateSet("vrv", "funimation", "hidive", "paramountplus", "twitch", "youtube", ErrorMessage = "Value '{0}' is invalid. Only {1} are allowed")]
     [Alias("S")]
@@ -25,7 +25,13 @@ param(
     [switch]$usedebug,
     [Parameter(Mandatory = $false)]
     [Alias("H")]
-    [switch]$help
+    [switch]$help,
+    [Parameter(Mandatory = $false)]
+    [Alias("NC")]
+    [switch]$newconfig,
+    [Parameter(Mandatory = $false)]
+    [Alias("SU")]
+    [switch]$createsupportfiles
 )
 # Help text to remind me what I did/it does. if set then overrides other switches
 if ($help) {
@@ -45,13 +51,164 @@ This scrip assumes the following:
   - SubtitleEdit
 
 Parameters explained:
-- site = Tells the script what site its working with (required)
-- isDaily = will use different yt-dlp configs and files and temp/home folder structure
-- useArchive = Will tell yt-dlp command to use or not use archive file
-- useLogin = Tells yt-dlp command to use credentials stored in config xml
-- useFilebot = Tells script to run Filebot. Will take Plex folder name defined in config xml
-- useSubtitleEdit = Tells script to run SubetitleEdit to fix common problems with .srt files if they are present.
+- site | s | S = Tells the script what site its working with (required)
+- isDaily | d | D = will use different yt-dlp configs and files and temp/home folder structure
+- useArchive | a | A = Will tell yt-dlp command to use or not use archive file
+- useLogin | l | L = Tells yt-dlp command to use credentials stored in config xml
+- useFilebot | f | F  = Tells script to run Filebot. Will take Plex folder name defined in config xml
+- useSubtitleEdit | se | SE  = Tells script to run SubetitleEdit to fix common problems with .srt files if they are present.
+- useDebug | b | B = Shows minor additional info
+- help | h | H  = Shows this text
+- newconfig | n | N = Used to generate empty config if none is present
+- createsupportfiles | su | SU = creates support files like archives, batch and cookies files for sites in the config
 "@
+}
+# Create config if newconfig = True
+elseif ($newconfig) {
+    $ConfigPath = "$PSScriptRoot\config.xml" 
+    if (!(Test-Path $ConfigPath -PathType Leaf)) {
+        #PowerShell Create directory if not exists
+        New-Item $ConfigPath -ItemType File 
+        Write-Host "$ConfigPath File Created successfully"
+        $config = @"
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+    <Directory>
+        <temp location="" />
+        <home location="" />
+        <ffmpeg location="" />
+    </Directory>
+    <Plex>
+        <hosturl url="" />
+        <plextoken token="" />
+        <library libraryid="" folder="" libraryname="" />
+        <library libraryid="" folder="" libraryname="" />
+        <library libraryid="" folder="" libraryname="" />
+    </Plex>
+    <Credentials>
+        <login site="" username="" password="" libraryid="" />
+        <login site="" username="" password="" libraryid="" />
+        <login site="" username="" password="" libraryid="" />
+        <login site="" username="" password="" libraryid="" />
+        <login site="" username="" password="" libraryid="" />
+        <login site="" username="" password="" libraryid="" />
+    </Credentials>
+</configuration>
+"@
+        $config | Set-Content $ConfigPath
+    }
+    else {
+        Write-Host "$ConfigPath File Exists"
+        # Perform Delete file from folder operation
+    }
+}
+# Create supporting files if createsupportfiles = True
+elseif ($createsupportfiles) {
+    $ConfigPath = "$PSScriptRoot\config.xml"
+    [xml]$ConfigFile = Get-Content -Path $ConfigPath
+    $SNfile = $ConfigFile.SelectNodes(("//*[@site]")) | Where-Object { $_.site -ne $null } 
+    $SNfile | ForEach-Object {
+        $SN = New-Object -Type PSObject -Property @{
+            SN = $_.site
+        }
+        # Base config parameters if file is not present
+        $defaultconfig = @"
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs "en"
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--downloader aria2c
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
+        # if site support files (Config, archive, bat, cookie) are missing it will attempt to create an isdaily and non-isDaily set
+        $SCF = "$PSScriptRoot\" + $SN.SN
+        if (!(Test-Path $SCF)) {
+            New-Item ("$SCF") -ItemType Directory
+        }
+        else {
+            Write-Host "$SCF Directory exists"
+        }
+        $SCFC = "$PSScriptRoot\" + $SN.SN + "\yt-dlp.conf"
+        if (!(Test-Path $SCFC -PathType Leaf)) {
+            New-Item ("$SCFC") -ItemType File
+            $defaultconfig | Set-Content  $SCFC
+            Write-Host "$SCFC created with default values."
+        }
+        else {
+            Write-Host "$SCFC File exists"
+        }
+        $SCDF = "$PSScriptRoot\" + $SN.SN + "_D"
+        if (!(Test-Path $SCDF)) {
+            New-Item ("$SCDF") -ItemType Directory
+        }
+        else {
+            Write-Host "$SCDF Directory exists"
+        }
+        $SCFDC = "$PSScriptRoot\" + $SN.SN + "_D\yt-dlp.conf"
+        if (!(Test-Path $SCFDC -PathType Leaf)) {
+            New-Item ("$SCFDC") -ItemType File
+            $defaultconfig | Set-Content  $SCFDC
+            Write-Host "$SCFDC created with default values."
+        }
+        else {
+            Write-Host "$SCFDC File exists"
+        }
+        $SAF = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_A"
+        if (!(Test-Path $SAF -PathType Leaf)) {
+            New-Item ("$SAF") -ItemType File
+        }
+        else {
+            Write-Host "$SAF File exists"
+        }
+        $SBF = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_B"
+        if (!(Test-Path $SBF -PathType Leaf)) {
+            New-Item ("$SBF") -ItemType File
+        }
+        else {
+            Write-Host "$SBF File exists"
+        }
+        $SBC = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_C"
+        if (!(Test-Path $SBC -PathType Leaf)) {
+            New-Item ("$SBC") -ItemType File
+        }
+        else {
+            Write-Host "$SBC File exists"
+        }
+        $SADF = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_D_A"
+        if (!(Test-Path $SADF -PathType Leaf)) {
+            New-Item ("$SADF") -ItemType File
+        }
+        else {
+            Write-Host "$SADF File exists"
+        }
+        $SBDF = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_D_B"
+        if (!(Test-Path $SBDF -PathType Leaf)) {
+            New-Item ("$SBDF") -ItemType File
+        }
+        else {
+            Write-Host "$SBDF File exists"
+        }
+        $SBDC = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_D_C"
+        if (!(Test-Path $SBDC -PathType Leaf)) {
+            New-Item ("$SBDC") -ItemType File
+        }
+        else {
+            Write-Host "$SBDC File exists"
+        }
+    }
 }
 else {
     # Functions and variables
