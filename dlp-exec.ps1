@@ -169,7 +169,19 @@ if ($useSubtitleEdit) {
                         Start-Sleep -Seconds 1
                     }
                     # Rename temp to original filename
-                    Rename-Item -Path $tempvideo -NewName $_.FullName -Confirm:$false -Verbose
+                    While ($True) {
+                        if ((checkLock $tempvideo) -eq $True) {
+                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $tempvideo File locked.  Waiting..."
+                            continue
+                        }
+                        else {
+                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Renaming $tempvideo to $inputs file"
+                            # Remove original video/subtitle file
+                            Rename-Item -Path $tempvideo -NewName $_.FullName -Confirm:$false -Verbose
+                            break
+                        }
+                        Start-Sleep -Seconds 1
+                    }
                 }
                 else {
                     $incompletefile += $inputs
