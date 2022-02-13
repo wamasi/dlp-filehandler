@@ -2,6 +2,7 @@
 config.xml
 .vscode/
 _shared/
+sites/
 *_log/
 *_B
 *_C
