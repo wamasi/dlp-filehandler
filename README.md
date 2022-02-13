@@ -58,7 +58,7 @@ Plex
 |-useArchive|-a/-A|Will tell yt-dlp command to use or not use archive file| If -A = true then it will use the \_A suffix named files|
 |-useLogin|-l/-L|Tells yt-dlp command to use credentials stored in config xml| If -L = false then it will use the \_C suffix named files. Will check ReqCookies file if site matches in text then will throw error|
 |-useFilebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml| |
-|-useSubtitleEdit|se/SE|Tells script to run SubetitleEdit to fix common problems with .srt files if they are present| Expects presence of mkv and ass file |
+|-useSubtitleEdit|-se/-SE|Tells script to run SubetitleEdit to fix common problems with .srt files if they are present| Expects presence of mkv and ass file |
 |-useDebug|-b/-B| Shows minor additional info| |
 |-help|-h/-H|Shows this text| |
 |-newconfig|-n/-N|Used to generate empty config if none is present| |
