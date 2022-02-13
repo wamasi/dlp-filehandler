@@ -112,7 +112,95 @@ elseif ($createsupportfiles) {
             SN = $_.site
         }
         # Base config parameters if file is not present
-        $defaultconfig = @"
+$defaultconfig = @"
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs "en"
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--downloader aria2c
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
+        $vrvconfig = @"
+-vU
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs "en.*"
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--downloader aria2c
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv*[format_id!*=hardsub][format_id*=-ja-JP-][height>=1080]+ba/b[format_id!*=hardsub][format_id*=-ja-JP-][height>=1080] / bv*[format_id!*=hardsub][format_id*=-ja-JP-]+ba[format_id!*=hardsub][format_id*=-ja-JP-]'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
+        $funimationconfig = @"
+-vU
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs 'en.*,en_Uncut.*'
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--downloader aria2c
+--extractor-args 'funimation:language=japanese'
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv*[height>=1080]+ba/b[height>=1080] / b'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
+        $hidiveconfig = @"
+-vU
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs "en.*"
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--downloader aria2c
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
+        $paramountplusconfig = @"
 -F
 --list-subs
 --no-simulate
@@ -150,7 +238,7 @@ elseif ($createsupportfiles) {
             Write-Host "$SCC directory missing. Creating..."
         }
         else {
-            Write-Host "$SCF directory exists"
+            Write-Host "$SCC directory exists"
         }
         # Creating site manual base directory
         $SCF = "$SCC\" + $SN.SN
@@ -165,8 +253,27 @@ elseif ($createsupportfiles) {
         $SCFC = "$SCF\yt-dlp.conf"
         if (!(Test-Path $SCFC -PathType Leaf)) {
             New-Item ("$SCFC") -ItemType File
-            $defaultconfig | Set-Content  $SCFC
-            Write-Host "$SCFC created with default values."
+            Write-Host "$SCFC file missing. Creating..."
+            if ($SCFC -match "vrv") {
+                $vrvconfig | Set-Content $SCFC
+                Write-Host "$SCFDC created with VRV values."
+            }
+            elseif ($SCFC -match "funimation") {
+                $funimationconfig | Set-Content $SCFC
+                Write-Host "$SCFC created with Funimation values."
+            }
+            elseif ($SCFC -match "hidive") {
+                $hidiveconfig | Set-Content $SCFC
+                Write-Host "$SCFC created with Hidive values."
+            }
+            elseif ($SCFC -match "paramountplus") {
+                $paramountplusconfig | Set-Content $SCFC
+                Write-Host "$SCFC created with ParamountPlus values."
+            }
+            else {
+                $defaultconfig | Set-Content $SCFC
+                Write-Host "$SCFC created with default values."
+            }
         }
         else {
             Write-Host "$SCFC file exists"
@@ -184,8 +291,27 @@ elseif ($createsupportfiles) {
         $SCFDC = "$SCF" + "_D\yt-dlp.conf"
         if (!(Test-Path $SCFDC -PathType Leaf)) {
             New-Item ("$SCFDC") -ItemType File
-            $defaultconfig | Set-Content  $SCFDC
-            Write-Host "$SCFDC created with default values."
+            Write-Host "$SCFDC file missing. Creating..."
+            if ($SCFDC -match "vrv") {
+                $vrvconfig | Set-Content $SCFDC
+                Write-Host "$SCFDC created with VRV values."
+            }
+            elseif ($SCFDC -match "funimation") {
+                $funimationconfig | Set-Content $SCFDC
+                Write-Host "$SCFDC created with Funimation values."
+            }
+            elseif ($SCFDC -match "hidive") {
+                $hidiveconfig | Set-Content $SCFDC
+                Write-Host "$SCFDC created with Hidive values."
+            }
+            elseif ($SCFDC -match "paramountplus") {
+                $paramountplusconfig | Set-Content $SCFDC
+                Write-Host "$SCFDC created with ParamountPlus values."
+            }
+            else {
+                $defaultconfig | Set-Content $SCFDC
+                Write-Host "$SCFDC created with default values."
+            }
         }
         else {
             Write-Host "$SCFDC file exists"
