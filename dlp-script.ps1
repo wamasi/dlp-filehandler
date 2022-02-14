@@ -615,7 +615,7 @@ else {
     # Creating associated log folder and file
     $LFolderBase = "$SiteFolder\log\"
     $LFolder = "$LFolderBase\" + $Date
-    $LFile = "$LFolder\$SiteType" + "_" + "$DateTime.log"
+    $LFile = "$LFolder\$DateTime.log"
     New-Item -Path $LFolder -ItemType Directory -Force
     New-Item -Path $LFile -ItemType File
     if ($isDaily) {
