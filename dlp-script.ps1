@@ -372,6 +372,7 @@ elseif ($createsupportfiles) {
         }
     }
 }
+# END Elseif for Setup step
 else {
     # Functions and variables
     # Dates and timestamp
@@ -391,29 +392,44 @@ else {
     $site = $site.ToLower()
     $ConfigPath = "$PSScriptRoot\config.xml"
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
-    $Credentials = $ConfigFile.SelectNodes(("//*[@site]")) | Where-Object { $_.site -eq "$site" }
-    $SiteLib = $Credentials.Attributes[3].'#text'
+    # Fetching site variables
+    $SNfile = $ConfigFile.SelectNodes(("//*[@site]")) | Where-Object { $_.site -eq "$site" }
+    $SNfile | ForEach-Object {
+        $SN = New-Object -Type PSObject -Property @{
+            SN  = $_.site
+            SUN = $_.username
+            SPW = $_.password
+            SLI = $_.libraryid
+        }
+    }
+    $SiteName = $SN.SN
+    $SiteUser = $SN.SUN
+    $SitePass = $SN.SPW
+    $SiteLib = $SN.SLI
+    # Setting Home and Temp directory variables
     $HomeDrive = $ConfigFile.configuration.Directory.home.location
     $TempDrive = $ConfigFile.configuration.Directory.temp.location
+    # Setting Plex variables
     $PlexHost = $ConfigFile.configuration.Plex.hosturl.url
     $PlexToken = $ConfigFile.configuration.Plex.plextoken.token
     $PlexLibrary = $ConfigFile.SelectNodes(("//library[@folder]")) | Where-Object { $_.libraryid -eq $SiteLib }
     $PlexLibPath = $PlexLibrary.Attributes[1].'#text'
     $PlexLibId = $PlexLibrary.Attributes[0].'#text'
+    # Pulling sites that require cookies from text
     $ReqCookies = Get-Content "$PSScriptRoot\ReqCookies"
     #  Setting fonts per site. These are manually tested to work with embedding and displayin in video files
-    if ($site -eq "vrv") {
+    if ($SiteName -eq "vrv") {
         $SubFont = "Marker SD.ttf"
     }
-    elseif ($site -eq "funimation") {
+    elseif ($SiteName -eq "funimation") {
         $SubFont = "Fuzzy Bubbles.ttf"
         
     }
-    elseif ($site -eq "hidive") {
+    elseif ($SiteName -eq "hidive") {
         $SubFont = "Milky Nice Clean.ttf"
         
     }
-    elseif ($site -eq "paramountplus") {
+    elseif ($SiteName -eq "paramountplus") {
         $SubFont = "Coyotris Comic.ttf"
         
     }
@@ -423,18 +439,15 @@ else {
 
     $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
     $SubFontDir = "$PSScriptRoot\fonts\$Subfont"
-    Write-Host $SubFont
-    Write-Host $SF
-    Write-Host $SubFontDir
     # Base command for yt-dlp
     $SiteFolder = "$PSScriptRoot\sites\"
     $SiteShared = "$PSScriptRoot\_shared\"
     $dlpParams = 'yt-dlp'
     # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
     if ($isDaily) {
-        $SiteType = $site + "_D"
+        $SiteType = $SiteName + "_D"
         $SiteFolder = "$SiteFolder" + $SiteType
-        $SiteTemp = "$TempDrive\" + $site.Substring(0, 1)
+        $SiteTemp = "$TempDrive\" + $SiteName.Substring(0, 1)
         if (!(Test-Path -Path $SiteTemp)) {
             try {
                 New-Item -ItemType Directory -Path $SiteTemp -Force -Verbose
@@ -447,7 +460,7 @@ else {
         else {
             Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
         }
-        $SiteHome = "$HomeDrive\_" + $PlexLibPath + "\" + ($site).Substring(0, 1)
+        $SiteHome = "$HomeDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
         if (!(Test-Path -Path $SiteHome)) {
             try {
                 New-Item -ItemType Directory -Path $SiteHome -Force -Verbose
@@ -471,9 +484,9 @@ else {
         }
     }
     else {
-        $SiteType = $site
+        $SiteType = $SiteName
         $SiteFolder = "$SiteFolder" + $SiteType
-        $SiteTemp = "$TempDrive\" + $site.Substring(0, 1) + "M"
+        $SiteTemp = "$TempDrive\" + $SiteName.Substring(0, 1) + "M"
         if (!(Test-Path -Path $SiteTemp)) {
             try {
                 New-Item -ItemType Directory -Path $SiteTemp -Force 
@@ -486,7 +499,7 @@ else {
         else {
             Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
         }
-        $SiteHome = "$HomeDrive\_M\" + $site.Substring(0, 1)
+        $SiteHome = "$HomeDrive\_M\" + $SiteName.Substring(0, 1)
         if (!(Test-Path -Path $SiteHome)) {
             try {
                 New-Item -ItemType Directory -Path $SiteHome -Force 
@@ -512,12 +525,12 @@ else {
     }
     # if useLogin is true then grabs associated login info if true and checks if empty. If not, then grabs cookie file.
     if ($useLogin) {
-        $Username = $Credentials.Attributes[1].'#text'
-        $Password = $Credentials.Attributes[2].'#text'
+        # $Username = $Credentials.Attributes[1].'#text'
+        # $Password = $Credentials.Attributes[2].'#text'
         $CookieFile = "None"
-        if (($Username -and $Password)) {
-            Write-Host "$(Get-Timestamp) - useLogin is true and Username/Password is filled. Continuing..."
-            $dlpParams = $dlpParams + " -u $Username -p $Password"
+        if (($SiteUser -and $SitePass)) {
+            Write-Host "$(Get-Timestamp) - useLogin is true and SiteUser/Password is filled. Continuing..."
+            $dlpParams = $dlpParams + " -u $SiteUser -p $SitePass"
         }
         else {
             Write-Host "$(Get-Timestamp) - useLogin is true and Username/Password is Empty. Exiting..."
@@ -525,7 +538,7 @@ else {
         }
     }
     else {
-        if (!($ReqCookies -like $site)) {
+        if (!($ReqCookies -like $SiteName)) {
             Write-Host "$(Get-Timestamp) - useLogin is FALSE and site is $ReqCookies. Exiting..."
             Exit
         }
@@ -619,11 +632,11 @@ else {
     New-Item -Path $LFolder -ItemType Directory -Force
     New-Item -Path $LFile -ItemType File
     if ($isDaily) {
-        Write-Output "[Start] $DateTime - $site - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[Start] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
     }
     else {
-        Write-Output "[Start] $DateTime - $site - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[Start] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
     }
     # Runs execution
-    & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -site $site -SF $SF -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId *>&1 | Tee-Object -FilePath $LFile -Append
+    & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId *>&1 | Tee-Object -FilePath $LFile -Append
 }

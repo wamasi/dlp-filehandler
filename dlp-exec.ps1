@@ -1,4 +1,4 @@
-param ($dlpParams, $useFilebot, $useSubtitleEdit, $site, $SF, $PlexHost, $PlexToken, $PlexLibId )
+param ($dlpParams, $useFilebot, $useSubtitleEdit, $site, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId )
 # Function to check if file is locked by process before moving forward
 function checkLock {
     Param(
@@ -28,7 +28,7 @@ Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { $_.PSIsContain
 # If debug true show all variables
 if ($usedebug) {
     Write-Host @"
-Site = $site
+Site = $SiteName
 isDaily = $isDaily
 UseDownloadArchive = $useArchive
 UseLogin = $useLogin
@@ -43,8 +43,8 @@ SiteType = $SiteType
 SiteFolder = $SiteFolder
 SiteConfig = $SiteConfig
 CookieFile = $CookieFile
-Username = $Username
-Password = $Password
+Username = $SiteUser
+Password = $SitePass
 SiteTemp = $SiteTemp
 SiteHome = $SiteHome
 SiteArchive = $ArchiveFile
