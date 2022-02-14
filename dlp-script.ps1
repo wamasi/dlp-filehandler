@@ -152,7 +152,7 @@ $defaultconfig = @"
 -N 32
 --downloader aria2c
 --downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
--f 'bv*[format_id!*=hardsub][format_id*=-ja-JP-][height>=1080]+ba/b[format_id!*=hardsub][format_id*=-ja-JP-][height>=1080] / bv*[format_id!*=hardsub][format_id*=-ja-JP-]+ba[format_id!*=hardsub][format_id*=-ja-JP-]'
+-f 'bv[format_id*=-ja-JP][format_id!*=hardsub][height>=1080]+ba[format_id*=-ja-JP][format_id!*=hardsub] / b[format_id*=-ja-JP][format_id!*=hardsub][height>=1080] / b*[format_id*=-ja-JP][format_id!*=hardsub]'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
         $funimationconfig = @"
