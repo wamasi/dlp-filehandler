@@ -244,7 +244,7 @@ if ($useFilebot) {
         Write-Host "[INFO] $(Get-Timestamp) - [PLEX] - File needs processing."
         if ($isDaily) {
             Write-Output "[INFO] $(Get-Timestamp) - [PLEX] - Daily run - Script completed with ERRORS"
-            Exit
+            break
         }
         else {
             Write-Output "[INFO] $(Get-Timestamp) - [PLEX] - Manual run - Script completed"
