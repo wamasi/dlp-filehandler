@@ -112,7 +112,7 @@ elseif ($createsupportfiles) {
             SN = $_.site
         }
         # Base config parameters if file is not present
-$defaultconfig = @"
+        $defaultconfig = @"
 -F
 --list-subs
 --no-simulate
