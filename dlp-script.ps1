@@ -113,6 +113,7 @@ elseif ($createsupportfiles) {
         }
         # Base config parameters if file is not present
         $defaultconfig = @"
+-v
 -F
 --list-subs
 --no-simulate
@@ -134,7 +135,7 @@ elseif ($createsupportfiles) {
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
         $vrvconfig = @"
--vU
+-v
 -F
 --list-subs
 --no-simulate
@@ -156,7 +157,7 @@ elseif ($createsupportfiles) {
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
         $funimationconfig = @"
--vU
+-v
 -F
 --list-subs
 --no-simulate
@@ -179,7 +180,7 @@ elseif ($createsupportfiles) {
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
         $hidiveconfig = @"
--vU
+-v
 -F
 --list-subs
 --no-simulate
@@ -201,6 +202,7 @@ elseif ($createsupportfiles) {
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
         $paramountplusconfig = @"
+-v
 -F
 --list-subs
 --no-simulate

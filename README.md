@@ -2,7 +2,6 @@
 
 Script used to fetch files with yt-dlp, fix subtitles, embed into video file, rename and move video files into media server folders.
 
-
 # Getting Started
 
 Fill out config with:
@@ -12,7 +11,6 @@ Fill out config with:
 - Site credentials and corresponding LibraryId for final destination
 
 Install or download prereqs and map to PATH as needed.
-
 
 # Prerequisites
 
@@ -49,7 +47,6 @@ Plex
 - Media Server
 - https://www.plex.tv/
 
-
 # Parameters explained:
 | Arguments/Switches | Abbreviation | Description|Notes|
  :--- | :---: | --- | --- 
@@ -63,14 +60,6 @@ Plex
 |-help|-h/-H|Shows this text| |
 |-newconfig|-n/-N|Used to generate empty config if none is present| |
 |-createsupportfiles|-su/-SU|Creates support files like archives, batch and cookies files for sites in the config.xml| |
-
-
-# Expected folder structure:
-- For yt-dlp temp: {drive}\tmp\
-- For yt-dlp home: {drive}\tmp\
-- For Filebot/SubtitleEdit staging: {drive}\tmp\
-- Final destination: {drive}\videos\{PlexLibraryFolder}\
-
 
 # Steps to run:
 1. Run: `path\to\dlp-script.ps1 -N` to generate base XML
