@@ -1,4 +1,4 @@
-param ($dlpParams, $useFilebot, $useSubtitleEdit, $site, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId )
+param ($dlpParams, $useFilebot, $useSubtitleEdit, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId )
 # Function to check if file is locked by process before moving forward
 function checkLock {
     Param(
@@ -55,7 +55,7 @@ dlpParams = $dlpParams
 }
 else {
     Write-Host @"
-Site = $site
+Site = $SiteName
 isDaily = $isDaily
 UseDownloadArchive = $useArchive
 UseLogin = $useLogin

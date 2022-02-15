@@ -626,11 +626,8 @@ else {
         }
     }
     # Creating associated log folder and file
-    $LFolderBase = "$SiteFolder\log\"
-    $LFolder = "$LFolderBase\" + $Date
-    $LFile = "$LFolder\$DateTime.log"
-    New-Item -Path $LFolder -ItemType Directory -Force
-    New-Item -Path $LFile -ItemType File
+    $LFile = "$SiteFolder\log\$Date\$DateTime.log"
+    New-Item -Path $LFile -ItemType File -Force
     if ($isDaily) {
         Write-Output "[Start] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
     }
