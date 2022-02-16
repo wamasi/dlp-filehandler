@@ -628,6 +628,7 @@ else {
         }
     }
     # Creating associated log folder and file
+    $LFolderBase = "$SiteFolder\log\"
     $LFile = "$SiteFolder\log\$Date\$DateTime.log"
     New-Item -Path $LFile -ItemType File -Force
     if ($isDaily) {
@@ -637,5 +638,5 @@ else {
         Write-Output "[Start] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
     }
     # Runs execution
-    & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId *>&1 | Tee-Object -FilePath $LFile -Append
+    & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId -LFolderBase $LFolderBase *>&1 | Tee-Object -FilePath $LFile -Append
 }
