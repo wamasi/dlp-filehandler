@@ -35,9 +35,6 @@ else {
         $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
     }
 }
-
-# Delete any empty directories left behind after deleting the old files.
-Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
 # If debug true show all variables
 if ($usedebug) {
     Write-Host @"
@@ -90,10 +87,8 @@ Ffmpeg = $Ffmpeg
 dlpParams = $dlpParams
 "@
 }
-
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
-
 # If SubtitleEdit = True then run SubtitleEdit against SiteHome folder.
 if ($useSubtitleEdit) {
     $incompletefile = ""
