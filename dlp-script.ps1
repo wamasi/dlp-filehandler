@@ -33,8 +33,14 @@ param(
     [Alias("SU")]
     [switch]$createsupportfiles
 )
-# Help text to remind me what I did/it does. if set then overrides other switches
-if ($help) {
+($MyInvocation.MyCommand.Parameters ).Keys | ForEach-Object {
+    $val = (Get-Variable -Name $_ -EA SilentlyContinue).Value
+    if ( $val.length -gt 0 ) {
+        "($($_)) = ($($val))"
+    }
+}
+# Help text to remind me what I did/it does when set to true or all parameters false
+if ($help -or [string]::IsNullOrEmpty($site) -and $isDaily -eq $false -and $useArchive -eq $false -and $useLogin -eq $false -and $useFilebot -eq $false -and $useSubtitleEdit -eq $false -and $usedebug -eq $false -and $newconfig -eq $false -and $createsupportfiles -eq $false) {
     Show-Markdown -Path "$PSSCriptRoot\README.md" -UseBrowser
 }
 # Create config if newconfig = True
@@ -508,7 +514,7 @@ else {
     }
     else {
         if (!($ReqCookies -like $SiteName)) {
-            Write-Host "$(Get-Timestamp) - useLogin is FALSE and site is $ReqCookies. Exiting..."
+            Write-Host "$(Get-Timestamp) - useLogin is FALSE and site is not $ReqCookies. Exiting..."
             Exit
         }
         else {
