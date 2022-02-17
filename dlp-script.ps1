@@ -34,7 +34,7 @@ param(
     [switch]$createsupportfiles
 )
 # Help text to remind me what I did/it does. if set then overrides other switches
-if (($help -or ($site -eq "" -and ($isDaily, $useArchive, $useFilebot, $useSubtitleEdit, $usedebug, $newconfig, $createsupportfiles = $false)))) {
+if ($help) {
     Show-Markdown -Path "$PSSCriptRoot\README.md" -UseBrowser
 }
 # Create config if newconfig = True
