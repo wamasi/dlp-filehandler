@@ -160,7 +160,7 @@ if ($useSubtitleEdit) {
                     # If file doesn't exist yet then wait
                     while (!(Test-Path $tempvideo)) {
                         Start-Sleep 1
-                    } 
+                    }
                     # Wait for files to input, subtitle, and tempvideo to be ready
                     While ($True) {
                         if ((checkLock $inputs) -eq $True -and (checkLock $subtitle) -eq $True -and (checkLock $tempvideo) -eq $True) {
