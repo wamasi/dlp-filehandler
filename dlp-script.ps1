@@ -39,10 +39,10 @@ if (($help -or ($site -eq "" -and ($isDaily, $useArchive, $useFilebot, $useSubti
 }
 # Create config if newconfig = True
 elseif ($newconfig) {
-    $ConfigPath = "$PSScriptRoot\config.xml" 
+    $ConfigPath = "$PSScriptRoot\config.xml"
     if (!(Test-Path $ConfigPath -PathType Leaf)) {
         #PowerShell Create directory if not exists
-        New-Item $ConfigPath -ItemType File 
+        New-Item $ConfigPath -ItemType File
         Write-Host "$ConfigPath File Created successfully"
         $config = @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -353,14 +353,10 @@ else {
     # Functions and variables
     # Dates and timestamp
     function Get-Day {
-    
         return (Get-Date -Format "yy-MM-dd")
-    
     }
     function Get-TimeStamp {
-    
         return (Get-Date -Format "yy-MM-dd HH-mm-ss")
-    
     }
     $Date = Get-Day
     $DateTime = Get-TimeStamp
@@ -399,15 +395,12 @@ else {
     }
     elseif ($SiteName -eq "funimation") {
         $SubFont = "Fuzzy Bubbles.ttf"
-        
     }
     elseif ($SiteName -eq "hidive") {
         $SubFont = "Milky Nice Clean.ttf"
-        
     }
     elseif ($SiteName -eq "paramountplus") {
         $SubFont = "Coyotris Comic.ttf"
-        
     }
     else {
         $SubFont = "Hey Comic.ttf"
