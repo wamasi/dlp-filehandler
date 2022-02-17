@@ -34,34 +34,8 @@ param(
     [switch]$createsupportfiles
 )
 # Help text to remind me what I did/it does. if set then overrides other switches
-if ($help) {
-    Write-Host @"
-This scrip assumes the following:
-- Your sites are one of the following:
-  - VRV
-  - Funimation
-  - ParamountPlus
-  - Twitch
-  - Youtube
-- You have the following installed:
-  - FFMPEG
-  - Aria2
-  - yt-dlp
-  - Filebot
-  - SubtitleEdit
-
-Parameters explained:
-- site | s | S = Tells the script what site its working with (required)
-- isDaily | d | D = will use different yt-dlp configs and files and temp/home folder structure
-- useArchive | a | A = Will tell yt-dlp command to use or not use archive file
-- useLogin | l | L = Tells yt-dlp command to use credentials stored in config xml
-- useFilebot | f | F  = Tells script to run Filebot. Will take Plex folder name defined in config xml
-- useSubtitleEdit | se | SE  = Tells script to run SubetitleEdit to fix common problems with .srt files if they are present.
-- useDebug | b | B = Shows minor additional info
-- help | h | H  = Shows this text
-- newconfig | n | N = Used to generate empty config if none is present
-- createsupportfiles | su | SU = creates support files like archives, batch and cookies files for sites in the config
-"@
+if (($help -or ($site -eq "" -and ($isDaily, $useArchive, $useFilebot, $useSubtitleEdit, $usedebug, $newconfig, $createsupportfiles = $false)))) {
+    Show-Markdown -Path "$PSSCriptRoot\README.md" -UseBrowser
 }
 # Create config if newconfig = True
 elseif ($newconfig) {
