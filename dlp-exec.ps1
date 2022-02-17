@@ -1,4 +1,4 @@
-param ($dlpParams, $useFilebot, $useSubtitleEdit, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId )
+param ($dlpParams, $useFilebot, $useSubtitleEdit, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase )
 # Function to check if file is locked by process before moving forward
 function checkLock {
     Param(
@@ -20,11 +20,21 @@ function checkLock {
 Write-Host "[INFO] $(Get-Timestamp) - Deleting old logfiles"
 $limit = (Get-Date).AddDays(-1)
 # Delete files older than the $limit.
-Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | ForEach-Object {
-    $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+if (!(Test-Path $LFolderBase)) {
+    Write-Host "$LFolderBase is missing. Skipping log cleanup..."
+    break
 }
-# Delete any empty directories left behind after deleting the old files.
-Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+else {
+    Write-Host "$LFolderBase found. Starting log cleanup..."
+    Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | ForEach-Object {
+        $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+    }
+    # Delete any empty directories left behind after deleting the old files.
+    Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+    Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | ForEach-Object {
+        $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+    }
+}
 # If debug true show all variables
 if ($usedebug) {
     Write-Host @"
@@ -77,10 +87,8 @@ Ffmpeg = $Ffmpeg
 dlpParams = $dlpParams
 "@
 }
-
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
-
 # If SubtitleEdit = True then run SubtitleEdit against SiteHome folder.
 if ($useSubtitleEdit) {
     $incompletefile = ""
