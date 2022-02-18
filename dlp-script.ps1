@@ -1,4 +1,5 @@
 # Switch params for script
+
 param(
     [Alias("D")]
     [switch]$isDaily,
@@ -46,6 +47,10 @@ Begin {
             "($($_)) = ($($val))"
         }
     }
+    # Create empty config if not exists
+    if (!(Test-Path "$PSScriptRoot\config.xml" -PathType Leaf)) {
+        New-Item "$PSScriptRoot\config.xml" -ItemType File -Force
+    }
     # Help text to remind me what I did/it does when set to true or all parameters false
     if ($help -or [string]::IsNullOrEmpty($site) -and $isDaily -eq $false -and $useArchive -eq $false -and $useLogin -eq $false -and $useFilebot -eq $false -and $useSubtitleEdit -eq $false -and $usedebug -eq $false -and $newconfig -eq $false -and $createsupportfiles -eq $false) {
         Show-Markdown -Path "$PSSCriptRoot\README.md" -UseBrowser
@@ -53,9 +58,9 @@ Begin {
     # Create config if newconfig = True
     elseif ($newconfig) {
         $ConfigPath = "$PSScriptRoot\config.xml"
-        if (!(Test-Path $ConfigPath -PathType Leaf)) {
+        if (!(Test-Path $ConfigPath -PathType Leaf) -or [String]::IsNullOrWhiteSpace((Get-content $ConfigPath))) {
             #PowerShell Create directory if not exists
-            New-Item $ConfigPath -ItemType File
+            New-Item $ConfigPath -ItemType File -Force
             Write-Host "$ConfigPath File Created successfully"
             $config = @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -68,18 +73,42 @@ Begin {
     <Plex>
         <hosturl url="" />
         <plextoken token="" />
-        <library libraryid="" folder="" libraryname="" />
-        <library libraryid="" folder="" libraryname="" />
-        <library libraryid="" folder="" libraryname="" />
+        <library libraryid="" />
+        <library libraryid="" />
+        <library libraryid="" />
     </Plex>
-    <Credentials>
-        <login site="" username="" password="" libraryid="" />
-        <login site="" username="" password="" libraryid="" />
-        <login site="" username="" password="" libraryid="" />
-        <login site="" username="" password="" libraryid="" />
-        <login site="" username="" password="" libraryid="" />
-        <login site="" username="" password="" libraryid="" />
-    </Credentials>
+    <credentials>
+        <site id="">
+            <username></username>
+            <password></password>
+            <libraryid></libraryid>
+        </site>
+        <site id="">
+            <username></username>
+            <password></password>
+            <libraryid></libraryid>
+        </site>
+        <site id="">
+            <username></username>
+            <password></password>
+            <libraryid></libraryid>
+        </site>
+        <site id="">
+            <username></username>
+            <password></password>
+            <libraryid></libraryid>
+        </site>
+        <site id="">
+            <username></username>
+            <password></password>
+            <libraryid></libraryid>
+        </site>
+        <site id="">
+            <username></username>
+            <password></password>
+            <libraryid></libraryid>
+        </site>
+    </credentials>
 </configuration>
 "@
             $config | Set-Content $ConfigPath
