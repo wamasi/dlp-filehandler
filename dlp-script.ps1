@@ -1,5 +1,4 @@
 # Switch params for script
-
 param(
     [Alias("D")]
     [switch]$isDaily,
