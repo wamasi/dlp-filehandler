@@ -122,7 +122,7 @@ Begin {
     elseif ($createsupportfiles) {
         $ConfigPath = "$PSScriptRoot\config.xml"
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
-        $SNfile = $ConfigFile.getElementsByTagName("site") | Where-Object { $_.id -ne $null } | Select-Object "id" -ExpandProperty id
+        $SNfile = $ConfigFile.getElementsByTagName("site") | Where-Object { $_.id.trim() -ne "" } | Select-Object "id" -ExpandProperty id
         $SNfile | ForEach-Object {
             $SN = New-Object -Type PSObject -Property @{
                 SN = $_.id
