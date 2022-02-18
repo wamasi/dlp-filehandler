@@ -46,6 +46,7 @@ Begin {
             "($($_)) = ($($val))"
         }
     }
+
     # Create empty config if not exists
     if (!(Test-Path "$PSScriptRoot\config.xml" -PathType Leaf)) {
         New-Item "$PSScriptRoot\config.xml" -ItemType File -Force
@@ -55,7 +56,7 @@ Begin {
         Show-Markdown -Path "$PSSCriptRoot\README.md" -UseBrowser
     }
     # Create config if newconfig = True
-    elseif ($newconfig) {
+    if ($newconfig) {
         $ConfigPath = "$PSScriptRoot\config.xml"
         if (!(Test-Path $ConfigPath -PathType Leaf) -or [String]::IsNullOrWhiteSpace((Get-content $ConfigPath))) {
             #PowerShell Create directory if not exists
@@ -77,7 +78,7 @@ Begin {
         <library libraryid="" />
     </Plex>
     <credentials>
-        <site id="">
+        <site id="dummy">
             <username></username>
             <password></password>
             <libraryid></libraryid>
@@ -118,7 +119,7 @@ Begin {
         }
     }
     # Create supporting files if createsupportfiles = True
-    elseif ($createsupportfiles) {
+    if ($createsupportfiles) {
         $ConfigPath = "$PSScriptRoot\config.xml"
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
         $SNfile = $ConfigFile.getElementsByTagName("site") | Where-Object { $_.id.trim() -ne "" } | Select-Object "id" -ExpandProperty id
@@ -389,10 +390,11 @@ Begin {
             }
         }
     }
-    # END Elseif for Setup step
-    else {
-        # Functions and variables
-        # Dates and timestamp
+}
+# END Elseif for Setup step
+# Begin if site parameter is true
+Process {
+    if ($Site) {
         function Get-Day {
             return (Get-Date -Format "yy-MM-dd")
         }
@@ -446,7 +448,6 @@ Begin {
         else {
             $SubFont = "Hey Comic.ttf"
         }
-
         $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
         $SubFontDir = "$PSScriptRoot\fonts\$Subfont"
         # Base command for yt-dlp
