@@ -29,7 +29,7 @@ param(
 )
 DynamicParam {
     # Need WFTools to work. Otherwise modify to normal string paramater above.
-    New-DynamicParam -Name site -Alias SN -ValidateSet $(([xml](Get-Content "$PSSCriptRoot\config.xml")).getElementsByTagName("site") | Where-Object { $_.id -ne $null } | Select-Object "id" -ExpandProperty id)
+    New-DynamicParam -Name Site -Alias SN -ValidateSet $(([xml](Get-Content "$PSSCriptRoot\config.xml")).getElementsByTagName("site") | Where-Object { $_.id -ne $null } | Select-Object "id" -ExpandProperty id)
 }
 Begin {
     #This standard block of code loops through bound parameters...

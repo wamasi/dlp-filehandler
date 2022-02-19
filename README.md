@@ -41,7 +41,7 @@ Plex
 - https://www.plex.tv/
 ## Steps to run:
 1. Install or download prereqs and map to PATH as needed.
-2. Run: `path\to\dlp-script.ps1 -N` to generate base XML
+2. Run: `path\to\dlp-script.ps1 -NC` to generate base XML
    - Creates base XML config in root directory
 3. Fill out template in your path\to\the\config.xml
    - Paths to temp and destination folder for yt-dlp
@@ -52,11 +52,12 @@ Plex
 5. Setup up configs, batch, and cookie files as needed
    - You'll end up with a set of manual and daily files per site
 6. Run: `path\to\dlp-script.ps1 {ARGS}` with applicable arguments
+   - Ex. `D:\Folder\dlp-script.ps1 -SN youtube -D -SE -A` runs yt-dlp for youtube with the daily(_D suffix) files using the archive file along with running SubtitleEdit afterwards.
    - As your script is running it will generate a log in the related site folder
 # Parameters explained:
 | Arguments/Switches | Abbreviation | Description|Notes|
  :--- | :--- | :--- | :--- |
-|-site|-s/-S|Tells the script what site its working with|Hardcoded acceptable values.|
+|-site|-sn/-SN|Tells the script what site its working with|Hardcoded acceptable values.| Reads from root\config.xml file for list of applicable values|
 |-isDaily|-d/-D|Will use different yt-dlp configs and files and temp/home folder structure.| If -D = true then it will use the \_D suffix named files.|
 |-useArchive|-a/-A|Will tell yt-dlp command to use or not use archive file.| If -A = true then it will use the \_A suffix named files.|
 |-useLogin|-l/-L|Tells yt-dlp command to use credentials stored in config xml.| If -L = false then it will use the \_C suffix named files. Will check ReqCookies file if site matches in text then will throw error.|
@@ -64,5 +65,5 @@ Plex
 |-useSubtitleEdit|-se/-SE|Tells script to run SubetitleEdit to fix common problems with .srt files if they are present.| Expects presence of mkv and ass file.|
 |-useDebug|-b/-B| Shows minor additional info.| |
 |-help|-h/-H|Shows this text.| If help is true or all parameters false/null then displays readme. |
-|-newconfig|-n/-N|Used to generate empty config if none is present.| |
+|-newconfig|-nc/-NC|Used to generate empty config if none is present.| |
 |-createsupportfiles|-su/-SU|Creates support files like archives, batch and cookies files for sites in the `config.xml`.| |
