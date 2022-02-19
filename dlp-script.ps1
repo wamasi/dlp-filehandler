@@ -370,7 +370,7 @@ Begin {
             else {
                 Write-Host "$SADF file exists"
             }
-            # Creating site daily bate
+            # Creating site daily bat
             $SBDF = "$SharedF\" + $SN.SN + "_D_B"
             if (!(Test-Path $SBDF -PathType Leaf)) {
                 New-Item ("$SBDF") -ItemType File
