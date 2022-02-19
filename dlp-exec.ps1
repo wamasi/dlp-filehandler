@@ -237,7 +237,12 @@ if ($useFilebot) {
                 $inputs = $_.FullName
                 Write-Output "[INFO] $(Get-Timestamp) - [Filebot] - Files found. Renaming and moving files to final folder"
                 # Filebot command
-                filebot -rename "$inputs" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
+                if ($PlexLibPath) {
+                    filebot -rename "$inputs" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
+                }
+                else {
+                    filebot -rename "$inputs" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
+                }
                 Write-Host "[INFO] $(Get-Timestamp) - [Filebot] - No other files need to be processed."
                 filebot -script fn:cleaner "$folder" --log all
                 $completed += $inputs
@@ -267,7 +272,8 @@ if ($useFilebot) {
                 Invoke-RestMethod -UseBasicParsing -Verbose $PlexUrl
             }
             else {
-                Write-Host "[INFO] $(Get-Timestamp) - [PLEX] - Incomplete Plex API call."
+                Write-Host "[INFO] $(Get-Timestamp) - [PLEX] - Not using Plex."
+                break
             }
         }
         else {
