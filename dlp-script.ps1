@@ -40,13 +40,12 @@ Begin {
             Write-Verbose "Adding variable for dynamic parameter '$param' with value '$($PSBoundParameters.$param)'"
         }
     }
-($MyInvocation.MyCommand.Parameters ).Keys | ForEach-Object {
+    ($MyInvocation.MyCommand.Parameters ).Keys | ForEach-Object {
         $val = (Get-Variable -Name $_ -EA SilentlyContinue).Value
         if ( $val.length -gt 0 ) {
             "($($_)) = ($($val))"
         }
     }
-
     # Create empty config if not exists
     if (!(Test-Path "$PSScriptRoot\config.xml" -PathType Leaf)) {
         New-Item "$PSScriptRoot\config.xml" -ItemType File -Force
@@ -240,7 +239,7 @@ Begin {
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
             # if site support files (Config, archive, bat, cookie) are missing it will attempt to create an isdaily and non-isDaily set
-            # Creating shared directory
+            # Creating Shared directory
             $SharedF = "$PSScriptRoot\_shared"
             if (!(Test-Path $SharedF)) {
                 New-Item ("$SharedF") -ItemType Directory
@@ -249,7 +248,7 @@ Begin {
             else {
                 Write-Host "$SharedF directory exists"
             }
-            # Creating site directory
+            # Creating Site directory
             $SCC = "$PSScriptRoot\sites"
             if (!(Test-Path $SCC)) {
                 New-Item ("$SCC") -ItemType Directory
@@ -258,45 +257,10 @@ Begin {
             else {
                 Write-Host "$SCC directory exists"
             }
-            # Creating site manual base directory
+            # Base Site root directory variable
             $SCF = "$SCC\" + $SN.SN
-            if (!(Test-Path $SCF)) {
-                New-Item ("$SCF") -ItemType Directory
-                Write-Host "$SCF directory missing. Creating..."
-            }
-            else {
-                Write-Host "$SCF directory exists"
-            }
-            # Creating site manual base congfig
-            $SCFC = "$SCF\yt-dlp.conf"
-            if (!(Test-Path $SCFC -PathType Leaf)) {
-                New-Item ("$SCFC") -ItemType File
-                Write-Host "$SCFC file missing. Creating..."
-                if ($SCFC -match "vrv") {
-                    $vrvconfig | Set-Content $SCFC
-                    Write-Host "$SCFDC created with VRV values."
-                }
-                elseif ($SCFC -match "funimation") {
-                    $funimationconfig | Set-Content $SCFC
-                    Write-Host "$SCFC created with Funimation values."
-                }
-                elseif ($SCFC -match "hidive") {
-                    $hidiveconfig | Set-Content $SCFC
-                    Write-Host "$SCFC created with Hidive values."
-                }
-                elseif ($SCFC -match "paramountplus") {
-                    $paramountplusconfig | Set-Content $SCFC
-                    Write-Host "$SCFC created with ParamountPlus values."
-                }
-                else {
-                    $defaultconfig | Set-Content $SCFC
-                    Write-Host "$SCFC created with default values."
-                }
-            }
-            else {
-                Write-Host "$SCFC file exists"
-            }
-            # Creating site daily base directory
+            # Daily
+            # Daily Site directories
             $SCDF = "$SCF" + "_D"
             if (!(Test-Path $SCDF)) {
                 New-Item ("$SCDF") -ItemType Directory
@@ -305,7 +269,7 @@ Begin {
             else {
                 Write-Host "$SCDF directory exists"
             }
-            # Creating site daily base config
+            # Daily Site configs
             $SCFDC = "$SCF" + "_D\yt-dlp.conf"
             if (!(Test-Path $SCFDC -PathType Leaf)) {
                 New-Item ("$SCFDC") -ItemType File
@@ -334,34 +298,7 @@ Begin {
             else {
                 Write-Host "$SCFDC file exists"
             }
-            # Creating site manual archive
-            $SAF = "$SharedF\" + $SN.SN + "_A"
-            if (!(Test-Path $SAF -PathType Leaf)) {
-                New-Item ("$SAF") -ItemType File
-                Write-Host "$SAF file missing. Creating..."
-            }
-            else {
-                Write-Host "$SAF file exists"
-            }
-            # Creating site manual bat
-            $SBF = "$SharedF\" + $SN.SN + "_B"
-            if (!(Test-Path $SBF -PathType Leaf)) {
-                New-Item ("$SBF") -ItemType File
-                Write-Host "$SBF file missing. Creating..."
-            }
-            else {
-                Write-Host "$SBF file exists"
-            }
-            # Creating site manual cookie
-            $SBC = "$SharedF\" + $SN.SN + "_C"
-            if (!(Test-Path $SBC -PathType Leaf)) {
-                New-Item ("$SBC") -ItemType File
-                Write-Host "$SBC file missing. Creating..."
-            }
-            else {
-                Write-Host "$SBC file exists"
-            }
-            # Creating site daily archive
+            # Daily Archive
             $SADF = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_D_A"
             if (!(Test-Path $SADF -PathType Leaf)) {
                 New-Item ("$SADF") -ItemType File
@@ -370,7 +307,7 @@ Begin {
             else {
                 Write-Host "$SADF file exists"
             }
-            # Creating site daily bat
+            # Daily Bat
             $SBDF = "$SharedF\" + $SN.SN + "_D_B"
             if (!(Test-Path $SBDF -PathType Leaf)) {
                 New-Item ("$SBDF") -ItemType File
@@ -379,7 +316,7 @@ Begin {
             else {
                 Write-Host "$SBDF file exists"
             }
-            # Creating site daily cookie
+            # Daily Cookie
             $SBDC = "$SharedF\" + $SN.SN + "_D_C"
             if (!(Test-Path $SBDC -PathType Leaf)) {
                 New-Item ("$SBDC") -ItemType File
@@ -388,19 +325,85 @@ Begin {
             else {
                 Write-Host "$SBDC file exists"
             }
+            # Manual
+            # Manual Base directories
+            if (!(Test-Path $SCF)) {
+                New-Item ("$SCF") -ItemType Directory
+                Write-Host "$SCF directory missing. Creating..."
+            }
+            else {
+                Write-Host "$SCF directory exists"
+            }
+            # Manual Congfig
+            $SCFC = "$SCF\yt-dlp.conf"
+            if (!(Test-Path $SCFC -PathType Leaf)) {
+                New-Item ("$SCFC") -ItemType File
+                Write-Host "$SCFC file missing. Creating..."
+                if ($SCFC -match "vrv") {
+                    $vrvconfig | Set-Content $SCFC
+                    Write-Host "$SCFDC created with VRV values."
+                }
+                elseif ($SCFC -match "funimation") {
+                    $funimationconfig | Set-Content $SCFC
+                    Write-Host "$SCFC created with Funimation values."
+                }
+                elseif ($SCFC -match "hidive") {
+                    $hidiveconfig | Set-Content $SCFC
+                    Write-Host "$SCFC created with Hidive values."
+                }
+                elseif ($SCFC -match "paramountplus") {
+                    $paramountplusconfig | Set-Content $SCFC
+                    Write-Host "$SCFC created with ParamountPlus values."
+                }
+                else {
+                    $defaultconfig | Set-Content $SCFC
+                    Write-Host "$SCFC created with default values."
+                }
+            }
+            else {
+                Write-Host "$SCFC file exists"
+            }
+            # Manual Archive
+            $SAF = "$SharedF\" + $SN.SN + "_A"
+            if (!(Test-Path $SAF -PathType Leaf)) {
+                New-Item ("$SAF") -ItemType File
+                Write-Host "$SAF file missing. Creating..."
+            }
+            else {
+                Write-Host "$SAF file exists"
+            }
+            # Manual Bat
+            $SBF = "$SharedF\" + $SN.SN + "_B"
+            if (!(Test-Path $SBF -PathType Leaf)) {
+                New-Item ("$SBF") -ItemType File
+                Write-Host "$SBF file missing. Creating..."
+            }
+            else {
+                Write-Host "$SBF file exists"
+            }
+            # Manual Cookie
+            $SBC = "$SharedF\" + $SN.SN + "_C"
+            if (!(Test-Path $SBC -PathType Leaf)) {
+                New-Item ("$SBC") -ItemType File
+                Write-Host "$SBC file missing. Creating..."
+            }
+            else {
+                Write-Host "$SBC file exists"
+            }
         }
     }
 }
-# END Elseif for Setup step
 # Begin if site parameter is true
 Process {
     if ($Site) {
+        # Getting date and datetime
         function Get-Day {
             return (Get-Date -Format "yy-MM-dd")
         }
         function Get-TimeStamp {
             return (Get-Date -Format "yy-MM-dd HH-mm-ss")
         }
+        # Setting Date and Datetime variable for Log
         $Date = Get-Day
         $DateTime = Get-TimeStamp
         # Start of parsing config xml
@@ -428,7 +431,9 @@ Process {
         $PlexHost = $ConfigFile.configuration.Plex.hosturl.url
         $PlexToken = $ConfigFile.configuration.Plex.plextoken.token
         $PlexLibrary = $ConfigFile.SelectNodes(("//library[@folder]")) | Where-Object { $_.libraryid -eq $SiteLib }
+        # Plex Library folder name
         $PlexLibPath = $PlexLibrary.Attributes[1].'#text'
+        # Plex Library ID
         $PlexLibId = $PlexLibrary.Attributes[0].'#text'
         # Pulling sites that require cookies from text
         $ReqCookies = Get-Content "$PSScriptRoot\ReqCookies"
@@ -450,14 +455,17 @@ Process {
         }
         $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
         $SubFontDir = "$PSScriptRoot\fonts\$Subfont"
-        # Base command for yt-dlp
+        # Setting Site/Shared folder
         $SiteFolder = "$PSScriptRoot\sites\"
         $SiteShared = "$PSScriptRoot\_shared\"
+        # Base command for yt-dlp
         $dlpParams = 'yt-dlp'
         # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
         if ($isDaily) {
+            # Site folder
             $SiteType = $SiteName + "_D"
             $SiteFolder = "$SiteFolder" + $SiteType
+            # Video Temp folder
             $SiteTemp = "$TempDrive\" + $SiteName.Substring(0, 1)
             if (!(Test-Path -Path $SiteTemp)) {
                 try {
@@ -471,6 +479,7 @@ Process {
             else {
                 Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
             }
+            # Video Destination folder
             $SiteHome = "$HomeDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
             if (!(Test-Path -Path $SiteHome)) {
                 try {
@@ -484,6 +493,7 @@ Process {
             else {
                 Write-Output "$(Get-Timestamp) - $SiteHome already exists."
             }
+            # Setting Site config
             $SiteConfig = $SiteFolder + "\yt-dlp.conf"
             if ((Test-Path -Path $SiteConfig)) {
                 Write-Output "$(Get-Timestamp) - $SiteConfig exists."
@@ -494,9 +504,12 @@ Process {
                 Exit
             }
         }
+        # Manual
         else {
+            # Site folder
             $SiteType = $SiteName
             $SiteFolder = "$SiteFolder" + $SiteType
+            # Site Temp folder
             $SiteTemp = "$TempDrive\" + $SiteName.Substring(0, 1) + "M"
             if (!(Test-Path -Path $SiteTemp)) {
                 try {
@@ -510,6 +523,7 @@ Process {
             else {
                 Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
             }
+            # Site Destination folder
             $SiteHome = "$HomeDrive\_M\" + $SiteName.Substring(0, 1)
             if (!(Test-Path -Path $SiteHome)) {
                 try {
@@ -523,7 +537,7 @@ Process {
             else {
                 Write-Output "$(Get-Timestamp) - $SiteHome already exists."
             }
-
+            # Site Config
             $SiteConfig = $SiteFolder + "\yt-dlp.conf"
             if ((Test-Path -Path $SiteConfig)) {
                 Write-Output "$(Get-Timestamp) - $SiteConfig exists."
@@ -536,9 +550,9 @@ Process {
         }
         # if useLogin is true then grabs associated login info if true and checks if empty. If not, then grabs cookie file.
         if ($useLogin) {
-            # $Username = $Credentials.Attributes[1].'#text'
-            # $Password = $Credentials.Attributes[2].'#text'
+            # Setting cookie variable to none
             $CookieFile = "None"
+            # Setting User and Password command
             if (($SiteUser -and $SitePass)) {
                 Write-Host "$(Get-Timestamp) - useLogin is true and SiteUser/Password is filled. Continuing..."
                 $dlpParams = $dlpParams + " -u $SiteUser -p $SitePass"
@@ -640,6 +654,7 @@ Process {
         $LFolderBase = "$SiteFolder\log\"
         $LFile = "$SiteFolder\log\$Date\$DateTime.log"
         New-Item -Path $LFile -ItemType File -Force
+        # Setting log header row based on daily vs Manual
         if ($isDaily) {
             Write-Output "[Start] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
         }
