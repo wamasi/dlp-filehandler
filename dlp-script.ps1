@@ -119,6 +119,65 @@ Begin {
     }
     # Create supporting files if createsupportfiles = True
     if ($createsupportfiles) {
+        function Folders {
+            param (
+                [Parameter(Mandatory = $true)]
+                [string] $folder
+            )
+            if (!(Test-Path $folder)) {
+                New-Item ("$folder") -ItemType Directory
+                Write-Host "$folder directory missing. Creating..."
+            }
+            else {
+                Write-Host "$folder directory exists"
+            }
+        }
+        function Configs {
+            param (
+                [Parameter(Mandatory = $true)]
+                [string] $Configs
+            )
+            if (!(Test-Path $Configs -PathType Leaf)) {
+                New-Item $Configs -ItemType File
+                Write-Host "$Configs file missing. Creating..."
+                if ($Configs -match "vrv") {
+                    $vrvconfig | Set-Content $Configs
+                    Write-Host "$Configs created with VRV values."
+                }
+                elseif ($Configs -match "funimation") {
+                    $funimationconfig | Set-Content $Configs
+                    Write-Host "$Configs created with Funimation values."
+                }
+                elseif ($Configs -match "hidive") {
+                    $hidiveconfig | Set-Content $Configs
+                    Write-Host "$Configs created with Hidive values."
+                }
+                elseif ($Configs -match "paramountplus") {
+                    $paramountplusconfig | Set-Content $Configs
+                    Write-Host "$Configs created with ParamountPlus values."
+                }
+                else {
+                    $defaultconfig | Set-Content $Configs
+                    Write-Host "$Configs created with default values."
+                }
+            }
+            else {
+                Write-Host "$Configs file exists"
+            }
+        }
+        function SuppFiles {
+            param (
+                [Parameter(Mandatory = $true)]
+                [string] $SuppFiles
+            )
+            if (!(Test-Path $SuppFiles -PathType Leaf)) {
+                New-Item $SuppFiles -ItemType File
+                Write-Host "$SuppFiles file missing. Creating..."
+            }
+            else {
+                Write-Host "$SuppFiles file exists"
+            }
+        }
         $ConfigPath = "$PSScriptRoot\config.xml"
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
         $SNfile = $ConfigFile.getElementsByTagName("site") | Where-Object { $_.id.trim() -ne "" } | Select-Object "id" -ExpandProperty id
@@ -241,155 +300,40 @@ Begin {
             # if site support files (Config, archive, bat, cookie) are missing it will attempt to create an isdaily and non-isDaily set
             # Creating Shared directory
             $SharedF = "$PSScriptRoot\_shared"
-            if (!(Test-Path $SharedF)) {
-                New-Item ("$SharedF") -ItemType Directory
-                Write-Host "$SharedF directory missing. Creating..."
-            }
-            else {
-                Write-Host "$SharedF directory exists"
-            }
-            # Creating Site directory
+            Folders $SharedF
+            #Creating Site directory
             $SCC = "$PSScriptRoot\sites"
-            if (!(Test-Path $SCC)) {
-                New-Item ("$SCC") -ItemType Directory
-                Write-Host "$SCC directory missing. Creating..."
-            }
-            else {
-                Write-Host "$SCC directory exists"
-            }
-            # Base Site root directory variable
+            Folders $SCC
+            # Base/Manual Site root directory variable
             $SCF = "$SCC\" + $SN.SN
-            # Daily
+            Folders $SCF
             # Daily Site directories
             $SCDF = "$SCF" + "_D"
-            if (!(Test-Path $SCDF)) {
-                New-Item ("$SCDF") -ItemType Directory
-                Write-Host "$SCDF directory missing. Creating..."
-            }
-            else {
-                Write-Host "$SCDF directory exists"
-            }
-            # Daily Site configs
-            $SCFDC = "$SCF" + "_D\yt-dlp.conf"
-            if (!(Test-Path $SCFDC -PathType Leaf)) {
-                New-Item ("$SCFDC") -ItemType File
-                Write-Host "$SCFDC file missing. Creating..."
-                if ($SCFDC -match "vrv") {
-                    $vrvconfig | Set-Content $SCFDC
-                    Write-Host "$SCFDC created with VRV values."
-                }
-                elseif ($SCFDC -match "funimation") {
-                    $funimationconfig | Set-Content $SCFDC
-                    Write-Host "$SCFDC created with Funimation values."
-                }
-                elseif ($SCFDC -match "hidive") {
-                    $hidiveconfig | Set-Content $SCFDC
-                    Write-Host "$SCFDC created with Hidive values."
-                }
-                elseif ($SCFDC -match "paramountplus") {
-                    $paramountplusconfig | Set-Content $SCFDC
-                    Write-Host "$SCFDC created with ParamountPlus values."
-                }
-                else {
-                    $defaultconfig | Set-Content $SCFDC
-                    Write-Host "$SCFDC created with default values."
-                }
-            }
-            else {
-                Write-Host "$SCFDC file exists"
-            }
+            Folders $SCDF
             # Daily Archive
-            $SADF = "$PSScriptRoot" + "\_shared\" + $SN.SN + "_D_A"
-            if (!(Test-Path $SADF -PathType Leaf)) {
-                New-Item ("$SADF") -ItemType File
-                Write-Host "$SADF file missing. Creating..."
-            }
-            else {
-                Write-Host "$SADF file exists"
-            }
+            $SADF = "$SharedF\" + $SN.SN + "_D_A"
+            SuppFiles $SADF
             # Daily Bat
             $SBDF = "$SharedF\" + $SN.SN + "_D_B"
-            if (!(Test-Path $SBDF -PathType Leaf)) {
-                New-Item ("$SBDF") -ItemType File
-                Write-Host "$SBDF file missing. Creating..."
-            }
-            else {
-                Write-Host "$SBDF file exists"
-            }
+            SuppFiles $SBDF
             # Daily Cookie
             $SBDC = "$SharedF\" + $SN.SN + "_D_C"
-            if (!(Test-Path $SBDC -PathType Leaf)) {
-                New-Item ("$SBDC") -ItemType File
-                Write-Host "$SBDC file missing. Creating..."
-            }
-            else {
-                Write-Host "$SBDC file exists"
-            }
-            # Manual
-            # Manual Base directories
-            if (!(Test-Path $SCF)) {
-                New-Item ("$SCF") -ItemType Directory
-                Write-Host "$SCF directory missing. Creating..."
-            }
-            else {
-                Write-Host "$SCF directory exists"
-            }
-            # Manual Congfig
-            $SCFC = "$SCF\yt-dlp.conf"
-            if (!(Test-Path $SCFC -PathType Leaf)) {
-                New-Item ("$SCFC") -ItemType File
-                Write-Host "$SCFC file missing. Creating..."
-                if ($SCFC -match "vrv") {
-                    $vrvconfig | Set-Content $SCFC
-                    Write-Host "$SCFDC created with VRV values."
-                }
-                elseif ($SCFC -match "funimation") {
-                    $funimationconfig | Set-Content $SCFC
-                    Write-Host "$SCFC created with Funimation values."
-                }
-                elseif ($SCFC -match "hidive") {
-                    $hidiveconfig | Set-Content $SCFC
-                    Write-Host "$SCFC created with Hidive values."
-                }
-                elseif ($SCFC -match "paramountplus") {
-                    $paramountplusconfig | Set-Content $SCFC
-                    Write-Host "$SCFC created with ParamountPlus values."
-                }
-                else {
-                    $defaultconfig | Set-Content $SCFC
-                    Write-Host "$SCFC created with default values."
-                }
-            }
-            else {
-                Write-Host "$SCFC file exists"
-            }
+            SuppFiles $SBDC
             # Manual Archive
             $SAF = "$SharedF\" + $SN.SN + "_A"
-            if (!(Test-Path $SAF -PathType Leaf)) {
-                New-Item ("$SAF") -ItemType File
-                Write-Host "$SAF file missing. Creating..."
-            }
-            else {
-                Write-Host "$SAF file exists"
-            }
+            SuppFiles $SAF
             # Manual Bat
             $SBF = "$SharedF\" + $SN.SN + "_B"
-            if (!(Test-Path $SBF -PathType Leaf)) {
-                New-Item ("$SBF") -ItemType File
-                Write-Host "$SBF file missing. Creating..."
-            }
-            else {
-                Write-Host "$SBF file exists"
-            }
+            SuppFiles $SBF
             # Manual Cookie
             $SBC = "$SharedF\" + $SN.SN + "_C"
-            if (!(Test-Path $SBC -PathType Leaf)) {
-                New-Item ("$SBC") -ItemType File
-                Write-Host "$SBC file missing. Creating..."
-            }
-            else {
-                Write-Host "$SBC file exists"
-            }
+            SuppFiles $SBC
+            # Daily Site configs
+            $SCFDC = "$SCF" + "_D\yt-dlp.conf"
+            Configs $SCFDC
+            # Manual Congfig
+            $SCFC = "$SCF\yt-dlp.conf"
+            Configs $SCFC
         }
     }
 }
