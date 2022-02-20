@@ -16,7 +16,7 @@ function checkLock {
     }
     return $false
 }
-# Deleting logs older than 3 days
+# Deleting logs older than 1 days
 Write-Host "[INFO] $(Get-Timestamp) - Deleting old logfiles"
 $limit = (Get-Date).AddDays(-1)
 # Delete files older than the $limit.
@@ -26,14 +26,12 @@ if (!(Test-Path $LFolderBase)) {
 }
 else {
     Write-Host "$LFolderBase found. Starting log cleanup..."
+    # Delete any 1 day old log files.
     Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | ForEach-Object {
         $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
     }
     # Delete any empty directories left behind after deleting the old files.
     Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
-    Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | ForEach-Object {
-        $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
-    }
 }
 # If debug true show all variables
 if ($usedebug) {
