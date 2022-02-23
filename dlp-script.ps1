@@ -415,7 +415,8 @@ Process {
             $SiteType = $SiteName + "_D"
             $SiteFolder = "$SiteFolder" + $SiteType
             # Video Temp folder
-            $SiteTemp = "$TempDrive\" + $SiteName.Substring(0, 1) + "\$Time"
+            $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1)
+            $SiteTemp = "$SiteTempBase\$Time"
             if (!(Test-Path -Path $SiteTemp)) {
                 try {
                     New-Item -ItemType Directory -Path $SiteTemp -Force -Verbose
@@ -429,7 +430,8 @@ Process {
                 Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
             }
             # Video Destination folder
-            $SiteHome = "$HomeDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1) + "\$Time"
+            $SiteHomeBase = "$HomeDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
+            $SiteHome = "$SiteHomeBase\$Time"
             if (!(Test-Path -Path $SiteHome)) {
                 try {
                     New-Item -ItemType Directory -Path $SiteHome -Force -Verbose
@@ -459,7 +461,8 @@ Process {
             $SiteType = $SiteName
             $SiteFolder = "$SiteFolder" + $SiteType
             # Site Temp folder
-            $SiteTemp = "$TempDrive\" + $SiteName.Substring(0, 1) + "M" + "\$Time"
+            $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1) + "M"
+            $SiteTemp = "$SiteTempBase\$Time"
             if (!(Test-Path -Path $SiteTemp)) {
                 try {
                     New-Item -ItemType Directory -Path $SiteTemp -Force 
@@ -473,7 +476,8 @@ Process {
                 Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
             }
             # Site Destination folder
-            $SiteHome = "$HomeDrive\_M\" + $SiteName.Substring(0, 1) + "\$Time"
+            $SiteHomeBase = "$HomeDrive\_M\" + $SiteName.Substring(0, 1)
+            $SiteHome = "$SiteHomeBase\$Time"
             if (!(Test-Path -Path $SiteHome)) {
                 try {
                     New-Item -ItemType Directory -Path $SiteHome -Force 

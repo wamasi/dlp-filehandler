@@ -283,12 +283,20 @@ else {
     Write-Output "[INFO] $(Get-Timestamp) - [Filebot] - Not running Filebot"
 }
 # Regardless of failures still force delete temp for clean runs
-if ($SiteTemp -match "\\tmp\\") {
-    Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Force deleting $SiteTemp folders/files"
-    (Get-ChildItem $SiteTemp -Recurse | Where-Object { $_.PSIsContainer -eq $True }) | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+if ($SiteTempBase -match "\\tmp\\") {
+    Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Force deleting $SiteTempBase folders/files"
+    (Get-ChildItem $SiteTempBase -Recurse | Where-Object { $_.PSIsContainer -eq $True }) | Remove-Item -Recurse -Force -Confirm:$false -Verbose
 }
 else {
     Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Temp folder not matching as expected. Remove not completed"
+}
+# Clean up Home destination folder if empty
+if ($SiteHomeBase -match "\\tmp\\") {
+    Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Force deleting $SiteHomeBase folders/files"
+    Get-ChildItem -Path $SiteHomeBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+}
+else {
+    Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Home folder not matching as expected. Remove not completed"
 }
 # End
 Write-Output "[END] $(Get-Timestamp) - Script completed"
