@@ -347,9 +347,14 @@ Process {
         function Get-TimeStamp {
             return (Get-Date -Format "yy-MM-dd HH-mm-ss")
         }
+        
+        function Get-Time {
+            return (Get-Date -Format "MMdd-HHmmss")
+        }
         # Setting Date and Datetime variable for Log
         $Date = Get-Day
         $DateTime = Get-TimeStamp
+        $Time = Get-Time
         # Start of parsing config xml
         $site = $site.ToLower()
         $ConfigPath = "$PSScriptRoot\config.xml"
@@ -410,7 +415,7 @@ Process {
             $SiteType = $SiteName + "_D"
             $SiteFolder = "$SiteFolder" + $SiteType
             # Video Temp folder
-            $SiteTemp = "$TempDrive\" + $SiteName.Substring(0, 1)
+            $SiteTemp = "$TempDrive\" + $SiteName.Substring(0, 1) + "\$Time"
             if (!(Test-Path -Path $SiteTemp)) {
                 try {
                     New-Item -ItemType Directory -Path $SiteTemp -Force -Verbose
@@ -424,7 +429,7 @@ Process {
                 Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
             }
             # Video Destination folder
-            $SiteHome = "$HomeDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
+            $SiteHome = "$HomeDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1) + "\$Time"
             if (!(Test-Path -Path $SiteHome)) {
                 try {
                     New-Item -ItemType Directory -Path $SiteHome -Force -Verbose
@@ -454,7 +459,7 @@ Process {
             $SiteType = $SiteName
             $SiteFolder = "$SiteFolder" + $SiteType
             # Site Temp folder
-            $SiteTemp = "$TempDrive\" + $SiteName.Substring(0, 1) + "M"
+            $SiteTemp = "$TempDrive\" + $SiteName.Substring(0, 1) + "M" + "\$Time"
             if (!(Test-Path -Path $SiteTemp)) {
                 try {
                     New-Item -ItemType Directory -Path $SiteTemp -Force 
@@ -468,7 +473,7 @@ Process {
                 Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
             }
             # Site Destination folder
-            $SiteHome = "$HomeDrive\_M\" + $SiteName.Substring(0, 1)
+            $SiteHome = "$HomeDrive\_M\" + $SiteName.Substring(0, 1) + "\$Time"
             if (!(Test-Path -Path $SiteHome)) {
                 try {
                     New-Item -ItemType Directory -Path $SiteHome -Force 
