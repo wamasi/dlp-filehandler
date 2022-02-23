@@ -349,7 +349,7 @@ Process {
         }
         
         function Get-Time {
-            return (Get-Date -Format "MMdd-HHmmss")
+            return (Get-Date -Format "MMddHHmmss")
         }
         # Setting Date and Datetime variable for Log
         $Date = Get-Day
