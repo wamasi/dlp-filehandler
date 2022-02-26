@@ -209,7 +209,6 @@ if ($useSubtitleEdit) {
             if ($incompletefile) {
                 # If $incomplete file is not empty/null then write out what files have an issue
                 Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - The following files did not have matching subtitle file `n$incompletefile"
-                (Get-ChildItem $SiteTemp -r | Where-Object { $_.PSIsContainer -eq $True }) | Remove-Item -Recurse -Force -Confirm:$false -Verbose
                 Write-Output "[END] $(Get-Timestamp) - [SubtitleEdit] - Script completed with ERRORS"
                 Exit
             }
@@ -285,15 +284,19 @@ else {
 # Regardless of failures still force delete temp for clean runs
 if ($SiteTempBase -match "\\tmp\\") {
     Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Force deleting $SiteTempBase folders/files"
-    (Get-ChildItem $SiteTempBase -Recurse | Where-Object { $_.PSIsContainer -eq $True }) | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+    Get-ChildItem -Path $SiteTempBase -Recurse -Force | ForEach-Object {
+        $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+    }
+    # Delete any empty directories left behind after deleting the old files.
+    Get-ChildItem -Path $SiteTempBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
 }
 else {
     Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Temp folder not matching as expected. Remove not completed"
 }
 # Clean up Home destination folder if empty
-if ($SiteHomeBase -match "\\tmp\\" -and ((Test-Path $SiteHomeBase))) {
-    Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Force deleting $SiteHomeBase folders/files"
-    Get-ChildItem -Path $SiteHomeBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+if ($SiteHomeBase -match "\\tmp\\" -and ((Test-Path $SiteHome))) {
+    Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Force deleting $SiteHome folders/files if empty"
+    Get-ChildItem -Path $SiteHome -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
 }
 else {
     Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Home folder not matching as expected. Remove not completed"

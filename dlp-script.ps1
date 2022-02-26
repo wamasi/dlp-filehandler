@@ -366,7 +366,7 @@ Process {
         $ConfigPath = "$PSScriptRoot\config.xml"
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
         # Fetching site variables
-        $SNfile = $ConfigFile.getElementsByTagName("site") | Select-Object "id", "username", "password", "libraryid" | Where-Object { $_.id -eq "$site" }
+        $SNfile = $ConfigFile.getElementsByTagName("site") | Select-Object "id", "username", "password", "libraryid","font" | Where-Object { $_.id -eq "$site" }
         $SNfile | ForEach-Object {
             $SN = New-Object -Type PSObject -Property @{
                 SN  = $_.id
