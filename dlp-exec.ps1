@@ -291,7 +291,7 @@ else {
     Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Temp folder not matching as expected. Remove not completed"
 }
 # Clean up Home destination folder if empty
-if ($SiteHomeBase -match "\\tmp\\") {
+if ($SiteHomeBase -match "\\tmp\\" -and ((Test-Path $SiteHomeBase))) {
     Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Force deleting $SiteHomeBase folders/files"
     Get-ChildItem -Path $SiteHomeBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
 }
