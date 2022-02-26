@@ -171,6 +171,16 @@ Begin {
                 Write-Host "$Configs file exists"
             }
         }
+        function TrimSpaces {
+            param (
+                [Parameter(Mandatory = $true)]
+                [string] $File
+            )
+            (Get-Content $File) | Where-Object { -not [String]::IsNullOrWhiteSpace($_) } | set-content $File
+            $content = [System.IO.File]::ReadAllText($File)
+            $content = $content.Trim()
+            [System.IO.File]::WriteAllText($File, $content)
+        }
         function SuppFiles {
             param (
                 [Parameter(Mandatory = $true)]
@@ -268,7 +278,7 @@ Begin {
 --windows-filenames
 --trim-filenames 248
 --add-metadata
---sub-langs "en.*"
+--sub-langs "english-subs"
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -337,9 +347,11 @@ Begin {
             # Daily Site configs
             $SCFDC = "$SCF" + "_D\yt-dlp.conf"
             Configs $SCFDC
+            TrimSpaces $SCFDC
             # Manual Congfig
             $SCFC = "$SCF\yt-dlp.conf"
             Configs $SCFC
+            TrimSpaces $SCFC
         }
     }
 }
@@ -366,7 +378,7 @@ Process {
         $ConfigPath = "$PSScriptRoot\config.xml"
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
         # Fetching site variables
-        $SNfile = $ConfigFile.getElementsByTagName("site") | Select-Object "id", "username", "password", "libraryid","font" | Where-Object { $_.id -eq "$site" }
+        $SNfile = $ConfigFile.getElementsByTagName("site") | Select-Object "id", "username", "password", "libraryid", "font" | Where-Object { $_.id -eq "$site" }
         $SNfile | ForEach-Object {
             $SN = New-Object -Type PSObject -Property @{
                 SN  = $_.id
