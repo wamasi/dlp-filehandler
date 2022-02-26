@@ -81,31 +81,37 @@ Begin {
             <username></username>
             <password></password>
             <libraryid></libraryid>
+            <font></font>
         </site>
         <site id="">
             <username></username>
             <password></password>
             <libraryid></libraryid>
+            <font></font>
         </site>
         <site id="">
             <username></username>
             <password></password>
             <libraryid></libraryid>
+            <font></font>
         </site>
         <site id="">
             <username></username>
             <password></password>
             <libraryid></libraryid>
+            <font></font>
         </site>
         <site id="">
             <username></username>
             <password></password>
             <libraryid></libraryid>
+            <font></font>
         </site>
         <site id="">
             <username></username>
             <password></password>
             <libraryid></libraryid>
+            <font></font>
         </site>
     </credentials>
 </configuration>
@@ -367,12 +373,14 @@ Process {
                 SUN = $_.username
                 SPW = $_.password
                 SLI = $_.libraryid
+                SFT = $_.font
             }
         }
         $SiteName = $SN.SN
         $SiteUser = $SN.SUN
         $SitePass = $SN.SPW
         $SiteLib = $SN.SLI
+        $SubFont = $SN.SFT
         # Setting Home and Temp directory variables
         $HomeDrive = $ConfigFile.configuration.Directory.home.location
         $TempDrive = $ConfigFile.configuration.Directory.temp.location
@@ -387,20 +395,12 @@ Process {
         # Pulling sites that require cookies from text
         $ReqCookies = Get-Content "$PSScriptRoot\ReqCookies"
         #  Setting fonts per site. These are manually tested to work with embedding and displayin in video files
-        if ($SiteName -eq "vrv") {
-            $SubFont = "Marker SD.ttf"
-        }
-        elseif ($SiteName -eq "funimation") {
-            $SubFont = "Fuzzy Bubbles.ttf"
-        }
-        elseif ($SiteName -eq "hidive") {
-            $SubFont = "Milky Nice Clean.ttf"
-        }
-        elseif ($SiteName -eq "paramountplus") {
-            $SubFont = "Coyotris Comic.ttf"
+        if ($SubFont.trim() -ne "") {
+            Write-host "$SubFont set for $SiteName"
         }
         else {
             $SubFont = "Hey Comic.ttf"
+            Write-host "$SubFont set for $SiteName"
         }
         $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
         $SubFontDir = "$PSScriptRoot\fonts\$Subfont"
