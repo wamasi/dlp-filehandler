@@ -15,9 +15,6 @@ param(
     [Alias("SE")]
     [switch]$useSubtitleEdit,
     [Parameter(Mandatory = $false)]
-    [Alias("B")]
-    [switch]$usedebug,
-    [Parameter(Mandatory = $false)]
     [Alias("H")]
     [switch]$help,
     [Parameter(Mandatory = $false)]
@@ -51,7 +48,7 @@ Begin {
         New-Item "$PSScriptRoot\config.xml" -ItemType File -Force
     }
     # Help text to remind me what I did/it does when set to true or all parameters false
-    if ($help -or [string]::IsNullOrEmpty($site) -and $isDaily -eq $false -and $useArchive -eq $false -and $useLogin -eq $false -and $useFilebot -eq $false -and $useSubtitleEdit -eq $false -and $usedebug -eq $false -and $newconfig -eq $false -and $createsupportfiles -eq $false) {
+    if ($help -or [string]::IsNullOrEmpty($site) -and $isDaily -eq $false -and $useArchive -eq $false -and $useLogin -eq $false -and $useFilebot -eq $false -and $useSubtitleEdit -eq $false -and $newconfig -eq $false -and $createsupportfiles -eq $false) {
         Show-Markdown -Path "$PSSCriptRoot\README.md" -UseBrowser
     }
     # Create config if newconfig = True
@@ -60,7 +57,7 @@ Begin {
         if (!(Test-Path $ConfigPath -PathType Leaf) -or [String]::IsNullOrWhiteSpace((Get-content $ConfigPath))) {
             #PowerShell Create directory if not exists
             New-Item $ConfigPath -ItemType File -Force
-            Write-Host "$ConfigPath File Created successfully"
+            Write-Output "$ConfigPath File Created successfully"
             $config = @"
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -119,7 +116,7 @@ Begin {
             $config | Set-Content $ConfigPath
         }
         else {
-            Write-Host "$ConfigPath File Exists"
+            Write-Output "$ConfigPath File Exists"
             # Perform Delete file from folder operation
         }
     }
@@ -132,10 +129,10 @@ Begin {
             )
             if (!(Test-Path $folder)) {
                 New-Item ("$folder") -ItemType Directory
-                Write-Host "$folder directory missing. Creating..."
+                Write-Output "$folder directory missing. Creating..."
             }
             else {
-                Write-Host "$folder directory exists"
+                Write-Output "$folder directory exists"
             }
         }
         function Configs {
@@ -145,30 +142,30 @@ Begin {
             )
             if (!(Test-Path $Configs -PathType Leaf)) {
                 New-Item $Configs -ItemType File
-                Write-Host "$Configs file missing. Creating..."
+                Write-Output "$Configs file missing. Creating..."
                 if ($Configs -match "vrv") {
                     $vrvconfig | Set-Content $Configs
-                    Write-Host "$Configs created with VRV values."
+                    Write-Output "$Configs created with VRV values."
                 }
                 elseif ($Configs -match "funimation") {
                     $funimationconfig | Set-Content $Configs
-                    Write-Host "$Configs created with Funimation values."
+                    Write-Output "$Configs created with Funimation values."
                 }
                 elseif ($Configs -match "hidive") {
                     $hidiveconfig | Set-Content $Configs
-                    Write-Host "$Configs created with Hidive values."
+                    Write-Output "$Configs created with Hidive values."
                 }
                 elseif ($Configs -match "paramountplus") {
                     $paramountplusconfig | Set-Content $Configs
-                    Write-Host "$Configs created with ParamountPlus values."
+                    Write-Output "$Configs created with ParamountPlus values."
                 }
                 else {
                     $defaultconfig | Set-Content $Configs
-                    Write-Host "$Configs created with default values."
+                    Write-Output "$Configs created with default values."
                 }
             }
             else {
-                Write-Host "$Configs file exists"
+                Write-Output "$Configs file exists"
             }
         }
         function TrimSpaces {
@@ -188,10 +185,10 @@ Begin {
             )
             if (!(Test-Path $SuppFiles -PathType Leaf)) {
                 New-Item $SuppFiles -ItemType File
-                Write-Host "$SuppFiles file missing. Creating..."
+                Write-Output "$SuppFiles file missing. Creating..."
             }
             else {
-                Write-Host "$SuppFiles file exists"
+                Write-Output "$SuppFiles file exists"
             }
         }
         $ConfigPath = "$PSScriptRoot\config.xml"
@@ -408,11 +405,11 @@ Process {
         $ReqCookies = Get-Content "$PSScriptRoot\ReqCookies"
         #  Setting fonts per site. These are manually tested to work with embedding and displayin in video files
         if ($SubFont.trim() -ne "") {
-            Write-host "$SubFont set for $SiteName"
+            Write-Output "$SubFont set for $SiteName"
         }
         else {
             $SubFont = "Hey Comic.ttf"
-            Write-host "$SubFont set for $SiteName"
+            Write-Output "$SubFont set for $SiteName"
         }
         $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
         $SubFontDir = "$PSScriptRoot\fonts\$Subfont"
@@ -519,27 +516,27 @@ Process {
             $CookieFile = "None"
             # Setting User and Password command
             if (($SiteUser -and $SitePass)) {
-                Write-Host "$(Get-Timestamp) - useLogin is true and SiteUser/Password is filled. Continuing..."
+                Write-Output "$(Get-Timestamp) - useLogin is true and SiteUser/Password is filled. Continuing..."
                 $dlpParams = $dlpParams + " -u $SiteUser -p $SitePass"
             }
             else {
-                Write-Host "$(Get-Timestamp) - useLogin is true and Username/Password is Empty. Exiting..."
+                Write-Output "$(Get-Timestamp) - useLogin is true and Username/Password is Empty. Exiting..."
                 Exit
             }
         }
         else {
             if (!($ReqCookies -like $SiteName)) {
-                Write-Host "$(Get-Timestamp) - useLogin is FALSE and site is not $ReqCookies. Exiting..."
+                Write-Output "$(Get-Timestamp) - useLogin is FALSE and site is not $ReqCookies. Exiting..."
                 Exit
             }
             else {
                 $CookieFile = "$SiteShared" + $SiteType + "_C"
                 if ((Test-Path -Path $CookieFile)) {
-                    Write-Host "$(Get-Timestamp) - $CookieFile exists. Continuing..."
+                    Write-Output "$(Get-Timestamp) - $CookieFile exists. Continuing..."
                     $dlpParams = $dlpParams + " --cookies $CookieFile"
                 }
                 else {
-                    Write-Host "$(Get-Timestamp) - $CookieFile does not exist. Exiting..."
+                    Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting..."
                     Exit
                 }
             }
@@ -547,72 +544,72 @@ Process {
         # FFMPEG - Always used to handle processing and file moving
         $Ffmpeg = $ConfigFile.configuration.Directory.ffmpeg.location
         if ($Ffmpeg) {
-            Write-Host "$(Get-Timestamp) - $Ffmpeg file found. Continuing..."
+            Write-Output "$(Get-Timestamp) - $Ffmpeg file found. Continuing..."
             $dlpParams = $dlpParams + " --ffmpeg-location $Ffmpeg "
         }
         else {
-            Write-Host "$(Get-Timestamp) - FFMPEG: $Ffmpeg missing. Exiting..."
+            Write-Output "$(Get-Timestamp) - FFMPEG: $Ffmpeg missing. Exiting..."
             Exit
         }
         # BAT - Always used for calling URLS
         $BatFile = "$SiteShared" + $SiteType + "_B"
         if ((Test-Path -Path $BatFile)) {
-            Write-Host "$(Get-Timestamp) - $BatFile file found. Continuing..."
+            Write-Output "$(Get-Timestamp) - $BatFile file found. Continuing..."
             if (![String]::IsNullOrWhiteSpace((Get-Content $BatFile))) {
-                Write-Host "$(Get-Timestamp) - $BatFile not empty. Continuing..."
+                Write-Output "$(Get-Timestamp) - $BatFile not empty. Continuing..."
                 $dlpParams = $dlpParams + " -a $BatFile"
             }
             else {
-                Write-Host "$(Get-Timestamp) - $BatFile is empty. Exiting..."
+                Write-Output "$(Get-Timestamp) - $BatFile is empty. Exiting..."
                 Exit
             }
         }
         else {
-            Write-Host "$(Get-Timestamp) - BAT: $Batfile missing. Exiting..."
+            Write-Output "$(Get-Timestamp) - BAT: $Batfile missing. Exiting..."
             Exit
         }
         # Whether archive file is used and which one
         if ($useArchive) {
             $ArchiveFile = "$SiteShared" + $SiteType + "_A"
             if ((Test-Path -Path $ArchiveFile)) {
-                Write-Host "$(Get-Timestamp) - $ArchiveFile file found. Continuing..."
+                Write-Output "$(Get-Timestamp) - $ArchiveFile file found. Continuing..."
                 $dlpParams = $dlpParams + " --download-archive $ArchiveFile"
             }
             else {
-                Write-Host "$(Get-Timestamp) - Archive file missing. Exiting..."
+                Write-Output "$(Get-Timestamp) - Archive file missing. Exiting..."
                 Exit
             }
         }
         else {
-            Write-Host "$(Get-Timestamp) - Using --no-download-archive"
+            Write-Output "$(Get-Timestamp) - Using --no-download-archive"
             $ArchiveFile = "None"
             $dlpParams = $dlpParams + " --no-download-archive"
         }
         # If SubtitleEdit in use checks if --write-subs is in config otherwise it exits
         if ($useSubtitleEdit) {
-            Write-Host $SiteConfig
+            Write-Output $SiteConfig
             if (Select-String -Path $SiteConfig "--write-subs" -SimpleMatch -Quiet) {
-                Write-Host "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is in config. Continuing..."
+                Write-Output "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is in config. Continuing..."
             }
             else {
-                Write-Host "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting..."
+                Write-Output "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting..."
                 Exit
             }
         }
         else {
-            Write-Host "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
+            Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
         }
         # If SubetitleEdit or Filebot true then check config for subtitle/video outputs and store in variables
         if ($UseSubtitleEdit -or $UseFileBot) {
             Select-String -Path $SiteConfig -Pattern "--convert-subs.*" | ForEach-Object {
                 $SubType = "*." + ($_ -split " ")[1]
                 $SubType = $SubType.Replace("'", "").Replace('"', "")
-                Write-Host "$(Get-Timestamp) - Using $SubType"
+                Write-Output "$(Get-Timestamp) - Using $SubType"
             }
             Select-String -Path $SiteConfig -Pattern "--remux-video.*" | ForEach-Object {
                 $VidType = "*." + ($_ -split " ")[1]
                 $VidType = $VidType.Replace("'", "").Replace('"', "")
-                Write-Host "$(Get-Timestamp) - Using $VidType"
+                Write-Output "$(Get-Timestamp) - Using $VidType"
             }
         }
         # Creating associated log folder and file

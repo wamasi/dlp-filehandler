@@ -1,6 +1,6 @@
 param ($dlpParams, $useFilebot, $useSubtitleEdit, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase )
 # Function to check if file is locked by process before moving forward
-function checkLock {
+function Test-Lock {
     Param(
         [parameter(Mandatory = $true)]
         $filename
@@ -17,15 +17,15 @@ function checkLock {
     return $false
 }
 # Deleting logs older than 1 days
-Write-Host "[INFO] $(Get-Timestamp) - Deleting old logfiles"
+Write-Output "[INFO] $(Get-Timestamp) - Deleting old logfiles"
 $limit = (Get-Date).AddDays(-1)
 # Delete files older than the $limit.
 if (!(Test-Path $LFolderBase)) {
-    Write-Host "$LFolderBase is missing. Skipping log cleanup..."
+    Write-Output "$LFolderBase is missing. Skipping log cleanup..."
     break
 }
 else {
-    Write-Host "$LFolderBase found. Starting log cleanup..."
+    Write-Output "$LFolderBase found. Starting log cleanup..."
     # Delete any 1 day old log files.
     Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | ForEach-Object {
         $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
@@ -33,36 +33,8 @@ else {
     # Delete any empty directories left behind after deleting the old files.
     Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
 }
-# If debug true show all variables
-if ($usedebug) {
-    Write-Host @"
-Site = $SiteName
-isDaily = $isDaily
-UseDownloadArchive = $useArchive
-UseLogin = $useLogin
-UseFilebot = $useFilebot
-useSubtitleEdit = $useSubtitleEdit
-Script Directory = $PSScriptRoot
-PlexHost = $PlexHost
-PlexToken = $PlexToken
-PlexLibPath = $PlexLibPath
-PlexLibId = $PlexLibId
-SiteType = $SiteType
-SiteFolder = $SiteFolder
-SiteConfig = $SiteConfig
-CookieFile = $CookieFile
-Username = $SiteUser
-Password = $SitePass
-SiteTemp = $SiteTemp
-SiteHome = $SiteHome
-SiteArchive = $ArchiveFile
-SiteBat = $BatFile
-Ffmpeg = $Ffmpeg
-dlpParams = $dlpParams
-"@
-}
-else {
-    Write-Host @"
+# Writing all variables
+Write-Output @"
 Site = $SiteName
 isDaily = $isDaily
 UseDownloadArchive = $useArchive
@@ -84,7 +56,7 @@ Bat = $BatFile
 Ffmpeg = $Ffmpeg
 dlpParams = $dlpParams
 "@
-}
+
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
 # If SubtitleEdit = True then run SubtitleEdit against SiteHome folder.
@@ -99,12 +71,12 @@ if ($useSubtitleEdit) {
                 $subvar = $_.FullName
                 # SubtitleEdit does not play well being called within a script
                 While ($True) {
-                    if ((checkLock $subvar) -eq $True) {
-                        Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File locked.  Waiting..."
+                    if ((Test-Lock $subvar) -eq $True) {
+                        Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File locked.  Waiting..."
                         continue
                     }
                     else {
-                        Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Editing $subvar file"
+                        Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Editing $subvar file"
                         # Remove original video/subtitle file
                         powershell "SubtitleEdit /convert '$subvar' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes"
                         break
@@ -130,12 +102,12 @@ if ($useSubtitleEdit) {
                     # Adding custom styling to ASS subtitle
                     Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Replacing Styling in $subtitle"
                     While ($True) {
-                        if ((checkLock $subtitle) -eq $True) {
-                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $subtitle File locked.  Waiting..."
+                        if ((Test-Lock $subtitle) -eq $True) {
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $subtitle File locked.  Waiting..."
                             continue
                         }
                         else {
-                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Formatting $subtitle file"
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Formatting $subtitle file"
                             python "$PSScriptRoot\subtitle_regex.py" $subtitle $SF
                             break
                         }
@@ -144,12 +116,12 @@ if ($useSubtitleEdit) {
                     Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Found matching  $subtitle and $inputs files to process"
                     #mkmerge command to combine video and subtitle file and set subtitle default
                     While ($True) {
-                        if ((checkLock $inputs) -eq $True -and (checkLock $subtitle) -eq $True) {
-                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] -  $subtitle and $inputs File locked.  Waiting..."
+                        if ((Test-Lock $inputs) -eq $True -and (Test-Lock $subtitle) -eq $True) {
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] -  $subtitle and $inputs File locked.  Waiting..."
                             continue
                         }
                         else {
-                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked.  Combining $subtitle and $inputs files"
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked.  Combining $subtitle and $inputs files"
                             mkvmerge -o $tempvideo $inputs $subtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font
                             break
                         }
@@ -161,12 +133,12 @@ if ($useSubtitleEdit) {
                     }
                     # Wait for files to input, subtitle, and tempvideo to be ready
                     While ($True) {
-                        if ((checkLock $inputs) -eq $True -and (checkLock $subtitle) -eq $True -and (checkLock $tempvideo) -eq $True) {
-                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File locked.  Waiting..."
+                        if ((Test-Lock $inputs) -eq $True -and (Test-Lock $subtitle) -eq $True -and (Test-Lock $tempvideo) -eq $True) {
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File locked.  Waiting..."
                             continue
                         }
                         else {
-                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Removing $inputs and $subtitle file"
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Removing $inputs and $subtitle file"
                             # Remove original video/subtitle file
                             Remove-Item -Path $inputs -Confirm:$false -Verbose
                             Remove-Item -Path $subtitle -Confirm:$false -Verbose
@@ -176,12 +148,12 @@ if ($useSubtitleEdit) {
                     }
                     # Rename temp to original filename
                     While ($True) {
-                        if ((checkLock $tempvideo) -eq $True) {
-                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $tempvideo File locked.  Waiting..."
+                        if ((Test-Lock $tempvideo) -eq $True) {
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $tempvideo File locked.  Waiting..."
                             continue
                         }
                         else {
-                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Renaming $tempvideo to $inputs file"
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Renaming $tempvideo to $inputs file"
                             # Remove original video/subtitle file
                             Rename-Item -Path $tempvideo -NewName $_.FullName -Confirm:$false -Verbose
                             break
@@ -189,12 +161,12 @@ if ($useSubtitleEdit) {
                         Start-Sleep -Seconds 1
                     }
                     While ($True) {
-                        if ((checkLock $_.FullName) -eq $True) {
-                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] -  $inputs File locked.  Waiting..."
+                        if ((Test-Lock $_.FullName) -eq $True) {
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] -  $inputs File locked.  Waiting..."
                             continue
                         }
                         else {
-                            Write-Host "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $inputs File not locked. Setting default subtitle"
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $inputs File not locked. Setting default subtitle"
                             mkvpropedit $_.FullName --edit track:s1 --set flag-default=1
                             break
                         }
@@ -240,7 +212,7 @@ if ($useFilebot) {
                 else {
                     filebot -rename "$inputs" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
                 }
-                Write-Host "[INFO] $(Get-Timestamp) - [Filebot] - No other files need to be processed."
+                Write-Output "[INFO] $(Get-Timestamp) - [Filebot] - No other files need to be processed."
                 filebot -script fn:cleaner "$folder" --log all
                 $completed += $inputs
             }
@@ -251,30 +223,30 @@ if ($useFilebot) {
     }
     # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
     if ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-        Write-Host "[INFO] $(Get-Timestamp) - [PLEX] - File needs processing."
+        Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - File needs processing."
         if ($isDaily) {
-            Write-Output "[INFO] $(Get-Timestamp) - [PLEX] - Daily run - Script completed with ERRORS"
+            Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Daily run - Script completed with ERRORS"
             break
         }
         else {
-            Write-Output "[INFO] $(Get-Timestamp) - [PLEX] - Manual run - Script completed"
+            Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Manual run - Script completed"
         }
     }
     else {
         if ($completed) {
             # If plex values not null then run api call else skip
             if ($PlexHost -and $PlexToken -and $PlexLibId) {
-                Write-Host "[INFO] $(Get-Timestamp) - [PLEX] - Updating Plex Library."
+                Write-Output "[INFO] $(Get-Timestamp) - [PLEX] - Updating Plex Library."
                 $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
                 Invoke-RestMethod -UseBasicParsing -Verbose $PlexUrl
             }
             else {
-                Write-Host "[INFO] $(Get-Timestamp) - [PLEX] - Not using Plex."
+                Write-Output "[INFO] $(Get-Timestamp) - [PLEX] - Not using Plex."
                 break
             }
         }
         else {
-            Write-Host "[INFO] $(Get-Timestamp) - [PLEX] - No files processed. Skipping PLEX API call."
+            Write-Output "[INFO] $(Get-Timestamp) - [PLEX] - No files processed. Skipping PLEX API call."
         }
     }
 }
@@ -294,9 +266,9 @@ else {
     Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Temp folder not matching as expected. Remove not completed"
 }
 # Clean up Home destination folder if empty
-if ($SiteHomeBase -match "\\tmp\\" -and ((Test-Path $SiteHome))) {
-    Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Force deleting $SiteHome folders/files if empty"
-    Get-ChildItem -Path $SiteHome -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+if ($SiteHomeBase -match "\\tmp\\") {
+    Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Force deleting $SiteHomeBase folders/files if empty"
+    Get-ChildItem -Path $SiteHomeBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
 }
 else {
     Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - Home folder not matching as expected. Remove not completed"
