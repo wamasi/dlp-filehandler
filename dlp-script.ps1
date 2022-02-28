@@ -120,6 +120,118 @@ Begin {
             # Perform Delete file from folder operation
         }
     }
+    # Base config parameters if file is not present
+    $defaultconfig = @"
+-v
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs "en"
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--downloader aria2c
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
+    $vrvconfig = @"
+-v
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs "en.*"
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--downloader aria2c
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv[format_id*=-ja-JP][format_id!*=hardsub][height>=1080]+ba[format_id*=-ja-JP][format_id!*=hardsub] / b[format_id*=-ja-JP][format_id!*=hardsub][height>=1080] / b*[format_id*=-ja-JP][format_id!*=hardsub]'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
+    $funimationconfig = @"
+-v
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs 'en.*,en_Uncut.*'
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--downloader aria2c
+--extractor-args 'funimation:language=japanese'
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv*[height>=1080]+ba/b[height>=1080] / b'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
+    $hidiveconfig = @"
+-v
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs "english-subs"
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--downloader aria2c
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
+    $paramountplusconfig = @"
+-v
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs "en"
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--downloader aria2c
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
     # Create supporting files if createsupportfiles = True
     if ($createsupportfiles) {
         function Folders {
@@ -198,118 +310,6 @@ Begin {
             $SN = New-Object -Type PSObject -Property @{
                 SN = $_.id
             }
-            # Base config parameters if file is not present
-            $defaultconfig = @"
--v
--F
---list-subs
---no-simulate
---restrict-filenames
---windows-filenames
---trim-filenames 248
---add-metadata
---sub-langs "en"
---convert-subs 'ass'
---write-subs
---embed-metadata
---embed-thumbnail
---convert-thumbnails 'png'
---remux-video 'mkv'
--N 32
---downloader aria2c
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
--f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
--o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
-            $vrvconfig = @"
--v
--F
---list-subs
---no-simulate
---restrict-filenames
---windows-filenames
---trim-filenames 248
---add-metadata
---sub-langs "en.*"
---convert-subs 'ass'
---write-subs
---embed-metadata
---embed-thumbnail
---convert-thumbnails 'png'
---remux-video 'mkv'
--N 32
---downloader aria2c
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
--f 'bv[format_id*=-ja-JP][format_id!*=hardsub][height>=1080]+ba[format_id*=-ja-JP][format_id!*=hardsub] / b[format_id*=-ja-JP][format_id!*=hardsub][height>=1080] / b*[format_id*=-ja-JP][format_id!*=hardsub]'
--o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
-            $funimationconfig = @"
--v
--F
---list-subs
---no-simulate
---restrict-filenames
---windows-filenames
---trim-filenames 248
---add-metadata
---sub-langs 'en.*,en_Uncut.*'
---convert-subs 'ass'
---write-subs
---embed-metadata
---embed-thumbnail
---convert-thumbnails 'png'
---remux-video 'mkv'
--N 32
---downloader aria2c
---extractor-args 'funimation:language=japanese'
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
--f 'bv*[height>=1080]+ba/b[height>=1080] / b'
--o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
-            $hidiveconfig = @"
--v
--F
---list-subs
---no-simulate
---restrict-filenames
---windows-filenames
---trim-filenames 248
---add-metadata
---sub-langs "english-subs"
---convert-subs 'ass'
---write-subs
---embed-metadata
---embed-thumbnail
---convert-thumbnails 'png'
---remux-video 'mkv'
--N 32
---downloader aria2c
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
--f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
--o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
-            $paramountplusconfig = @"
--v
--F
---list-subs
---no-simulate
---restrict-filenames
---windows-filenames
---trim-filenames 248
---add-metadata
---sub-langs "en"
---convert-subs 'ass'
---write-subs
---embed-metadata
---embed-thumbnail
---convert-thumbnails 'png'
---remux-video 'mkv'
--N 32
---downloader aria2c
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
--f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
--o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
             # if site support files (Config, archive, bat, cookie) are missing it will attempt to create an isdaily and non-isDaily set
             # Creating Shared directory
             $SharedF = "$PSScriptRoot\_shared"
@@ -362,7 +362,6 @@ Process {
         function Get-TimeStamp {
             return (Get-Date -Format "yy-MM-dd HH-mm-ss")
         }
-        
         function Get-Time {
             return (Get-Date -Format "MMddHHmmss")
         }
@@ -375,10 +374,10 @@ Process {
         $ConfigPath = "$PSScriptRoot\config.xml"
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
         # Fetching site variables
-        $SNfile = $ConfigFile.getElementsByTagName("site") | Select-Object "id", "username", "password", "libraryid", "font" | Where-Object { $_.id -eq "$site" }
+        $SNfile = $ConfigFile.getElementsByTagName("site") | Select-Object "id", "username", "password", "libraryid", "font" | Where-Object { $_.id.ToLower() -eq "$site" }
         $SNfile | ForEach-Object {
             $SN = New-Object -Type PSObject -Property @{
-                SN  = $_.id
+                SN  = $_.id.ToLower()
                 SUN = $_.username
                 SPW = $_.password
                 SLI = $_.libraryid

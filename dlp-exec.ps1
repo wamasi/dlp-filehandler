@@ -64,7 +64,7 @@ if ($useSubtitleEdit) {
     $incompletefile = ""
     ForEach ($folder in $SiteHome) {
         if ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0 -and (Get-ChildItem $folder -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Processing files to fix subtitles and then combine with video"
+            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Processing files to fix subtitles and then combine with video."
             # Fixing subs - SubtitleEdit
             Get-ChildItem $folder -Recurse -File -Include "$SubType" | ForEach-Object {
                 Write-Output "[INFO] $(Get-Timestamp) - Fixing $_ subtitle"
@@ -76,23 +76,23 @@ if ($useSubtitleEdit) {
                         continue
                     }
                     else {
-                        Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Editing $subvar file"
+                        Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Editing $subvar file."
                         # Remove original video/subtitle file
-                        powershell "SubtitleEdit /convert '$subvar' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes"
+                        powershell "SubtitleEdit /convert '$subvar' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes."
                         break
                     }
                     Start-Sleep -Seconds 1
                 }
             }
             # Embedding subs into video files - ffmpeg
-            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Checking for subtitle and video files to merge"
+            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Checking for subtitle and video files to merge."
             Get-ChildItem $folder -Recurse -File -Include "$VidType" | ForEach-Object {
                 # grabbing associated variables needed to pass onto FFMPEG
                 $inputs = $_.FullName
                 $filename = $_.BaseName
                 $subtitle = Get-ChildItem $folder -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $filename } | Select-Object -First 1
                 $tempvideo = $_.DirectoryName + "\" + $_.BaseName + ".temp" + $_.Extension
-                Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Checking for $subtitle and $inputs file to merge"
+                Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Checking for $subtitle and $inputs file to merge."
                 "[Input Filename]    = " + $inputs
                 "[Base Filename]     = " + $filename
                 "[Subtitle Filename] = " + $subtitle
@@ -100,20 +100,20 @@ if ($useSubtitleEdit) {
                 # Only process files with matching subtitle
                 if ($subtitle) {
                     # Adding custom styling to ASS subtitle
-                    Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Replacing Styling in $subtitle"
+                    Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Replacing Styling in $subtitle."
                     While ($True) {
                         if ((Test-Lock $subtitle) -eq $True) {
                             Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $subtitle File locked.  Waiting..."
                             continue
                         }
                         else {
-                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Formatting $subtitle file"
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Formatting $subtitle file."
                             python "$PSScriptRoot\subtitle_regex.py" $subtitle $SF
                             break
                         }
                         Start-Sleep -Seconds 1
                     }
-                    Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Found matching  $subtitle and $inputs files to process"
+                    Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - Found matching  $subtitle and $inputs files to process."
                     #mkmerge command to combine video and subtitle file and set subtitle default
                     While ($True) {
                         if ((Test-Lock $inputs) -eq $True -and (Test-Lock $subtitle) -eq $True) {
@@ -121,7 +121,7 @@ if ($useSubtitleEdit) {
                             continue
                         }
                         else {
-                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked.  Combining $subtitle and $inputs files"
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked.  Combining $subtitle and $inputs files."
                             mkvmerge -o $tempvideo $inputs $subtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font
                             break
                         }
@@ -138,7 +138,7 @@ if ($useSubtitleEdit) {
                             continue
                         }
                         else {
-                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Removing $inputs and $subtitle file"
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Removing $inputs and $subtitle file."
                             # Remove original video/subtitle file
                             Remove-Item -Path $inputs -Confirm:$false -Verbose
                             Remove-Item -Path $subtitle -Confirm:$false -Verbose
@@ -153,7 +153,7 @@ if ($useSubtitleEdit) {
                             continue
                         }
                         else {
-                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Renaming $tempvideo to $inputs file"
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Renaming $tempvideo to $inputs file."
                             # Remove original video/subtitle file
                             Rename-Item -Path $tempvideo -NewName $_.FullName -Confirm:$false -Verbose
                             break
@@ -166,7 +166,7 @@ if ($useSubtitleEdit) {
                             continue
                         }
                         else {
-                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $inputs File not locked. Setting default subtitle"
+                            Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - $inputs File not locked. Setting default subtitle."
                             mkvpropedit $_.FullName --edit track:s1 --set flag-default=1
                             break
                         }
@@ -174,13 +174,13 @@ if ($useSubtitleEdit) {
                     }
                 }
                 else {
-                    $incompletefile += $inputs
-                    Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - No matching subtitle files to process. Skipping file"
+                    $incompletefile += "$inputs`n"
+                    Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - No matching subtitle files to process. Skipping file."
                 }
             }
             if ($incompletefile) {
                 # If $incomplete file is not empty/null then write out what files have an issue
-                Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - The following files did not have matching subtitle file `n$incompletefile"
+                Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - The following files did not have matching subtitle file: `n$incompletefile"
                 Write-Output "[END] $(Get-Timestamp) - [SubtitleEdit] - Script completed with ERRORS"
                 Exit
             }
@@ -198,7 +198,7 @@ else {
 }
 # If Filebot = True then run Filebot aginst SiteHome folder
 if ($useFilebot) {
-    $completed = ""
+    $completedF = ""
     Write-Output "[INFO] $(Get-Timestamp) - [Filebot] - Looking for files to renaming and move to final folder"
     ForEach ($folder in $SiteHome ) {
         if ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
@@ -212,15 +212,20 @@ if ($useFilebot) {
                 else {
                     filebot -rename "$inputs" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
                 }
-                Write-Output "[INFO] $(Get-Timestamp) - [Filebot] - No other files need to be processed."
-                filebot -script fn:cleaner "$folder" --log all
-                $completed += $inputs
+
+                $completedF += "$inputs`n"
             }
         }
         else {
             Write-Output "[INFO] $(Get-Timestamp) - [Filebot] - No files to process"
         }
     }
+    $completedF.Trim()
+    $incompletefile.Trim()
+    write-output "[INFO] $(Get-Timestamp) - [Filebot] - Completed files: `n$completedF"
+    write-output "[INFO] $(Get-Timestamp) - [Filebot] - Incomplete files: `n$incompletefile"
+    Write-Output "[INFO] $(Get-Timestamp) - [Filebot] - No other files need to be processed. Attempting Filebot cleanup"
+    filebot -script fn:cleaner "$SiteHome" --log all
     # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
     if ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
         Write-Output "[INFO] $(Get-Timestamp) - [FolderCleanup] - File needs processing."
@@ -233,7 +238,7 @@ if ($useFilebot) {
         }
     }
     else {
-        if ($completed) {
+        if ($completedF) {
             # If plex values not null then run api call else skip
             if ($PlexHost -and $PlexToken -and $PlexLibId) {
                 Write-Output "[INFO] $(Get-Timestamp) - [PLEX] - Updating Plex Library."
