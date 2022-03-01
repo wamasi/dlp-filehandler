@@ -255,9 +255,9 @@ Begin {
             if (!(Test-Path $Configs -PathType Leaf)) {
                 New-Item $Configs -ItemType File
                 Write-Output "$Configs file missing. Creating..."
-                if ($Configs -match "vrv") {
+                if (($Configs -match "vrv") -or ($Configs -match "crunchyroll")) {
                     $vrvconfig | Set-Content $Configs
-                    Write-Output "$Configs created with VRV values."
+                    Write-Output "$Configs created with VRV/Crunchyroll values."
                 }
                 elseif ($Configs -match "funimation") {
                     $funimationconfig | Set-Content $Configs
