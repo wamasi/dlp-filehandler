@@ -39,6 +39,8 @@ Site = $SiteName
 isDaily = $isDaily
 UseDownloadArchive = $useArchive
 UseLogin = $useLogin
+SiteUser = $SiteUser
+SitePass = $SitePass
 UseFilebot = $useFilebot
 useSubtitleEdit = $useSubtitleEdit
 Script Directory = $PSScriptRoot
@@ -78,7 +80,7 @@ if ($useSubtitleEdit) {
                     else {
                         Write-Output "[INFO] $(Get-Timestamp) - [SubtitleEdit] - File not locked. Editing $subvar file."
                         # Remove original video/subtitle file
-                        powershell "SubtitleEdit /convert '$subvar' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes."
+                        powershell "SubtitleEdit /convert '$subvar' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes"
                         break
                     }
                     Start-Sleep -Seconds 1

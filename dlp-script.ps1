@@ -143,7 +143,7 @@ Begin {
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
-    $vrvconfig = @"
+$vrvconfig = @"
 -v
 -F
 --list-subs
@@ -163,6 +163,29 @@ Begin {
 --downloader aria2c
 --downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv[format_id*=-ja-JP][format_id!*=hardsub][height>=1080]+ba[format_id*=-ja-JP][format_id!*=hardsub] / b[format_id*=-ja-JP][format_id!*=hardsub][height>=1080] / b*[format_id*=-ja-JP][format_id!*=hardsub]'
+-o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+"@
+$crunchyrollconfig = @"
+-v
+-F
+--list-subs
+--no-simulate
+--restrict-filenames
+--windows-filenames
+--trim-filenames 248
+--add-metadata
+--sub-langs "en-US"
+--convert-subs 'ass'
+--write-subs
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails 'png'
+--remux-video 'mkv'
+-N 32
+--extractor-args crunchyroll:'language=jaJp'
+--downloader aria2c
+--downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+-f 'bv[height>=1080]+ba[height>=1080] / bv+ba / b*'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
     $funimationconfig = @"
@@ -255,9 +278,13 @@ Begin {
             if (!(Test-Path $Configs -PathType Leaf)) {
                 New-Item $Configs -ItemType File
                 Write-Output "$Configs file missing. Creating..."
-                if (($Configs -match "vrv") -or ($Configs -match "crunchyroll")) {
+                if ($Configs -match "vrv") {
                     $vrvconfig | Set-Content $Configs
-                    Write-Output "$Configs created with VRV/Crunchyroll values."
+                    Write-Output "$Configs created with VRV values."
+                }
+                elseif ($Configs -match "crunchyroll") {
+                    $crunchyrollconfig | Set-Content $Configs
+                    Write-Output "$Configs created with Crunchyroll values."
                 }
                 elseif ($Configs -match "funimation") {
                     $funimationconfig | Set-Content $Configs
