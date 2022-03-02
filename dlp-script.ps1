@@ -551,11 +551,6 @@ Process {
             }
         }
         else {
-            if (!($ReqCookies -like $SiteName)) {
-                Write-Output "$(Get-Timestamp) - useLogin is FALSE and site is not $ReqCookies. Exiting..."
-                Exit
-            }
-            else {
                 $CookieFile = "$SiteShared" + $SiteType + "_C"
                 if ((Test-Path -Path $CookieFile)) {
                     Write-Output "$(Get-Timestamp) - $CookieFile exists. Continuing..."
@@ -563,8 +558,7 @@ Process {
                 }
                 else {
                     Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting..."
-                    Exit
-                }
+
             }
         }
         # FFMPEG - Always used to handle processing and file moving
