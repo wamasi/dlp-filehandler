@@ -143,7 +143,7 @@ Begin {
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
-$vrvconfig = @"
+    $vrvconfig = @"
 -v
 -F
 --list-subs
@@ -165,7 +165,7 @@ $vrvconfig = @"
 -f 'bv[format_id*=-ja-JP][format_id!*=hardsub][height>=1080]+ba[format_id*=-ja-JP][format_id!*=hardsub] / b[format_id*=-ja-JP][format_id!*=hardsub][height>=1080] / b*[format_id*=-ja-JP][format_id!*=hardsub]'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
-$crunchyrollconfig = @"
+    $crunchyrollconfig = @"
 -v
 -F
 --list-subs
@@ -551,14 +551,14 @@ Process {
             }
         }
         else {
-                $CookieFile = "$SiteShared" + $SiteType + "_C"
-                if ((Test-Path -Path $CookieFile)) {
-                    Write-Output "$(Get-Timestamp) - $CookieFile exists. Continuing..."
-                    $dlpParams = $dlpParams + " --cookies $CookieFile"
-                }
-                else {
-                    Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting..."
-
+            $CookieFile = "$SiteShared" + $SiteType + "_C"
+            if ((Test-Path -Path $CookieFile)) {
+                Write-Output "$(Get-Timestamp) - $CookieFile exists. Continuing..."
+                $dlpParams = $dlpParams + " --cookies $CookieFile"
+            }
+            else {
+                Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting..."
+                Exit
             }
         }
         # FFMPEG - Always used to handle processing and file moving
