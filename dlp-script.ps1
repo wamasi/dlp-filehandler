@@ -427,9 +427,7 @@ Process {
         $PlexLibPath = $PlexLibrary.Attributes[1].'#text'
         # Plex Library ID
         $PlexLibId = $PlexLibrary.Attributes[0].'#text'
-        # Pulling sites that require cookies from text
-        $ReqCookies = Get-Content "$PSScriptRoot\ReqCookies"
-        #  Setting fonts per site. These are manually tested to work with embedding and displayin in video files
+        # Setting fonts per site. These are manually tested to work with embedding and displayin in video files
         if ($SubFont.trim() -ne "") {
             Write-Output "$SubFont set for $SiteName"
         }
