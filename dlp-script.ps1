@@ -9,6 +9,9 @@ param(
     [Alias("L")]
     [switch]$useLogin,
     [Parameter(Mandatory = $false)]
+    [Alias("C")]
+    [switch]$useCookies,
+    [Parameter(Mandatory = $false)]
     [Alias("F")]
     [switch]$useFilebot,
     [Parameter(Mandatory = $false)]
@@ -535,13 +538,27 @@ Process {
             }
         }
         # if useLogin is true then grabs associated login info if true and checks if empty. If not, then grabs cookie file.
+        $CookieFile = "$SiteShared" + $SiteType + "_C"
         if ($useLogin) {
             # Setting cookie variable to none
-            $CookieFile = "None"
             # Setting User and Password command
             if (($SiteUser -and $SitePass)) {
                 Write-Output "$(Get-Timestamp) - useLogin is true and SiteUser/Password is filled. Continuing..."
                 $dlpParams = $dlpParams + " -u $SiteUser -p $SitePass"
+                if ($useCookies) {
+                    if ((Test-Path -Path $CookieFile)) {
+                        Write-Output "$(Get-Timestamp) - useCookies is true and $CookieFile exists. Continuing..."
+                        $dlpParams = $dlpParams + " --cookies $CookieFile"
+                    }
+                    else {
+                        Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting..."
+                        Exit
+                    }
+                }
+                else {
+                    $CookieFile = "None"
+                    Write-Output "$(Get-Timestamp) - useLogin is true and useCookies is false. Continuing..."
+                }
             }
             else {
                 Write-Output "$(Get-Timestamp) - useLogin is true and Username/Password is Empty. Exiting..."
@@ -549,7 +566,6 @@ Process {
             }
         }
         else {
-            $CookieFile = "$SiteShared" + $SiteType + "_C"
             if ((Test-Path -Path $CookieFile)) {
                 Write-Output "$(Get-Timestamp) - $CookieFile exists. Continuing..."
                 $dlpParams = $dlpParams + " --cookies $CookieFile"

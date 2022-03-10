@@ -39,6 +39,7 @@ Site = $SiteName
 isDaily = $isDaily
 UseDownloadArchive = $useArchive
 UseLogin = $useLogin
+UseCookies = $useCookies
 SiteUser = $SiteUser
 SitePass = $SitePass
 UseFilebot = $useFilebot
