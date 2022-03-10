@@ -1,5 +1,9 @@
 # Switch params for script
 param(
+    [Parameter(Mandatory = $false)]
+    [Alias("SN")]
+    [string]$Site,
+    [Parameter(Mandatory = $false)]
     [Alias("D")]
     [switch]$isDaily,
     [Parameter(Mandatory = $false)]
@@ -27,25 +31,8 @@ param(
     [Alias("SU")]
     [switch]$createsupportfiles
 )
-DynamicParam {
-    # Need WFTools to work. Otherwise modify to normal string paramater above.
-    New-DynamicParam -Name Site -Alias SN -ValidateSet $(([xml](Get-Content "$PSSCriptRoot\config.xml")).getElementsByTagName("site") | Where-Object { $_.id -ne $null } | Select-Object "id" -ExpandProperty id)
-}
+
 Begin {
-    #This standard block of code loops through bound parameters...
-    #If no corresponding variable exists, one is created
-    foreach ($param in $PSBoundParameters.Keys) {
-        if (-not ( Get-Variable -name $param -scope 0 -ErrorAction SilentlyContinue ) ) {
-            New-Variable -Name $param -Value $PSBoundParameters.$param
-            Write-Verbose "Adding variable for dynamic parameter '$param' with value '$($PSBoundParameters.$param)'"
-        }
-    }
-    ($MyInvocation.MyCommand.Parameters ).Keys | ForEach-Object {
-        $val = (Get-Variable -Name $_ -EA SilentlyContinue).Value
-        if ( $val.length -gt 0 ) {
-            "($($_)) = ($($val))"
-        }
-    }
     # Create empty config if not exists
     if (!(Test-Path "$PSScriptRoot\config.xml" -PathType Leaf)) {
         New-Item "$PSScriptRoot\config.xml" -ItemType File -Force

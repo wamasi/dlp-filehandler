@@ -1,11 +1,6 @@
 # Powershell and Python scripts for yt-dlp downloads and file handling with Subtitle Edit, Filebot, and Plex
 Script used to fetch files with yt-dlp, fix subtitles, embed into video file, rename and move video files into media server folders.
 # Prerequisites
-WFTools
-- Handles parameter validation. Otherwise script edit needed.
-- https://github.com/RamblingCookieMonster/PowerShell
-- https://www.powershellgallery.com/packages/WFTools
-- `Install-Module -Name WFTools -Scope AllUsers`
 
 YT-dlp
 - Downloading videos
