@@ -188,7 +188,7 @@ Begin {
 --windows-filenames
 --trim-filenames 248
 --add-metadata
---sub-langs 'en.*,en_Uncut.*'
+--sub-langs 'en.*'
 --sub-format 'vtt/srt'
 --convert-subs 'ass'
 --write-subs
