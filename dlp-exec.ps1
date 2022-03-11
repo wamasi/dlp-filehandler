@@ -1,4 +1,4 @@
-param ($dlpParams, $useFilebot, $useSubtitleEdit, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase )
+param ($dlpParams, $useFilebot, $useSubtitleEdit, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome )
 # Function to check if file is locked by process before moving forward
 function Test-Lock {
     Param(
@@ -53,6 +53,7 @@ SiteFolder = $SiteFolder
 SiteConfig = $SiteConfig
 CookieFile = $CookieFile
 SiteTemp = $SiteTemp
+SiteSrc = $SiteSrc
 SiteHome = $SiteHome
 Archive = $ArchiveFile
 Bat = $BatFile
@@ -65,7 +66,7 @@ Invoke-Expression $dlpParams
 # If SubtitleEdit = True then run SubtitleEdit against SiteHome folder.
 if ($useSubtitleEdit) {
     $incompletefile = ""
-    ForEach ($folder in $SiteHome) {
+    ForEach ($folder in $SiteSrc) {
         if ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0 -and (Get-ChildItem $folder -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
             Write-Output "[SubtitleEdit] $(Get-Timestamp) - Processing files to fix subtitles and then combine with video."
             # Fixing subs - SubtitleEdit
@@ -179,25 +180,34 @@ if ($useSubtitleEdit) {
                 else {
                     $incompletefile += "$inputs`n"
                     Write-Output "[SubtitleEdit] $(Get-Timestamp) - No matching subtitle files to process. Skipping file."
+                    
                 }
-            }
-            if ($incompletefile) {
-                # If $incomplete file is not empty/null then write out what files have an issue
-                Write-Output "[SubtitleEdit] $(Get-Timestamp) - The following files did not have matching subtitle file: `n$incompletefile"
-                Write-Output "[SubtitleEdit] $(Get-Timestamp) - Script completed with ERRORS"
-                Exit
-            }
-            else {
-                Write-Output "[SubtitleEdit] $(Get-Timestamp)- All files had matching subtitle file"
             }
         }
         else {
             Write-Output "[SubtitleEdit] $(Get-Timestamp) - No files to process"
         }
     }
+    if ($incompletefile) {
+        # If $incomplete file is not empty/null then write out what files have an issue
+        Write-Output "[SubtitleEdit] $(Get-Timestamp) - The following files did not have matching subtitle file: `n$incompletefile"
+        Write-Output "[SubtitleEdit] $(Get-Timestamp) - Script completed with ERRORS"
+        Exit
+    }
+    else {
+        Write-Output "[SubtitleEdit] $(Get-Timestamp)- All files had matching subtitle file"
+        # Moving files from SiteSrc to SiteHome for Filebot processing
+        if ((Test-Path -path $SiteHomeBase)) {
+            Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
+        }
+    }
 }
 else {
     Write-Output "[SubtitleEdit] $(Get-Timestamp) - [End] - Not running"
+    # Moving files from SiteSrc to SiteHome for Filebot processing
+    if ((Test-Path -path $SiteHomeBase)) {
+        Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
+    }
 }
 # If Filebot = True then run Filebot aginst SiteHome folder
 if ($useFilebot) {
@@ -262,9 +272,9 @@ else {
     Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
 }
 # Regardless of failures still force delete temp for clean runs
-if ($SiteTempBase -match "\\tmp\\") {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteTempBase folders/files"
-    Get-ChildItem -Path $SiteTempBase -Recurse -Force | ForEach-Object {
+if ($SiteTemp -match "\\tmp\\") {
+    Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteTemp folders/files"
+    Get-ChildItem -Path $SiteTemp -Recurse -Force | ForEach-Object {
         $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
     }
     # Delete any empty directories left behind after deleting the old files.

@@ -53,6 +53,7 @@ Begin {
 <configuration>
     <Directory>
         <temp location="" />
+        <src location="" />
         <home location="" />
         <ffmpeg location="" />
     </Directory>
@@ -407,8 +408,9 @@ Process {
         $SiteLib = $SN.SLI
         $SubFont = $SN.SFT
         # Setting Home and Temp directory variables
-        $HomeDrive = $ConfigFile.configuration.Directory.home.location
         $TempDrive = $ConfigFile.configuration.Directory.temp.location
+        $SrcDrive = $ConfigFile.configuration.Directory.src.location
+        $DestDrive = $ConfigFile.configuration.Directory.dest.location
         # Setting Plex variables
         $PlexHost = $ConfigFile.configuration.Plex.hosturl.url
         $PlexToken = $ConfigFile.configuration.Plex.plextoken.token
@@ -433,6 +435,42 @@ Process {
         # Base command for yt-dlp
         $dlpParams = 'yt-dlp'
         # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
+        if (!(Test-Path -Path $TempDrive)) {
+            try {
+                New-Item -ItemType Directory -Path $TempDrive -Force -Verbose
+                Write-Output "$(Get-Timestamp) - $TempDrive has been created."
+            }
+            catch {
+                throw $_.Exception.Message
+            }
+        }
+        else {
+            Write-Output "$(Get-Timestamp) -$TempDrive already exists."
+        }
+        if (!(Test-Path -Path $SrcDrive)) {
+            try {
+                New-Item -ItemType Directory -Path $SrcDrive -Force -Verbose
+                Write-Output "$(Get-Timestamp) - $SrcDrive has been created."
+            }
+            catch {
+                throw $_.Exception.Message
+            }
+        }
+        else {
+            Write-Output "$(Get-Timestamp) -$SrcDrive already exists."
+        }
+        if (!(Test-Path -Path $DestDrive)) {
+            try {
+                New-Item -ItemType Directory -Path $DestDrive -Force -Verbose
+                Write-Output "$(Get-Timestamp) - $DestDrive has been created."
+            }
+            catch {
+                throw $_.Exception.Message
+            }
+        }
+        else {
+            Write-Output "$(Get-Timestamp) -$DestDrive already exists."
+        }
         if ($isDaily) {
             # Site folder
             $SiteType = $SiteName + "_D"
@@ -453,7 +491,21 @@ Process {
                 Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
             }
             # Video Destination folder
-            $SiteHomeBase = "$HomeDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
+            $SrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1)
+            $SiteSrc = "$SrcBase\$Time"
+            if (!(Test-Path -Path $SiteSrc)) {
+                try {
+                    New-Item -ItemType Directory -Path $SiteSrc -Force -Verbose
+                    Write-Output "$(Get-Timestamp) - $SiteSrc has been created."
+                }
+                catch {
+                    throw $_.Exception.Message
+                }
+            }
+            else {
+                Write-Output "$(Get-Timestamp) - $SiteSrc already exists."
+            }
+            $SiteHomeBase = "$DestDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
             $SiteHome = "$SiteHomeBase\$Time"
             if (!(Test-Path -Path $SiteHome)) {
                 try {
@@ -471,7 +523,7 @@ Process {
             $SiteConfig = $SiteFolder + "\yt-dlp.conf"
             if ((Test-Path -Path $SiteConfig)) {
                 Write-Output "$(Get-Timestamp) - $SiteConfig exists."
-                $dlpParams = $dlpParams + " --config-location $SiteConfig -P temp:$SiteTemp -P home:$SiteHome"
+                $dlpParams = $dlpParams + " --config-location $SiteConfig -P temp:$SiteTemp -P home:$SiteSrc"
             }
             else {
                 Write-Output "$(Get-Timestamp) - $SiteConfig does not exist."
@@ -499,7 +551,21 @@ Process {
                 Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
             }
             # Site Destination folder
-            $SiteHomeBase = "$HomeDrive\_M\" + $SiteName.Substring(0, 1)
+            $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1) + "M"
+            $SiteSrc = "$SiteSrcBase\$Time"
+            if (!(Test-Path -Path $SiteSrc)) {
+                try {
+                    New-Item -ItemType Directory -Path $SiteSrc -Force 
+                    Write-Output "$(Get-Timestamp) - $SiteSrc has been created."
+                }
+                catch {
+                    throw $_.Exception.Message
+                }
+            }
+            else {
+                Write-Output "$(Get-Timestamp) - $SiteSrc already exists."
+            }
+            $SiteHomeBase = "$DestDrive\_M\" + $SiteName.Substring(0, 1)
             $SiteHome = "$SiteHomeBase\$Time"
             if (!(Test-Path -Path $SiteHome)) {
                 try {
@@ -517,7 +583,7 @@ Process {
             $SiteConfig = $SiteFolder + "\yt-dlp.conf"
             if ((Test-Path -Path $SiteConfig)) {
                 Write-Output "$(Get-Timestamp) - $SiteConfig exists."
-                $dlpParams = $dlpParams + " --config-location $SiteConfig -P temp:$SiteTemp -P home:$SiteHome"
+                $dlpParams = $dlpParams + " --config-location $SiteConfig -P temp:$SiteTemp -P home:$SiteSrc"
             }
             else {
                 Write-Output "$(Get-Timestamp) - $SiteConfig does not exist."
@@ -645,6 +711,6 @@ Process {
             Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
         }
         # Runs execution
-        & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId -LFolderBase $LFolderBase *>&1 | Tee-Object -FilePath $LFile -Append
+        & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome *>&1 | Tee-Object -FilePath $LFile -Append
     }
 }
