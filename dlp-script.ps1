@@ -173,10 +173,10 @@ Begin {
 --convert-thumbnails 'png'
 --remux-video 'mkv'
 -N 32
---extractor-args crunchyroll:language=ja-JP
+--extractor-arg crunchyrollbetashow:type=sub
 --downloader aria2c
 --downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
--f 'bv[height>=1080][language=ja-JP]+ba[height>=1080][language=ja-JP] / bv[langua1ge=ja-JP]+ba[language=ja-JP] / b*[language=ja-JP]'
+-f 'bv[height>=1080]+ba[height>=1080] / bv+ba / b*'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
     $funimationconfig = @"
