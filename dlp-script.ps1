@@ -189,6 +189,7 @@ Begin {
 --trim-filenames 248
 --add-metadata
 --sub-langs 'en.*,en_Uncut.*'
+--sub-format 'vtt/srt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
