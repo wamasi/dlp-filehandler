@@ -1,20 +1,6 @@
 # Powershell and Python scripts for yt-dlp downloads and file handling with Subtitle Edit, Filebot, and Plex
-
 Script used to fetch files with yt-dlp, fix subtitles, embed into video file, rename and move video files into media server folders.
-
-
-# Getting Started
-
-Fill out config with:
-- Paths to temp and destination folder for yt-dlp
-- Path the ffmpeg location
-- Url, Token, LibraryIds to to plex, 
-- Site credentials and corresponding LibraryId for final destination
-
-Install or download prereqs and map to PATH as needed.
-
-
-# Prerequisites
+## Prerequisites
 
 YT-dlp
 - Downloading videos
@@ -40,6 +26,11 @@ Subtitle Edit
 Python
 - Used for script to regex through subtitle file to edit fonts use
 - https://www.python.org/downloads/
+- Modules used:
+  - sys
+  - fileinput
+  - time
+  - regex
 
 Mkvtoolnix
 - Embeds subtitle and fonts
@@ -48,36 +39,59 @@ Mkvtoolnix
 Plex
 - Media Server
 - https://www.plex.tv/
-
-
+## Steps to run:
+1. Install or download prereqs and map to PATH as needed.
+2. Run: `path\to\dlp-script.ps1 -NC` to generate base XML
+   - Creates base XML config in root directory
+3. Fill out template in your path\to\the\config.xml
+   - Paths to temp and destination folder for yt-dlp
+   - Path the ffmpeg location
+   - Url, Token, LibraryIds to to plex
+   - Site credentials and corresponding LibraryId for final destination
+4. Run: `path\to\dlp-script.ps1 -SU` to generate supporting files
+   - Generates
+      - `fonts` folder
+        - Place to store custom fonts used in `SubtitleEdit`, `subtitle_regex.py`, and `mkvmerge` to display custom font in subtitle file.
+      - `shared` folder
+        - Empty archive, bat, and cookie files.
+      - `sites` folder
+        - Base site configs
+        - Log files
+5. Setup up configs, batch, cookie, and font files as needed
+   - You'll end up with a set of manual and daily files per site
+6. Run: `path\to\dlp-script.ps1 {ARGS}` with applicable arguments
+   - Ex. `D:\Folder\dlp-script.ps1 -SN youtube -D -SE -A` runs yt-dlp for youtube with the daily(_D suffix) files using the associated cookie and archive file along with running SubtitleEdit afterwards.
+   - Script execution steps:
+      - `dlp-script.ps1` gathers initial variables based on parameters passed into script.
+         - Log file is generated and located in `site` folder based on date/datetime
+         - Creates base folder structure for `tmp`, `src`, `dest`.
+      - `dlp-script.ps1` runs `YT-DLP`, `SubtitleEdit`, `subtitle_regex.py`, `mkvmerge` command based on parameters
+         - Each run puts files in folder based on timestamp of execution.
+         - Temp files store in `tmp` location set from `config.xml`.
+         - Final files from `YT-DLP` will be moved to `src` location set from `config.xml`.
+         - If `SubtitleEdit = True`
+            - Will run to fix common issues in subtitle files using SubtitleEdit.
+            - If font value is set and file exists:
+               - `subtitle_regex.py` will regex through file to update font name.
+               - mkvmerge will embed custom font.
+            - If file runs into an issue this will be outputted in the log and all files from this run will not be moved to `dest`.
+         - Moves final file to `dest` location set from `config.xml`.
+         - If `FileBot = True` will run FileBot against files in `dest` location.
+            - Will then move all files with updated name to `Plex Library Folder` set from `config.xml`.
+            - If FileBot runs into an issue this will be outputted in the log and all files from this run will not be moved to `Plex Library Folder`.
+            - if `Plex Token` and `Plex libraryId` supplied will run API call to update folder
+         - Clean up of `tmp`, `src`, and `dest` folders.
+            - `tmp` will always be deleted at the end of a run
 # Parameters explained:
 | Arguments/Switches | Abbreviation | Description|Notes|
- :--- | :---: | --- | --- 
-|-site|-s/-S|Tells the script what site its working with|Hardcoded acceptable values|
-|-isDaily|-d/-D|Will use different yt-dlp configs and files and temp/home folder structure| If -D = true then it will use the \_D suffix named files|
-|-useArchive|-a/-A|Will tell yt-dlp command to use or not use archive file| If -A = true then it will use the \_A suffix named files|
-|-useLogin|-l/-L|Tells yt-dlp command to use credentials stored in config xml| If -L = false then it will use the \_C suffix named files. Will check ReqCookies file if site matches in text then will throw error|
-|-useFilebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml| |
-|-useSubtitleEdit|-se/-SE|Tells script to run SubetitleEdit to fix common problems with .srt files if they are present| Expects presence of mkv and ass file |
-|-useDebug|-b/-B| Shows minor additional info| |
-|-help|-h/-H|Shows this text| |
-|-newconfig|-n/-N|Used to generate empty config if none is present| |
-|-createsupportfiles|-su/-SU|Creates support files like archives, batch and cookies files for sites in the config.xml| |
-
-
-# Expected folder structure:
-- For yt-dlp temp: {drive}\tmp\
-- For yt-dlp home: {drive}\tmp\
-- For Filebot/SubtitleEdit staging: {drive}\tmp\
-- Final destination: {drive}\videos\{PlexLibraryFolder}\
-
-
-# Steps to run:
-1. Run: `path\to\dlp-script.ps1 -N` to generate base XML
-   - Creates base XML config in root directory
-2. Fill out template in your path\to\the\config.xml
-3. Run: `path\to\dlp-script.ps1 -SU` to generate supporting files
-4. Setup up configs, batch, and cookie files as needed
-   - You'll end up with a set of manual and daily files per site
-5. Run: `path\to\dlp-script.ps1 {ARGS}` with applicable arguments
-   - As your script is running it will generate a log in the related site folder
+ :--- | :--- | :--- | :--- |
+|-site|-sn/-SN|Tells the script what site its working with|Hardcoded acceptable values.| Reads from root\config.xml file for list of applicable values|
+|-isDaily|-d/-D|Will use different yt-dlp configs and files and temp/home folder structure.| If -D = true then it will use the \_D suffix named files.|
+|-useArchive|-a/-A|Will tell yt-dlp command to use or not use archive file.| If -A = true then it will use the \_A suffix named files.|
+|-useLogin|-l/-L|Tells yt-dlp command to use credentials stored in config xml.| If -L = false then it will use the \_C suffix named files. Will check ReqCookies file if site matches in text then will throw error.|
+|-useFilebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml.| |
+|-useSubtitleEdit|-se/-SE|Tells script to run SubetitleEdit to fix common problems with .srt files if they are present.| Expects presence of mkv and ass file.|
+|-useDebug|-b/-B| Shows minor additional info.| |
+|-help|-h/-H|Shows MD file.| If help is true or all parameters false/null then displays readme. |
+|-newconfig|-nc/-NC|Used to generate empty config if none is present.| |
+|-createsupportfiles|-su/-SU|Creates support files like archives, batch, some basic configs and cookies files for sites in the `config.xml`.| |
