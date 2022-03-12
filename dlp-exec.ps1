@@ -36,28 +36,28 @@ else {
 # Writing all variables
 Write-Output @"
 Site = $SiteName
+SiteType = $SiteType
 isDaily = $isDaily
-UseDownloadArchive = $useArchive
-UseLogin = $useLogin
-UseCookies = $useCookies
 SiteUser = $SiteUser
 SitePass = $SitePass
-UseFilebot = $useFilebot
-useSubtitleEdit = $useSubtitleEdit
-Script Directory = $PSScriptRoot
-PlexHost = $PlexHost
-PlexLibPath = $PlexLibPath
-PlexLibId = $PlexLibId
-SiteType = $SiteType
+UseLogin = $useLogin
 SiteFolder = $SiteFolder
-SiteConfig = $SiteConfig
-CookieFile = $CookieFile
 SiteTemp = $SiteTemp
 SiteSrc = $SiteSrc
 SiteHome = $SiteHome
+SiteConfig = $SiteConfig
+CookieFile = $CookieFile
+UseCookies = $useCookies
 Archive = $ArchiveFile
+UseDownloadArchive = $useArchive
 Bat = $BatFile
 Ffmpeg = $Ffmpeg
+UseFilebot = $useFilebot
+useSubtitleEdit = $useSubtitleEdit
+PlexHost = $PlexHost
+PlexLibPath = $PlexLibPath
+PlexLibId = $PlexLibId
+Script Directory = $PSScriptRoot
 dlpParams = $dlpParams
 "@
 
