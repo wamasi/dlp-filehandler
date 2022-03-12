@@ -49,7 +49,15 @@ Plex
    - Url, Token, LibraryIds to to plex
    - Site credentials and corresponding LibraryId for final destination
 4. Run: `path\to\dlp-script.ps1 -SU` to generate supporting files
-5. Setup up configs, batch, and cookie files as needed
+   - Generates
+      - `fonts` folder
+        - Place to store custom fonts used in `SubtitleEdit`, `subtitle_regex.py`, and `mkvmerge` to display custom font in subtitle file.
+      - `shared` folder
+        - Empty archive, bat, cookie files.
+      - `sites` folder
+        - Base site configs
+        - Log files
+5. Setup up configs, batch, cookie, and font files as needed
    - You'll end up with a set of manual and daily files per site
 6. Run: `path\to\dlp-script.ps1 {ARGS}` with applicable arguments
    - Ex. `D:\Folder\dlp-script.ps1 -SN youtube -D -SE -A` runs yt-dlp for youtube with the daily(_D suffix) files using the archive file along with running SubtitleEdit afterwards.
