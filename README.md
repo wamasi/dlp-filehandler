@@ -66,4 +66,4 @@ Plex
 |-useDebug|-b/-B| Shows minor additional info.| |
 |-help|-h/-H|Shows MD file.| If help is true or all parameters false/null then displays readme. |
 |-newconfig|-nc/-NC|Used to generate empty config if none is present.| |
-|-createsupportfiles|-su/-SU|Creates support files like archives, batch and cookies files for sites in the `config.xml`.| |
+|-createsupportfiles|-su/-SU|Creates support files like archives, batch, some basic configs and cookies files for sites in the `config.xml`.| |
