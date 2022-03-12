@@ -412,13 +412,13 @@ Process {
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
         # Fetching site variables
         $SNfile = $ConfigFile.getElementsByTagName("site") | Select-Object "id", "username", "password", "libraryid", "font" | Where-Object { $_.id.ToLower() -eq "$site" }
-        $SNfile | ForEach-Object {
-            $SN = New-Object -Type PSObject -Property @{
-                SN  = $_.id.ToLower()
-                SUN = $_.username
-                SPW = $_.password
-                SLI = $_.libraryid
-                SFT = $_.font
+        foreach ($object in $SNfile) {
+            $SN = New-Object -TypeName PSObject -Property @{
+                SN  = $object.id.ToLower()
+                SUN = $object.username
+                SPW = $object.password
+                SLI = $object.libraryid
+                SFT = $object.font
             }
         }
         $SiteName = $SN.SN
