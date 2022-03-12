@@ -332,7 +332,7 @@ Begin {
             }
             # if site support files (Config, archive, bat, cookie) are missing it will attempt to create an isdaily and non-isDaily set
             # Creating Shared directory
-            $SharedF = "$PSScriptRoot\_shared"
+            $SharedF = "$PSScriptRoot\shared"
             Folders $SharedF
             #Creating Site directory
             $SCC = "$PSScriptRoot\sites"
@@ -443,17 +443,19 @@ Process {
         $PlexLibId = $PlexLibrary.Attributes[0].'#text'
         # Setting fonts per site. These are manually tested to work with embedding and displayin in video files
         if ($SubFont.trim() -ne "") {
+            $SubFontDir = "$PSScriptRoot\fonts\$Subfont"
+            $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
             Write-Output "$SubFont set for $SiteName"
         }
         else {
-            $SubFont = "Hey Comic.ttf"
-            Write-Output "$SubFont set for $SiteName"
+            $SubFont = "None"
+            $SubFontDir = "None"
+            $SF = "None"
+            Write-Output "$SubFont - No font set for $SiteName"
         }
-        $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
-        $SubFontDir = "$PSScriptRoot\fonts\$Subfont"
         # Setting Site/Shared folder
         $SiteFolder = "$PSScriptRoot\sites\"
-        $SiteShared = "$PSScriptRoot\_shared\"
+        $SiteShared = "$PSScriptRoot\shared\"
         # Base command for yt-dlp
         $dlpParams = 'yt-dlp'
         # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths

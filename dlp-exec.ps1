@@ -112,8 +112,14 @@ if ($useSubtitleEdit) {
                         }
                         else {
                             Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Formatting $subtitle file."
-                            python "$PSScriptRoot\subtitle_regex.py" $subtitle $SF
-                            break
+                            if ($SF -ne "None"){
+                                Write-Output "[SubtitleEdit] $(Get-Timestamp) - Python - Regex through $subtitle file with $SF."
+                                python "$PSScriptRoot\subtitle_regex.py" $subtitle $SF
+                                break
+                            }
+                            else {
+                                Write-Output "[SubtitleEdit] $(Get-Timestamp) - Python - No Font specified for $subtitle file."
+                            }
                         }
                         Start-Sleep -Seconds 1
                     }
@@ -125,9 +131,14 @@ if ($useSubtitleEdit) {
                             continue
                         }
                         else {
-                            Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked.  Combining $subtitle and $inputs files."
-                            mkvmerge -o $tempvideo $inputs $subtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font
-                            break
+                            if ($SubFontDir -ne "None") {
+                                Write-Output "[SubtitleEdit] $(Get-Timestamp) - MKVMERGE - File not locked.  Combining $subtitle and $inputs files with $SubFontDir."
+                                mkvmerge -o $tempvideo $inputs $subtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font
+                                break
+                            }
+                            else {
+                                Write-Output "[SubtitleEdit] $(Get-Timestamp) - MKVMERGE - No Font specified for $subtitle and $inputs files with $SubFontDir."
+                            }
                         }
                         Start-Sleep -Seconds 1
                     }
