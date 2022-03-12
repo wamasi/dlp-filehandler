@@ -1,6 +1,6 @@
 config.xml
 .vscode/
-_shared/
+shared/
 fonts/
 sites/
 *.tff
