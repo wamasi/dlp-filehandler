@@ -426,10 +426,11 @@ Process {
         $SitePass = $SN.SPW
         $SiteLib = $SN.SLI
         $SubFont = $SN.SFT
-        # Setting Home and Temp directory variables
+        # Setting Temp, Src, home and FFMPEG variables
         $TempDrive = $ConfigFile.configuration.Directory.temp.location
         $SrcDrive = $ConfigFile.configuration.Directory.src.location
         $DestDrive = $ConfigFile.configuration.Directory.dest.location
+        $Ffmpeg = $ConfigFile.configuration.Directory.ffmpeg.location
         # Setting Plex variables
         $PlexHost = $ConfigFile.configuration.Plex.hosturl.url
         $PlexToken = $ConfigFile.configuration.Plex.plextoken.token
@@ -549,7 +550,6 @@ Process {
             }
         }
         # FFMPEG - Always used to handle processing and file moving
-        $Ffmpeg = $ConfigFile.configuration.Directory.ffmpeg.location
         if ($Ffmpeg) {
             Write-Output "$(Get-Timestamp) - $Ffmpeg file found. Continuing..."
             $dlpParams = $dlpParams + " --ffmpeg-location $Ffmpeg "
@@ -628,7 +628,7 @@ Process {
             Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
         }
         else {
-            Write-Output "[START] $DateTime - $S44444444iteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
         }
         # Runs execution
         & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome *>&1 | Tee-Object -FilePath $LFile -Append
