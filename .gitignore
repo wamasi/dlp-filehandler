@@ -2,3 +2,4 @@ config.xml
 .vscode/
 _shared/
 sites/
+*.tff
