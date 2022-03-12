@@ -62,6 +62,23 @@ Plex
 6. Run: `path\to\dlp-script.ps1 {ARGS}` with applicable arguments
    - Ex. `D:\Folder\dlp-script.ps1 -SN youtube -D -SE -A` runs yt-dlp for youtube with the daily(_D suffix) files using the archive file along with running SubtitleEdit afterwards.
    - As your script is running it will generate a log in the related site folder
+   - Script execution steps:
+      - Gathers initial variables based on parameters passed into script.
+      - Log file is generated and located in `site` folder based on date/datetime
+      - Runs `YT-DLP` command based on parameters
+         - Each run puts files in folder based on timestamp of execution.
+         - Temp files store in `tmp` location set from `config.xml`.
+         - Final files from `YT-DLP` will be moved to `src` location set from `config.xml`.
+      - If `SubtitleEdit = True`
+         - Will run to fix common issues in subtitle files using SubtitleEdit.
+         - If font value is set and file exists:
+            - Python will regex through file to update font name.
+            - mkvmerge will embed custom font.
+         - If file runs into an issue this will be outputted in the log and all files from this run will not be moved to `dest`.
+      - Moves final file to `dest` location set from `config.xml`.
+      - If `FileBot = True` will run FileBot against files in `dest` location.
+         - Will then move all files with updated name to `Plex Library Folder` set from `config.xml`.
+         - If FileBot runs into an issue this will be outputted in the log and all files from this run will not be moved to `Plex Library Folder`.
 # Parameters explained:
 | Arguments/Switches | Abbreviation | Description|Notes|
  :--- | :--- | :--- | :--- |
