@@ -52,6 +52,9 @@ Archive = $ArchiveFile
 UseDownloadArchive = $useArchive
 Bat = $BatFile
 Ffmpeg = $Ffmpeg
+SubFont = $SubFont
+SubFontDir = $SubFontDir
+SF = $SF
 UseFilebot = $useFilebot
 useSubtitleEdit = $useSubtitleEdit
 PlexHost = $PlexHost
@@ -112,7 +115,7 @@ if ($useSubtitleEdit) {
                         }
                         else {
                             Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Formatting $subtitle file."
-                            if ($SF -ne "None"){
+                            if ($SF -ne "None") {
                                 Write-Output "[SubtitleEdit] $(Get-Timestamp) - Python - Regex through $subtitle file with $SF."
                                 python "$PSScriptRoot\subtitle_regex.py" $subtitle $SF
                                 break
