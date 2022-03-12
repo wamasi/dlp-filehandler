@@ -132,12 +132,12 @@ if ($useSubtitleEdit) {
                         Start-Sleep -Seconds 1
                     }
                     # If file doesn't exist yet then wait
-                    while (!(Test-Path $tempvideo)) {
-                        Start-Sleep 1
+                    While (!(Test-Path $tempvideo -ErrorAction SilentlyContinue)) {
+                        Start-Sleep 1.5
                     }
                     # Wait for files to input, subtitle, and tempvideo to be ready
                     While ($True) {
-                        if ((Test-Lock $inputs) -eq $True -and (Test-Lock $subtitle) -eq $True -and (Test-Lock $tempvideo) -eq $True) {
+                        if (((Test-Lock $inputs) -eq $True) -and ((Test-Lock $subtitle) -eq $True ) -and ((Test-Lock $tempvideo) -eq $True)) {
                             Write-Output "[SubtitleEdit] $(Get-Timestamp)- File locked.  Waiting..."
                             continue
                         }

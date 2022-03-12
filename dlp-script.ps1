@@ -31,7 +31,6 @@ param(
     [Alias("SU")]
     [switch]$createsupportfiles
 )
-
 Begin {
     # Create empty config if not exists
     if (!(Test-Path "$PSScriptRoot\config.xml" -PathType Leaf)) {
@@ -384,6 +383,25 @@ Process {
         function Get-Time {
             return (Get-Date -Format "MMddHHmmss")
         }
+        # Creating folders
+        function Set-Folders {
+            param (
+                [Parameter(Mandatory = $true)]
+                [string] $Fullpath
+            )
+            if (!(Test-Path -Path $Fullpath)) {
+                try {
+                    New-Item -ItemType Directory -Path $Fullpath -Force -Verbose
+                    Write-Output "$(Get-Timestamp) - $Fullpath has been created."
+                }
+                catch {
+                    throw $_.Exception.Message
+                }
+            }
+            else {
+                Write-Output "$(Get-Timestamp) - $Fullpath already exists."
+            }
+        }
         # Setting Date and Datetime variable for Log
         $Date = Get-Day
         $DateTime = Get-TimeStamp
@@ -436,42 +454,9 @@ Process {
         # Base command for yt-dlp
         $dlpParams = 'yt-dlp'
         # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
-        if (!(Test-Path -Path $TempDrive)) {
-            try {
-                New-Item -ItemType Directory -Path $TempDrive -Force -Verbose
-                Write-Output "$(Get-Timestamp) - $TempDrive has been created."
-            }
-            catch {
-                throw $_.Exception.Message
-            }
-        }
-        else {
-            Write-Output "$(Get-Timestamp) -$TempDrive already exists."
-        }
-        if (!(Test-Path -Path $SrcDrive)) {
-            try {
-                New-Item -ItemType Directory -Path $SrcDrive -Force -Verbose
-                Write-Output "$(Get-Timestamp) - $SrcDrive has been created."
-            }
-            catch {
-                throw $_.Exception.Message
-            }
-        }
-        else {
-            Write-Output "$(Get-Timestamp) -$SrcDrive already exists."
-        }
-        if (!(Test-Path -Path $DestDrive)) {
-            try {
-                New-Item -ItemType Directory -Path $DestDrive -Force -Verbose
-                Write-Output "$(Get-Timestamp) - $DestDrive has been created."
-            }
-            catch {
-                throw $_.Exception.Message
-            }
-        }
-        else {
-            Write-Output "$(Get-Timestamp) -$DestDrive already exists."
-        }
+        Set-Folders $TempDrive
+        Set-Folders $SrcDrive
+        Set-Folders $DestDrive
         if ($isDaily) {
             # Site folder
             $SiteType = $SiteName + "_D"
@@ -479,47 +464,14 @@ Process {
             # Video Temp folder
             $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1)
             $SiteTemp = "$SiteTempBase\$Time"
-            if (!(Test-Path -Path $SiteTemp)) {
-                try {
-                    New-Item -ItemType Directory -Path $SiteTemp -Force -Verbose
-                    Write-Output "$(Get-Timestamp) - $SiteTemp has been created."
-                }
-                catch {
-                    throw $_.Exception.Message
-                }
-            }
-            else {
-                Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
-            }
+            Set-Folders $SiteTemp
             # Video Destination folder
             $SrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1)
             $SiteSrc = "$SrcBase\$Time"
-            if (!(Test-Path -Path $SiteSrc)) {
-                try {
-                    New-Item -ItemType Directory -Path $SiteSrc -Force -Verbose
-                    Write-Output "$(Get-Timestamp) - $SiteSrc has been created."
-                }
-                catch {
-                    throw $_.Exception.Message
-                }
-            }
-            else {
-                Write-Output "$(Get-Timestamp) - $SiteSrc already exists."
-            }
+            Set-Folders $SiteSrc
             $SiteHomeBase = "$DestDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
             $SiteHome = "$SiteHomeBase\$Time"
-            if (!(Test-Path -Path $SiteHome)) {
-                try {
-                    New-Item -ItemType Directory -Path $SiteHome -Force -Verbose
-                    Write-Output "$(Get-Timestamp) - $SiteHome has been created."
-                }
-                catch {
-                    throw $_.Exception.Message
-                }
-            }
-            else {
-                Write-Output "$(Get-Timestamp) - $SiteHome already exists."
-            }
+            Set-Folders $SiteHome
             # Setting Site config
             $SiteConfig = $SiteFolder + "\yt-dlp.conf"
             if ((Test-Path -Path $SiteConfig)) {
@@ -539,47 +491,14 @@ Process {
             # Site Temp folder
             $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1) + "M"
             $SiteTemp = "$SiteTempBase\$Time"
-            if (!(Test-Path -Path $SiteTemp)) {
-                try {
-                    New-Item -ItemType Directory -Path $SiteTemp -Force 
-                    Write-Output "$(Get-Timestamp) - $SiteTemp has been created."
-                }
-                catch {
-                    throw $_.Exception.Message
-                }
-            }
-            else {
-                Write-Output "$(Get-Timestamp) -$SiteTemp already exists."
-            }
+            Set-Folders $SiteTemp
             # Site Destination folder
             $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1) + "M"
             $SiteSrc = "$SiteSrcBase\$Time"
-            if (!(Test-Path -Path $SiteSrc)) {
-                try {
-                    New-Item -ItemType Directory -Path $SiteSrc -Force 
-                    Write-Output "$(Get-Timestamp) - $SiteSrc has been created."
-                }
-                catch {
-                    throw $_.Exception.Message
-                }
-            }
-            else {
-                Write-Output "$(Get-Timestamp) - $SiteSrc already exists."
-            }
+            Set-Folders $SiteSrc
             $SiteHomeBase = "$DestDrive\_M\" + $SiteName.Substring(0, 1)
             $SiteHome = "$SiteHomeBase\$Time"
-            if (!(Test-Path -Path $SiteHome)) {
-                try {
-                    New-Item -ItemType Directory -Path $SiteHome -Force 
-                    Write-Output "$(Get-Timestamp) - $SiteHome has been created."
-                }
-                catch {
-                    throw $_.Exception.Message
-                }
-            }
-            else {
-                Write-Output "$(Get-Timestamp) - $SiteHome already exists."
-            }
+            Set-Folders $SiteHome
             # Site Config
             $SiteConfig = $SiteFolder + "\yt-dlp.conf"
             if ((Test-Path -Path $SiteConfig)) {
@@ -709,7 +628,7 @@ Process {
             Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
         }
         else {
-            Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[START] $DateTime - $S44444444iteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
         }
         # Runs execution
         & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome *>&1 | Tee-Object -FilePath $LFile -Append
