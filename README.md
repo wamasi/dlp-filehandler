@@ -59,6 +59,6 @@ Plex
 |-useFilebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml.| |
 |-useSubtitleEdit|-se/-SE|Tells script to run SubetitleEdit to fix common problems with .srt files if they are present.| Expects presence of mkv and ass file.|
 |-useDebug|-b/-B| Shows minor additional info.| |
-|-help|-h/-H|Shows this text.| If help is true or all parameters false/null then displays readme. |
+|-help|-h/-H|Shows MD file.| If help is true or all parameters false/null then displays readme. |
 |-newconfig|-nc/-NC|Used to generate empty config if none is present.| |
 |-createsupportfiles|-su/-SU|Creates support files like archives, batch and cookies files for sites in the `config.xml`.| |
