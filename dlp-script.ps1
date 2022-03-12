@@ -321,6 +321,8 @@ Begin {
                 Write-Output "$SuppFiles file exists"
             }
         }
+        $FontFolder = "$PSScriptRoot\fonts"
+        Folders $FontFolder
         $ConfigPath = "$PSScriptRoot\config.xml"
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
         $SNfile = $ConfigFile.getElementsByTagName("site") | Where-Object { $_.id.trim() -ne "" } | Select-Object "id" -ExpandProperty id
