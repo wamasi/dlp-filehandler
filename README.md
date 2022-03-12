@@ -53,32 +53,35 @@ Plex
       - `fonts` folder
         - Place to store custom fonts used in `SubtitleEdit`, `subtitle_regex.py`, and `mkvmerge` to display custom font in subtitle file.
       - `shared` folder
-        - Empty archive, bat, cookie files.
+        - Empty archive, bat, and cookie files.
       - `sites` folder
         - Base site configs
         - Log files
 5. Setup up configs, batch, cookie, and font files as needed
    - You'll end up with a set of manual and daily files per site
 6. Run: `path\to\dlp-script.ps1 {ARGS}` with applicable arguments
-   - Ex. `D:\Folder\dlp-script.ps1 -SN youtube -D -SE -A` runs yt-dlp for youtube with the daily(_D suffix) files using the archive file along with running SubtitleEdit afterwards.
-   - As your script is running it will generate a log in the related site folder
+   - Ex. `D:\Folder\dlp-script.ps1 -SN youtube -D -SE -A` runs yt-dlp for youtube with the daily(_D suffix) files using the associated cookie and archive file along with running SubtitleEdit afterwards.
    - Script execution steps:
-      - Gathers initial variables based on parameters passed into script.
-      - Log file is generated and located in `site` folder based on date/datetime
-      - Runs `YT-DLP` command based on parameters
+      - `dlp-script.ps1` gathers initial variables based on parameters passed into script.
+         - Log file is generated and located in `site` folder based on date/datetime
+         - Creates base folder structure for `tmp`, `src`, `dest`.
+      - `dlp-script.ps1` runs `YT-DLP`, `SubtitleEdit`, `subtitle_regex.py`, `mkvmerge` command based on parameters
          - Each run puts files in folder based on timestamp of execution.
          - Temp files store in `tmp` location set from `config.xml`.
          - Final files from `YT-DLP` will be moved to `src` location set from `config.xml`.
-      - If `SubtitleEdit = True`
-         - Will run to fix common issues in subtitle files using SubtitleEdit.
-         - If font value is set and file exists:
-            - Python will regex through file to update font name.
-            - mkvmerge will embed custom font.
-         - If file runs into an issue this will be outputted in the log and all files from this run will not be moved to `dest`.
-      - Moves final file to `dest` location set from `config.xml`.
-      - If `FileBot = True` will run FileBot against files in `dest` location.
-         - Will then move all files with updated name to `Plex Library Folder` set from `config.xml`.
-         - If FileBot runs into an issue this will be outputted in the log and all files from this run will not be moved to `Plex Library Folder`.
+         - If `SubtitleEdit = True`
+            - Will run to fix common issues in subtitle files using SubtitleEdit.
+            - If font value is set and file exists:
+               - `subtitle_regex.py` will regex through file to update font name.
+               - mkvmerge will embed custom font.
+            - If file runs into an issue this will be outputted in the log and all files from this run will not be moved to `dest`.
+         - Moves final file to `dest` location set from `config.xml`.
+         - If `FileBot = True` will run FileBot against files in `dest` location.
+            - Will then move all files with updated name to `Plex Library Folder` set from `config.xml`.
+            - If FileBot runs into an issue this will be outputted in the log and all files from this run will not be moved to `Plex Library Folder`.
+            - if `Plex Token` and `Plex libraryId` supplied will run API call to update folder
+         - Clean up of `tmp`, `src`, and `dest` folders.
+            - `tmp` will always be deleted at the end of a run
 # Parameters explained:
 | Arguments/Switches | Abbreviation | Description|Notes|
  :--- | :--- | :--- | :--- |
