@@ -190,14 +190,22 @@ if ($useSubtitleEdit) {
     }
     if ($incompletefile) {
         # If $incomplete file is not empty/null then write out what files have an issue
-        Write-Output "[SubtitleEdit] $(Get-Timestamp) - The following files did not have matching subtitle file: `n$incompletefile"
-        Write-Output "[SubtitleEdit] $(Get-Timestamp) - Script completed with ERRORS"
+        Write-Output @"
+[SubtitleEdit] $(Get-Timestamp) - The following files did not have matching subtitle file: `n$incompletefile
+[SubtitleEdit] $(Get-Timestamp) - Script completed with ERRORS
+[END] $(Get-Timestamp) - Script finished incompleted.
+"@
         Exit
     }
     else {
         Write-Output "[SubtitleEdit] $(Get-Timestamp)- All files had matching subtitle file"
         # Moving files from SiteSrc to SiteHome for Filebot processing
-        if ((Test-Path -path $SiteHomeBase)) {
+        if ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -eq 0) {
+            Write-Output "[SubtitleEdit] $(Get-Timestamp) - $SiteSrc does not have any files. Removing folder..."
+            Remove-Item $SiteSrc -Recurse -Force -Confirm:$false -Verbose
+        }
+        elseif ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
+            Write-Output "[SubtitleEdit] $(Get-Timestamp) - $SiteSrc contains foles. Moving to $SiteHomeBase..."
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
         }
     }
@@ -205,7 +213,12 @@ if ($useSubtitleEdit) {
 else {
     Write-Output "[SubtitleEdit] $(Get-Timestamp) - [End] - Not running"
     # Moving files from SiteSrc to SiteHome for Filebot processing
-    if ((Test-Path -path $SiteHomeBase)) {
+    if ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -eq 0) {
+        Write-Output "[SubtitleEdit] $(Get-Timestamp) - $SiteSrc does not have any files. Removing folder..."
+        Remove-Item $SiteSrc -Recurse -Force -Confirm:$false -Verbose
+    }
+    elseif ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
+        Write-Output "[SubtitleEdit] $(Get-Timestamp) - $SiteSrc contains foles. Moving to $SiteHomeBase..."
         Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
     }
 }
@@ -235,9 +248,11 @@ if ($useFilebot) {
     }
     $completedF.Trim()
     $incompletefile.Trim()
-    write-output "[Filebot] $(Get-Timestamp) - Completed files: `n$completedF"
-    write-output "[Filebot] $(Get-Timestamp) - Incomplete files: `n$incompletefile"
-    Write-Output "[Filebot] $(Get-Timestamp) - No other files need to be processed. Attempting Filebot cleanup"
+    write-output @"
+[Filebot] $(Get-Timestamp) - Completed files: `n$completedF
+[Filebot] $(Get-Timestamp) - Incomplete files: `n$incompletefile
+[Filebot] $(Get-Timestamp) - No other files need to be processed. Attempting Filebot cleanup
+"@
     filebot -script fn:cleaner "$SiteHome" --log all
     # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
     if ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
