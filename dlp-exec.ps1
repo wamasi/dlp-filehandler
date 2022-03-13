@@ -63,7 +63,6 @@ PlexLibId = $PlexLibId
 Script Directory = $PSScriptRoot
 dlpParams = $dlpParams
 "@
-
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
 # If SubtitleEdit = True then run SubtitleEdit against SiteHome folder.
@@ -252,7 +251,6 @@ If ($useFilebot) {
                 Else {
                     filebot -rename "$inputs" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
                 }
-
                 $completedF += "$inputs`n"
             }
         }
