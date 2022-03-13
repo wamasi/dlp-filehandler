@@ -246,12 +246,13 @@ If ($useFilebot) {
         If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
             Get-ChildItem $folder -Recurse -File -Include "$VidType" | ForEach-Object {
                 $inputs = $_.FullName
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder"
                 # Filebot command
                 If ($PlexLibPath) {
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder"
                     filebot -rename "$inputs" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
                 }
                 Else {
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place"
                     filebot -rename "$inputs" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
                 }
                 $completedF += "$inputs`n"
