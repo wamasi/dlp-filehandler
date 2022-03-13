@@ -61,7 +61,7 @@ PlexHost = $PlexHost
 PlexLibPath = $PlexLibPath
 PlexLibId = $PlexLibId
 ConfigPath = $ConfigPath
-Script Directory = $PSScriptRoot
+Script Directory = $ScriptDirectory
 dlpParams = $dlpParams
 "@
 # Call to YT-DLP with parameters

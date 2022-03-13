@@ -417,6 +417,7 @@ Process {
         $Time = Get-Time
         # Start of parsing config xml
         $site = $site.ToLower()
+        $ScriptDirectory = $PSScriptRoot
         $ConfigPath = "$PSScriptRoot\config.xml"
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
         # Fetching site variables
