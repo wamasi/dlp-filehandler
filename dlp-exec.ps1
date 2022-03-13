@@ -298,6 +298,13 @@ If ($useFilebot) {
 Else {
     Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
 }
+If ($ArchiveFile -ne "None") {
+    Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ArchiveFile and $BatFile to $SrcDrive."
+    Copy-Item -Path $ArchiveFile -Destination "$SrcDrive\_shared" -PassThru
+    Copy-Item -Path $BatFile -Destination "$SrcDrive\_shared" -PassThru
+} Else {
+    Write-Output "[FileBackup] $(Get-Timestamp) - $ArchiveFile is None. Nothing to copy..."
+}
 # Regardless of failures still force delete temp for clean runs
 If ($SiteTemp -match "\\tmp\\") {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteTemp folders/files"

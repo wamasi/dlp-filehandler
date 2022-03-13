@@ -463,11 +463,13 @@ Process {
         # Setting Site/Shared folder
         $SiteFolder = "$PSScriptRoot\sites\"
         $SiteShared = "$PSScriptRoot\shared\"
+        $SrcDriveShared = "$SrcDrive\_shared\"
         # Base command for yt-dlp
         $dlpParams = 'yt-dlp'
         # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
         Set-Folders $TempDrive
         Set-Folders $SrcDrive
+        Set-Folders $SrcDriveShared
         Set-Folders $DestDrive
         if ($isDaily) {
             # Site folder
