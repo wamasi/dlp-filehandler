@@ -244,7 +244,6 @@ Begin {
 --add-metadata
 --sub-langs "en.*"
 --sub-format 'ass/vtt/srt'
---sub-format 'vtt/srt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -464,7 +463,7 @@ Process {
         # Plex Library ID
         $PlexLibId = $PlexLibrary.Attributes[0].'#text'
         # Setting fonts per site. These are manually tested to work with embedding and displayin in video files
-        if ($SubFont.trim() -ne "") {
+        if ($SubFont.Trim() -ne "") {
             $SubFontDir = "$ScriptDirectory\fonts\$Subfont"
             if (Test-Path $SubFontDir) {
                 $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)

@@ -220,11 +220,11 @@ If ($useMKVMerge) {
     If ($incompletefile) {
         # If $incomplete file is not empty/null then write out what files have an issue
         Write-Output @"
-[MKVMerge] $(Get-Timestamp) - The following files did not have matching subtitle file: `n$incompletefile
-[MKVMerge] $(Get-Timestamp) - Script completed with ERRORS
+[MKVMerge] $(Get-Timestamp) - The following files did not have matching subtitle file: $incompletefile
+[MKVMerge] $(Get-Timestamp) - Not moving files. Script completed with ERRORS
 [END] $(Get-Timestamp) - Script finished incompleted.
 "@
-        Exit
+        break
     }
     Else {
         Write-Output "[MKVMerge] $(Get-Timestamp)- All files had matching subtitle file"
@@ -251,8 +251,9 @@ Else {
         Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
     }
 }
+$incompletefile.Trim()
 # If Filebot = True then run Filebot aginst SiteHome folder
-If ($useFilebot) {
+If (($useFilebot) -and ($incompletefile.Trim() -eq "")) {
     $completedF = ""
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
     ForEach ($folder in $SiteHome ) {
@@ -276,12 +277,15 @@ If ($useFilebot) {
         }
     }
     $completedF.Trim()
-    $incompletefile.Trim()
-    write-output @"
+    if ($completedF) {
+        write-output @"
 [Filebot] $(Get-Timestamp) - Completed files: `n$completedF
-[Filebot] $(Get-Timestamp) - Incomplete files: `n$incompletefile
-[Filebot] $(Get-Timestamp) - No other files need to be processed. Attempting Filebot cleanup
+[Filebot] $(Get-Timestamp) - No other files need to be processed. Attempting Filebot cleanup.
 "@
+    }
+    else {
+        write-output "[Filebot] $(Get-Timestamp) - No file to process. Attempting Filebot cleanup."
+    }
     filebot -script fn:cleaner "$SiteHome" --log all
     # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
     If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
@@ -311,6 +315,13 @@ If ($useFilebot) {
             Write-Output "[PLEX] $(Get-Timestamp) - No files processed. Skipping PLEX API call."
         }
     }
+}
+elseif (($useFilebot) -and ($incompletefile)) {
+    Write-Output @"
+[Filebot] $(Get-Timestamp) - Incomplete files in $SiteSrc\: `n$incompletefile
+[Filebot] $(Get-Timestamp) - [End] - Files in $SiteSrc need manual attention. Skipping to next step...
+"@
+    break
 }
 Else {
     Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
