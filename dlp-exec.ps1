@@ -70,27 +70,32 @@ Invoke-Expression $dlpParams
 # If useSubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
 If ($useSubtitleEdit) {
     # Fixing subs - SubtitleEdit
-    Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | ForEach-Object {
-        Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $_ subtitle"
-        $subvar = $_.FullName
-        # SubtitleEdit does not play well being called within a script
-        While ($True) {
-            If ((Test-Lock $subvar) -eq $True) {
-                Write-Output "[SubtitleEdit] $(Get-Timestamp) - File locked. Waiting..."
-                continue
+    If ((Get-ChildItem $folder -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
+        Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | ForEach-Object {
+            Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $_ subtitle"
+            $subvar = $_.FullName
+            # SubtitleEdit does not play well being called within a script
+            While ($True) {
+                If ((Test-Lock $subvar) -eq $True) {
+                    Write-Output "[SubtitleEdit] $(Get-Timestamp) - File locked. Waiting..."
+                    continue
+                }
+                Else {
+                    Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Editing $subvar file."
+                    # Remove original video/subtitle file
+                    powershell "SubtitleEdit /convert '$subvar' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes"
+                    break
+                }
+                Start-Sleep -Seconds 1
             }
-            Else {
-                Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Editing $subvar file."
-                # Remove original video/subtitle file
-                powershell "SubtitleEdit /convert '$subvar' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes"
-                break
-            }
-            Start-Sleep -Seconds 1
         }
+    }
+    else {
+        Write-Output "[SubtitleEdit] $(Get-Timestamp) - No subtitles found"
     }
 }
 Else {
-    Write-Output "[SubtitleEdit] $(Get-Timestamp) - [End] - Not running"
+    Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running"
 }
 # If useMKVMerge = True then run MKVMerge against SiteSrc folder.
 If ($useMKVMerge) {
