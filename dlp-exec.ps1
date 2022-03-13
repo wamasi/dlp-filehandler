@@ -1,4 +1,4 @@
-param ($dlpParams, $useFilebot, $useSubtitleEdit, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome )
+param ($dlpParams, $useFilebot, $useSubtitleEdit, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $ConfigPath )
 # Function to check if file is locked by process before moving forward
 function Test-Lock {
     Param(
@@ -60,6 +60,7 @@ useSubtitleEdit = $useSubtitleEdit
 PlexHost = $PlexHost
 PlexLibPath = $PlexLibPath
 PlexLibId = $PlexLibId
+ConfigPath = $ConfigPath
 Script Directory = $PSScriptRoot
 dlpParams = $dlpParams
 "@
@@ -317,7 +318,7 @@ Write-Output "[FileBackup] $(Get-Timestamp) - Copying $BatFile to $SrcDrive."
 Copy-Item -Path $BatFile -Destination "$SrcDrive\_shared" -PassThru
 # Backup of config.xml file
 Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ConfigPath to $SrcDrive."
-Copy-Item -Path $$ConfigPath -Destination "$SrcDrive\_shared" -PassThru
+Copy-Item -Path $ConfigPath -Destination "$SrcDrive\_shared" -PassThru
 # Regardless of failures still force delete tmp for clean runs
 If ($SiteTemp -match "\\tmp\\") {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteTemp folders/files"
