@@ -70,7 +70,7 @@ Invoke-Expression $dlpParams
 # If useSubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
 If ($useSubtitleEdit) {
     # Fixing subs - SubtitleEdit
-    If ((Get-ChildItem $folder -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
+    If ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
         Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | ForEach-Object {
             Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $_ subtitle"
             $subvar = $_.FullName
