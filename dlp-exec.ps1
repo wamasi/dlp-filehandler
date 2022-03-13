@@ -298,26 +298,32 @@ If ($useFilebot) {
 Else {
     Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
 }
+# Backup of Archive file
 If ($ArchiveFile -ne "None") {
     Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ArchiveFile and $BatFile to $SrcDrive."
     Copy-Item -Path $ArchiveFile -Destination "$SrcDrive\_shared" -PassThru
-    Copy-Item -Path $BatFile -Destination "$SrcDrive\_shared" -PassThru
 } Else {
     Write-Output "[FileBackup] $(Get-Timestamp) - $ArchiveFile is None. Nothing to copy..."
 }
-# Regardless of failures still force delete temp for clean runs
+# Backup of Cookie file
+If ($CookieFile -ne "None") {
+    Write-Output "[FileBackup] $(Get-Timestamp) - Copying $BatFile to $SrcDrive."
+    Copy-Item -Path $CookieFile -Destination "$SrcDrive\_shared" -PassThru
+} Else {
+    Write-Output "[FileBackup] $(Get-Timestamp) - $ArchiveFile is None. Nothing to copy..."
+}
+# Backup of Bat file
+Write-Output "[FileBackup] $(Get-Timestamp) - Copying $BatFile to $SrcDrive."
+Copy-Item -Path $BatFile -Destination "$SrcDrive\_shared" -PassThru
+# Regardless of failures still force delete tmp for clean runs
 If ($SiteTemp -match "\\tmp\\") {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteTemp folders/files"
-    Get-ChildItem -Path $SiteTemp -Recurse -Force | ForEach-Object {
-        $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
-    }
-    # Delete any empty directories left behind after deleting the old files.
-    Get-ChildItem -Path $SiteTempBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+    Remove-Item $SiteTemp -Recurse -Force -Confirm:$false -Verbose
 }
 Else {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Temp folder not matching as expected. Remove not completed"
 }
-# Clean up Home destination folder if empty
+# Clean up Dest folder if empty
 If ($SiteHomeBase -match "\\tmp\\") {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteHomeBase folders/files if empty"
     Get-ChildItem -Path $SiteHomeBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
