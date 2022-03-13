@@ -317,7 +317,7 @@ Write-Output "[FileBackup] $(Get-Timestamp) - Copying $BatFile to $SrcDrive."
 Copy-Item -Path $BatFile -Destination "$SrcDrive\_shared" -PassThru
 # Backup of config.xml file
 Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ConfigPath to $SrcDrive."
-Copy-Item -Path $$ConfigPath -Destination "$SrcDrive\_shared" -PassThru
+Copy-Item -Path $ConfigPath -Destination "$SrcDrive\_shared" -PassThru
 # Regardless of failures still force delete tmp for clean runs
 If ($SiteTemp -match "\\tmp\\") {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteTemp folders/files"
