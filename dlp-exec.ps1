@@ -327,9 +327,9 @@ Else {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Temp folder not matching as expected. Remove not completed"
 }
 # Clean up Dest folder if empty
-If ($SiteHomeBase -match "\\tmp\\") {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteHomeBase folders/files if empty"
-    Get-ChildItem -Path $SiteHomeBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+If ($SiteHome -match "\\tmp\\") {
+    Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteHome folders/files if empty"
+    Get-ChildItem -Path $SiteHome -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
 }
 Else {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Home folder not matching as expected. Remove not completed"
