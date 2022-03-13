@@ -1,4 +1,4 @@
-param ($dlpParams, $useFilebot, $useSubtitleEdit, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $ConfigPath )
+param ($dlpParams, $useFilebot, $useSubtitleEdit, $useMKVMerge, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $ConfigPath )
 # Function to check if file is locked by process before moving forward
 function Test-Lock {
     Param(
@@ -55,8 +55,9 @@ Ffmpeg = $Ffmpeg
 SF = $SF
 SubFont = $SubFont
 SubFontDir = $SubFontDir
-UseFilebot = $useFilebot
 useSubtitleEdit = $useSubtitleEdit
+useMKVMerge = $useMKVMerge
+UseFilebot = $useFilebot
 PlexHost = $PlexHost
 PlexLibPath = $PlexLibPath
 PlexLibId = $PlexLibId
@@ -66,33 +67,39 @@ dlpParams = $dlpParams
 "@
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
-# If SubtitleEdit = True then run SubtitleEdit against SiteHome folder.
+# If useSubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
 If ($useSubtitleEdit) {
+    # Fixing subs - SubtitleEdit
+    Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | ForEach-Object {
+        Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $_ subtitle"
+        $subvar = $_.FullName
+        # SubtitleEdit does not play well being called within a script
+        While ($True) {
+            If ((Test-Lock $subvar) -eq $True) {
+                Write-Output "[SubtitleEdit] $(Get-Timestamp) - File locked. Waiting..."
+                continue
+            }
+            Else {
+                Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Editing $subvar file."
+                # Remove original video/subtitle file
+                powershell "SubtitleEdit /convert '$subvar' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes"
+                break
+            }
+            Start-Sleep -Seconds 1
+        }
+    }
+}
+Else {
+    Write-Output "[SubtitleEdit] $(Get-Timestamp) - [End] - Not running"
+}
+# If useMKVMerge = True then run MKVMerge against SiteSrc folder.
+If ($useMKVMerge) {
     $incompletefile = ""
     ForEach ($folder in $SiteSrc) {
         If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0 -and (Get-ChildItem $folder -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-            Write-Output "[SubtitleEdit] $(Get-Timestamp) - Processing files to fix subtitles and then combine with video."
-            # Fixing subs - SubtitleEdit
-            Get-ChildItem $folder -Recurse -File -Include "$SubType" | ForEach-Object {
-                Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $_ subtitle"
-                $subvar = $_.FullName
-                # SubtitleEdit does not play well being called within a script
-                While ($True) {
-                    If ((Test-Lock $subvar) -eq $True) {
-                        Write-Output "[SubtitleEdit] $(Get-Timestamp) - File locked. Waiting..."
-                        continue
-                    }
-                    Else {
-                        Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Editing $subvar file."
-                        # Remove original video/subtitle file
-                        powershell "SubtitleEdit /convert '$subvar' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes"
-                        break
-                    }
-                    Start-Sleep -Seconds 1
-                }
-            }
+            Write-Output "[MKVMerge] $(Get-Timestamp) - Processing files to fix subtitles and then combine with video."
             # Embedding subs into video files - ffmpeg
-            Write-Output "[SubtitleEdit] $(Get-Timestamp) - Checking for subtitle and video files to merge."
+            Write-Output "[MKVMerge] $(Get-Timestamp) - Checking for subtitle and video files to merge."
             Get-ChildItem $folder -Recurse -File -Include "$VidType" | ForEach-Object {
                 # grabbing associated variables needed to pass onto FFMPEG
                 $inputs = $_.FullName
@@ -109,40 +116,41 @@ If ($useSubtitleEdit) {
                 # Only process files with matching subtitle
                 If ($subtitle) {
                     # Adding custom styling to ASS subtitle
-                    Write-Output "[SubtitleEdit] $(Get-Timestamp) - Replacing Styling in $subtitle."
+                    Write-Output "[MKVMerge] $(Get-Timestamp) - Replacing Styling in $subtitle."
                     While ($True) {
                         If ((Test-Lock $subtitle) -eq $True) {
-                            Write-Output "[SubtitleEdit] $(Get-Timestamp) - $subtitle File locked.  Waiting..."
+                            Write-Output "[MKVMerge] $(Get-Timestamp) - $subtitle File locked.  Waiting..."
                             continue
                         }
                         Else {
-                            Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Formatting $subtitle file."
+                            Write-Output "[MKVMerge] $(Get-Timestamp) - File not locked. Formatting $subtitle file."
                             If ($SF -ne "None") {
-                                Write-Output "[SubtitleEdit] $(Get-Timestamp) - Python - Regex through $subtitle file with $SF."
+                                Write-Output "[MKVMerge] $(Get-Timestamp) - Python - Regex through $subtitle file with $SF."
                                 python $SubtitleRegex $subtitle $SF
                                 break
                             }
                             Else {
-                                Write-Output "[SubtitleEdit] $(Get-Timestamp) - Python - No Font specified for $subtitle file."
+                                Write-Output "[MKVMerge] $(Get-Timestamp) - Python - No Font specified for $subtitle file."
                             }
                         }
                         Start-Sleep -Seconds 1
                     }
-                    Write-Output "[SubtitleEdit] $(Get-Timestamp) - Found matching  $subtitle and $inputs files to process."
+                    Write-Output "[MKVMerge] $(Get-Timestamp) - Found matching  $subtitle and $inputs files to process."
                     #mkmerge command to combine video and subtitle file and set subtitle default
                     While ($True) {
                         If ((Test-Lock $inputs) -eq $True -and (Test-Lock $subtitle) -eq $True) {
-                            Write-Output "[SubtitleEdit] $(Get-Timestamp) - $subtitle and $inputs File locked.  Waiting..."
+                            Write-Output "[MKVMerge] $(Get-Timestamp) - $subtitle and $inputs File locked.  Waiting..."
                             continue
                         }
                         Else {
                             If ($SubFontDir -ne "None") {
-                                Write-Output "[SubtitleEdit] $(Get-Timestamp) - MKVMERGE - File not locked.  Combining $subtitle and $inputs files with $SubFontDir."
+                                Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMERGE - File not locked.  Combining $subtitle and $inputs files with $SubFontDir."
                                 mkvmerge -o $tempvideo $inputs $subtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font
                                 break
                             }
                             Else {
-                                Write-Output "[SubtitleEdit] $(Get-Timestamp) - MKVMERGE - No Font specified for $subtitle and $inputs files with $SubFontDir."
+                                Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMERGE - Merging as-is. No Font specified for $subtitle and $inputs files with $SubFontDir."
+                                mkvmerge -o $tempvideo $inputs $subtitle
                             }
                         }
                         Start-Sleep -Seconds 1
@@ -154,11 +162,11 @@ If ($useSubtitleEdit) {
                     # Wait for files to input, subtitle, and tempvideo to be ready
                     While ($True) {
                         If (((Test-Lock $inputs) -eq $True) -and ((Test-Lock $subtitle) -eq $True ) -and ((Test-Lock $tempvideo) -eq $True)) {
-                            Write-Output "[SubtitleEdit] $(Get-Timestamp)- File locked.  Waiting..."
+                            Write-Output "[MKVMerge] $(Get-Timestamp)- File locked.  Waiting..."
                             continue
                         }
                         Else {
-                            Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Removing $inputs and $subtitle file."
+                            Write-Output "[MKVMerge] $(Get-Timestamp) - File not locked. Removing $inputs and $subtitle file."
                             # Remove original video/subtitle file
                             Remove-Item -Path $inputs -Confirm:$false -Verbose
                             Remove-Item -Path $subtitle -Confirm:$false -Verbose
@@ -169,11 +177,11 @@ If ($useSubtitleEdit) {
                     # Rename temp to original filename
                     While ($True) {
                         If ((Test-Lock $tempvideo) -eq $True) {
-                            Write-Output "[SubtitleEdit] $(Get-Timestamp) - $tempvideo File locked.  Waiting..."
+                            Write-Output "[MKVMerge] $(Get-Timestamp) - $tempvideo File locked.  Waiting..."
                             continue
                         }
                         Else {
-                            Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Renaming $tempvideo to $inputs file."
+                            Write-Output "[MKVMerge] $(Get-Timestamp) - File not locked. Renaming $tempvideo to $inputs file."
                             # Remove original video/subtitle file
                             Rename-Item -Path $tempvideo -NewName $_.FullName -Confirm:$false -Verbose
                             break
@@ -182,11 +190,11 @@ If ($useSubtitleEdit) {
                     }
                     While ($True) {
                         If ((Test-Lock $_.FullName) -eq $True) {
-                            Write-Output "[SubtitleEdit] $(Get-Timestamp) -  $inputs File locked.  Waiting..."
+                            Write-Output "[MKVMerge] $(Get-Timestamp) -  $inputs File locked.  Waiting..."
                             continue
                         }
                         Else {
-                            Write-Output "[SubtitleEdit] $(Get-Timestamp) - $inputs File not locked. Setting default subtitle."
+                            Write-Output "[MKVMerge] $(Get-Timestamp) - $inputs File not locked. Setting default subtitle."
                             mkvpropedit $_.FullName --edit track:s1 --set flag-default=1
                             break
                         }
@@ -195,46 +203,46 @@ If ($useSubtitleEdit) {
                 }
                 Else {
                     $incompletefile += "$inputs`n"
-                    Write-Output "[SubtitleEdit] $(Get-Timestamp) - No matching subtitle files to process. Skipping file."
+                    Write-Output "[MKVMerge] $(Get-Timestamp) - No matching subtitle files to process. Skipping file."
                     
                 }
             }
         }
         Else {
-            Write-Output "[SubtitleEdit] $(Get-Timestamp) - No files to process"
+            Write-Output "[MKVMerge] $(Get-Timestamp) - No files to process"
         }
     }
     If ($incompletefile) {
         # If $incomplete file is not empty/null then write out what files have an issue
         Write-Output @"
-[SubtitleEdit] $(Get-Timestamp) - The following files did not have matching subtitle file: `n$incompletefile
-[SubtitleEdit] $(Get-Timestamp) - Script completed with ERRORS
+[MKVMerge] $(Get-Timestamp) - The following files did not have matching subtitle file: `n$incompletefile
+[MKVMerge] $(Get-Timestamp) - Script completed with ERRORS
 [END] $(Get-Timestamp) - Script finished incompleted.
 "@
         Exit
     }
     Else {
-        Write-Output "[SubtitleEdit] $(Get-Timestamp)- All files had matching subtitle file"
+        Write-Output "[MKVMerge] $(Get-Timestamp)- All files had matching subtitle file"
         # Moving files from SiteSrc to SiteHome for Filebot processing
         If ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -eq 0) {
-            Write-Output "[SubtitleEdit] $(Get-Timestamp) - $SiteSrc does not have any files. Removing folder..."
+            Write-Output "[MKVMerge] $(Get-Timestamp) - $SiteSrc does not have any files. Removing folder..."
             Remove-Item $SiteSrc -Recurse -Force -Confirm:$false -Verbose
         }
         elseIf ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
-            Write-Output "[SubtitleEdit] $(Get-Timestamp) - $SiteSrc contains foles. Moving to $SiteHomeBase..."
+            Write-Output "[MKVMerge] $(Get-Timestamp) - $SiteSrc contains foles. Moving to $SiteHomeBase..."
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
         }
     }
 }
 Else {
-    Write-Output "[SubtitleEdit] $(Get-Timestamp) - [End] - Not running"
+    Write-Output "[MKVMerge] $(Get-Timestamp) - [End] - Not running"
     # Moving files from SiteSrc to SiteHome for Filebot processing
     If ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -eq 0) {
-        Write-Output "[SubtitleEdit] $(Get-Timestamp) - $SiteSrc does not have any files. Removing folder..."
+        Write-Output "[MKVMerge] $(Get-Timestamp) - $SiteSrc does not have any files. Removing folder..."
         Remove-Item $SiteSrc -Recurse -Force -Confirm:$false -Verbose
     }
     elseIf ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
-        Write-Output "[SubtitleEdit] $(Get-Timestamp) - $SiteSrc contains foles. Moving to $SiteHomeBase..."
+        Write-Output "[MKVMerge] $(Get-Timestamp) - $SiteSrc contains foles. Moving to $SiteHomeBase..."
         Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
     }
 }
@@ -308,15 +316,15 @@ If ($ArchiveFile -ne "None") {
     Copy-Item -Path $ArchiveFile -Destination "$SrcDrive\_shared" -PassThru
 }
 Else {
-    Write-Output "[FileBackup] $(Get-Timestamp) - $ArchiveFile is None. Nothing to copy..."
+    Write-Output "[FileBackup] $(Get-Timestamp) - ArchiveFile is None. Nothing to copy..."
 }
 # Backup of Cookie file
 If ($CookieFile -ne "None") {
-    Write-Output "[FileBackup] $(Get-Timestamp) - Copying $BatFile to $SrcDrive."
+    Write-Output "[FileBackup] $(Get-Timestamp) - Copying $CookieFile to $SrcDrive."
     Copy-Item -Path $CookieFile -Destination "$SrcDrive\_shared" -PassThru
 }
 Else {
-    Write-Output "[FileBackup] $(Get-Timestamp) - $ArchiveFile is None. Nothing to copy..."
+    Write-Output "[FileBackup] $(Get-Timestamp) - CookieFile is None. Nothing to copy..."
 }
 # Backup of Bat file
 Write-Output "[FileBackup] $(Get-Timestamp) - Copying $BatFile to $SrcDrive."

@@ -19,17 +19,20 @@ param(
     [Alias("F")]
     [switch]$useFilebot,
     [Parameter(Mandatory = $false)]
+    [Alias("MK")]
+    [switch]$useMKVMerge,
+    [Parameter(Mandatory = $false)]
     [Alias("SE")]
     [switch]$useSubtitleEdit,
-    [Parameter(Mandatory = $false)]
-    [Alias("H")]
-    [switch]$help,
     [Parameter(Mandatory = $false)]
     [Alias("NC")]
     [switch]$newconfig,
     [Parameter(Mandatory = $false)]
     [Alias("SU")]
-    [switch]$createsupportfiles
+    [switch]$createsupportfiles,
+    [Parameter(Mandatory = $false)]
+    [Alias("H")]
+    [switch]$help
 )
 Begin {
     $ScriptDirectory = $PSScriptRoot
@@ -638,7 +641,7 @@ Process {
             Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
         }
         # If SubetitleEdit or Filebot true then check config for subtitle/video outputs and store in variables
-        if ($UseSubtitleEdit -or $UseFileBot) {
+        if ($UseSubtitleEdit -or $UseFileBot -or $useMKVMerge) {
             Select-String -Path $SiteConfig -Pattern "--convert-subs.*" | ForEach-Object {
                 $SubType = "*." + ($_ -split " ")[1]
                 $SubType = $SubType.Replace("'", "").Replace('"', "")
@@ -662,7 +665,7 @@ Process {
             Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
         }
         # Runs execution
-        & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit `
+        & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -useMKVMerge $useMKVMerge `
             -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
             -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath *>&1 | Tee-Object -FilePath $LFile -Append
     }

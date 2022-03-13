@@ -90,9 +90,9 @@ Plex
 |-isDaily|-d/-D|Will use different yt-dlp configs and files and temp/home folder structure.| If -D = true then it will use the \_D suffix named files.|
 |-useArchive|-a/-A|Will tell yt-dlp command to use or not use archive file.| If -A = true then it will use the \_A suffix named files.|
 |-useLogin|-l/-L|Tells yt-dlp command to use credentials stored in config xml.| If -L = false then it will use the \_C suffix named files. Will check ReqCookies file if site matches in text then will throw error.|
-|-useFilebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml.| |
+|-useFilebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml.| Outputs file with \{ plex.tail \}|
+|-useMKVMerge|-mk/-MK|Tells script to run `subtitle_regex.py` and MKVMerge against file| Expects presence of mkv and ass file.|
 |-useSubtitleEdit|-se/-SE|Tells script to run SubetitleEdit to fix common problems with .srt files if they are present.| Expects presence of mkv and ass file.|
-|-useDebug|-b/-B| Shows minor additional info.| |
-|-help|-h/-H|Shows MD file.| If help is true or all parameters false/null then displays readme. |
 |-newconfig|-nc/-NC|Used to generate empty config if none is present.| |
 |-createsupportfiles|-su/-SU|Creates support files like archives, batch, some basic configs and cookies files for sites in the `config.xml`.| |
+|-help|-h/-H|Shows MD file.| If help is true or all parameters false/null then displays readme. |
