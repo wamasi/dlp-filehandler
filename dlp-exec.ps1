@@ -99,11 +99,13 @@ If ($useSubtitleEdit) {
                 $filename = $_.BaseName
                 $subtitle = Get-ChildItem $folder -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $filename } | Select-Object -First 1
                 $tempvideo = $_.DirectoryName + "\" + $_.BaseName + ".temp" + $_.Extension
-                Write-Output "[SubtitleEdit] $(Get-Timestamp) - Checking for $subtitle and $inputs file to merge."
-                "[Input Filename]    = " + $inputs
-                "[Base Filename]     = " + $filename
-                "[Subtitle Filename] = " + $subtitle
-                "[Temp Video]        = " + $tempvideo
+                Write-Output @"
+[SubtitleEdit] $(Get-Timestamp) - Checking for $subtitle and $inputs file to merge.
+[Input Filename]    = $inputs
+[Base Filename]     = $filename
+[Subtitle Filename] = $subtitle
+[Temp Video]        = $tempvideo
+"@
                 # Only process files with matching subtitle
                 If ($subtitle) {
                     # Adding custom styling to ASS subtitle
@@ -117,7 +119,7 @@ If ($useSubtitleEdit) {
                             Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Formatting $subtitle file."
                             If ($SF -ne "None") {
                                 Write-Output "[SubtitleEdit] $(Get-Timestamp) - Python - Regex through $subtitle file with $SF."
-                                python "$PSScriptRoot\subtitle_regex.py" $subtitle $SF
+                                python $SubtitleRegex $subtitle $SF
                                 break
                             }
                             Else {
@@ -303,14 +305,16 @@ Else {
 If ($ArchiveFile -ne "None") {
     Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ArchiveFile and $BatFile to $SrcDrive."
     Copy-Item -Path $ArchiveFile -Destination "$SrcDrive\_shared" -PassThru
-} Else {
+}
+Else {
     Write-Output "[FileBackup] $(Get-Timestamp) - $ArchiveFile is None. Nothing to copy..."
 }
 # Backup of Cookie file
 If ($CookieFile -ne "None") {
     Write-Output "[FileBackup] $(Get-Timestamp) - Copying $BatFile to $SrcDrive."
     Copy-Item -Path $CookieFile -Destination "$SrcDrive\_shared" -PassThru
-} Else {
+}
+Else {
     Write-Output "[FileBackup] $(Get-Timestamp) - $ArchiveFile is None. Nothing to copy..."
 }
 # Backup of Bat file

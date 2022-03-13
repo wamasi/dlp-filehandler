@@ -32,17 +32,18 @@ param(
     [switch]$createsupportfiles
 )
 Begin {
+    $ScriptDirectory = $PSScriptRoot
     # Create empty config if not exists
-    if (!(Test-Path "$PSScriptRoot\config.xml" -PathType Leaf)) {
-        New-Item "$PSScriptRoot\config.xml" -ItemType File -Force
+    if (!(Test-Path "$ScriptDirectory\config.xml" -PathType Leaf)) {
+        New-Item "$ScriptDirectory\config.xml" -ItemType File -Force
     }
     # Help text to remind me what I did/it does when set to true or all parameters false
     if ($help -or [string]::IsNullOrEmpty($site) -and $isDaily -eq $false -and $useArchive -eq $false -and $useLogin -eq $false -and $useFilebot -eq $false -and $useSubtitleEdit -eq $false -and $newconfig -eq $false -and $createsupportfiles -eq $false) {
-        Show-Markdown -Path "$PSSCriptRoot\README.md" -UseBrowser
+        Show-Markdown -Path "$ScriptDirectory\README.md" -UseBrowser
     }
     # Create config if newconfig = True
     if ($newconfig) {
-        $ConfigPath = "$PSScriptRoot\config.xml"
+        $ConfigPath = "$ScriptDirectory\config.xml"
         if (!(Test-Path $ConfigPath -PathType Leaf) -or [String]::IsNullOrWhiteSpace((Get-content $ConfigPath))) {
             #PowerShell Create directory if not exists
             New-Item $ConfigPath -ItemType File -Force
@@ -255,7 +256,7 @@ Begin {
 "@
     # Create supporting files if createsupportfiles = True
     if ($createsupportfiles) {
-        function Folders {
+        function Resolve-Folders {
             param (
                 [Parameter(Mandatory = $true)]
                 [string] $folder
@@ -268,7 +269,7 @@ Begin {
                 Write-Output "$folder directory exists"
             }
         }
-        function Configs {
+        function Resolve-Configs {
             param (
                 [Parameter(Mandatory = $true)]
                 [string] $Configs
@@ -305,7 +306,7 @@ Begin {
                 Write-Output "$Configs file exists"
             }
         }
-        function TrimSpaces {
+        function Remove-Spaces {
             param (
                 [Parameter(Mandatory = $true)]
                 [string] $File
@@ -315,7 +316,7 @@ Begin {
             $content = $content.Trim()
             [System.IO.File]::WriteAllText($File, $content)
         }
-        function SuppFiles {
+        function Resolve-SuppFiles {
             param (
                 [Parameter(Mandatory = $true)]
                 [string] $SuppFiles
@@ -328,9 +329,9 @@ Begin {
                 Write-Output "$SuppFiles file exists"
             }
         }
-        $FontFolder = "$PSScriptRoot\fonts"
-        Folders $FontFolder
-        $ConfigPath = "$PSScriptRoot\config.xml"
+        $FontFolder = "$ScriptDirectory\fonts"
+        Resolve-Folders $FontFolder
+        $ConfigPath = "$ScriptDirectory\config.xml"
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
         $SNfile = $ConfigFile.getElementsByTagName("site") | Where-Object { $_.id.trim() -ne "" } | Select-Object "id" -ExpandProperty id
         $SNfile | ForEach-Object {
@@ -339,43 +340,43 @@ Begin {
             }
             # if site support files (Config, archive, bat, cookie) are missing it will attempt to create an isdaily and non-isDaily set
             # Creating Shared directory
-            $SharedF = "$PSScriptRoot\shared"
-            Folders $SharedF
+            $SharedF = "$ScriptDirectory\shared"
+            Resolve-Folders $SharedF
             #Creating Site directory
-            $SCC = "$PSScriptRoot\sites"
-            Folders $SCC
+            $SCC = "$ScriptDirectory\sites"
+            Resolve-Folders $SCC
             # Base/Manual Site root directory variable
             $SCF = "$SCC\" + $SN.SN
-            Folders $SCF
+            Resolve-Folders $SCF
             # Daily Site directories
             $SCDF = "$SCF" + "_D"
-            Folders $SCDF
+            Resolve-Folders $SCDF
             # Daily Archive
             $SADF = "$SharedF\" + $SN.SN + "_D_A"
-            SuppFiles $SADF
+            Resolve-SuppFiles $SADF
             # Daily Bat
             $SBDF = "$SharedF\" + $SN.SN + "_D_B"
-            SuppFiles $SBDF
+            Resolve-SuppFiles $SBDF
             # Daily Cookie
             $SBDC = "$SharedF\" + $SN.SN + "_D_C"
-            SuppFiles $SBDC
+            Resolve-SuppFiles $SBDC
             # Manual Archive
             $SAF = "$SharedF\" + $SN.SN + "_A"
-            SuppFiles $SAF
+            Resolve-SuppFiles $SAF
             # Manual Bat
             $SBF = "$SharedF\" + $SN.SN + "_B"
-            SuppFiles $SBF
+            Resolve-SuppFiles $SBF
             # Manual Cookie
             $SBC = "$SharedF\" + $SN.SN + "_C"
-            SuppFiles $SBC
+            Resolve-SuppFiles $SBC
             # Daily Site configs
             $SCFDC = "$SCF" + "_D\yt-dlp.conf"
-            Configs $SCFDC
-            TrimSpaces $SCFDC
+            Resolve-Configs $SCFDC
+            Remove-Spaces $SCFDC
             # Manual Congfig
             $SCFC = "$SCF\yt-dlp.conf"
-            Configs $SCFC
-            TrimSpaces $SCFC
+            Resolve-Configs $SCFC
+            Remove-Spaces $SCFC
         }
     }
 }
@@ -411,14 +412,24 @@ Process {
                 Write-Output "$(Get-Timestamp) - $Fullpath already exists."
             }
         }
+        # Checking if scripts exist/found
+        $DLPScript = "$ScriptDirectory\dlp-script.ps1"
+        $DLPExecScript = "$ScriptDirectory\dlp-exec.ps1"
+        $SubtitleRegex = "$ScriptDirectory\subtitle_regex.py"
+        if (!(Test-Path -Path $DLPScript) -or !(Test-Path -Path $DLPExecScript) -or !(Test-Path -Path $SubtitleRegex)) {
+            Write-Output "$(Get-Timestamp) - dlp-script.ps1, dlp-exec.ps1, subtitle_regex.py does not exist or was not found in $ScriptDirectory folder. Exiting..."
+            Exit
+        }
+        else {
+            Write-Output "$(Get-Timestamp) - $DLPScript, $DLPExecScript, $subtitle_regex do exist $ScriptDirectory folder. Exiting..."
+        }
         # Setting Date and Datetime variable for Log
         $Date = Get-Day
         $DateTime = Get-TimeStamp
         $Time = Get-Time
         # Start of parsing config xml
         $site = $site.ToLower()
-        $ScriptDirectory = $PSScriptRoot
-        $ConfigPath = "$PSScriptRoot\config.xml"
+        $ConfigPath = "$ScriptDirectory\config.xml"
         [xml]$ConfigFile = Get-Content -Path $ConfigPath
         # Fetching site variables
         $SNfile = $ConfigFile.getElementsByTagName("site") | Select-Object "id", "username", "password", "libraryid", "font" | Where-Object { $_.id.ToLower() -eq "$site" }
@@ -451,9 +462,15 @@ Process {
         $PlexLibId = $PlexLibrary.Attributes[0].'#text'
         # Setting fonts per site. These are manually tested to work with embedding and displayin in video files
         if ($SubFont.trim() -ne "") {
-            $SubFontDir = "$PSScriptRoot\fonts\$Subfont"
-            $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
-            Write-Output "$SubFont set for $SiteName"
+            $SubFontDir = "$ScriptDirectory\fonts\$Subfont"
+            if (Test-Path $SubFontDir) {
+                $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
+                Write-Output "$SubFont set for $SiteName"
+            }
+            else {
+                Write-Output "$SubFont is specified in $ConfigFile and is missing from $ScriptDirectory\fonts. Exiting..."
+                Exit
+            }
         }
         else {
             $SubFont = "None"
@@ -462,8 +479,8 @@ Process {
             Write-Output "$SubFont - No font set for $SiteName"
         }
         # Setting Site/Shared folder
-        $SiteFolder = "$PSScriptRoot\sites\"
-        $SiteShared = "$PSScriptRoot\shared\"
+        $SiteFolder = "$ScriptDirectory\sites\"
+        $SiteShared = "$ScriptDirectory\shared\"
         $SrcDriveShared = "$SrcDrive\_shared\"
         # Base command for yt-dlp
         $dlpParams = 'yt-dlp'
@@ -645,8 +662,8 @@ Process {
             Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
         }
         # Runs execution
-        & "$PSScriptRoot\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit `
-        -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
-        -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath *>&1 | Tee-Object -FilePath $LFile -Append
+        & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit `
+            -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
+            -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath *>&1 | Tee-Object -FilePath $LFile -Append
     }
 }
