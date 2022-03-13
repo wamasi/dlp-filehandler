@@ -120,7 +120,9 @@ Begin {
 --windows-filenames
 --trim-filenames 248
 --add-metadata
---sub-langs "en"
+--sub-langs "en.*"
+--sub-format 'ass/vtt/srt'
+--sub-format 'vtt/srt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -142,7 +144,8 @@ Begin {
 --windows-filenames
 --trim-filenames 248
 --add-metadata
---sub-langs "en.*"
+--sub-langs "en-US"
+--sub-format 'ass/vtt/srt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -165,6 +168,7 @@ Begin {
 --trim-filenames 248
 --add-metadata
 --sub-langs "en-US"
+--sub-format 'ass/vtt/srt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -188,7 +192,7 @@ Begin {
 --trim-filenames 248
 --add-metadata
 --sub-langs 'en.*'
---sub-format 'vtt/srt'
+--sub-format 'ass/vtt/srt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -212,6 +216,7 @@ Begin {
 --trim-filenames 248
 --add-metadata
 --sub-langs "english-subs"
+--sub-format 'ass/vtt/srt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -233,7 +238,9 @@ Begin {
 --windows-filenames
 --trim-filenames 248
 --add-metadata
---sub-langs "en"
+--sub-langs "en.*"
+--sub-format 'ass/vtt/srt'
+--sub-format 'vtt/srt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -456,11 +463,13 @@ Process {
         # Setting Site/Shared folder
         $SiteFolder = "$PSScriptRoot\sites\"
         $SiteShared = "$PSScriptRoot\shared\"
+        $SrcDriveShared = "$SrcDrive\_shared\"
         # Base command for yt-dlp
         $dlpParams = 'yt-dlp'
         # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
         Set-Folders $TempDrive
         Set-Folders $SrcDrive
+        Set-Folders $SrcDriveShared
         Set-Folders $DestDrive
         if ($isDaily) {
             # Site folder

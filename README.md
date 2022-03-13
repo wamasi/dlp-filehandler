@@ -80,6 +80,7 @@ Plex
             - Will then move all files with updated name to `Plex Library Folder` set from `config.xml`.
             - If FileBot runs into an issue this will be outputted in the log and all files from this run will not be moved to `Plex Library Folder`.
             - if `Plex Token` and `Plex libraryId` supplied will run API call to update folder
+         - If `UseDownloadArchive = True` then copy `Archive` and `Bat` for that site to `src` directory.
          - Clean up of `tmp`, `src`, and `dest` folders.
             - `tmp` will always be deleted at the end of a run
 # Parameters explained:
