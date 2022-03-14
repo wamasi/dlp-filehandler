@@ -125,7 +125,7 @@ Begin {
 --trim-filenames 248
 --add-metadata
 --sub-langs "en.*"
---sub-format 'ass/vtt/srt'
+--sub-format 'ass/srt/vtt'
 --sub-format 'vtt/srt'
 --convert-subs 'ass'
 --write-subs
@@ -149,7 +149,7 @@ Begin {
 --trim-filenames 248
 --add-metadata
 --sub-langs "en-US"
---sub-format 'ass/vtt/srt'
+--sub-format 'ass/srt/vtt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -172,7 +172,7 @@ Begin {
 --trim-filenames 248
 --add-metadata
 --sub-langs "en-US"
---sub-format 'ass/vtt/srt'
+--sub-format 'ass/srt/vtt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -196,7 +196,7 @@ Begin {
 --trim-filenames 248
 --add-metadata
 --sub-langs 'en.*'
---sub-format 'ass/vtt/srt'
+--sub-format 'ass/srt/vtt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -220,7 +220,7 @@ Begin {
 --trim-filenames 248
 --add-metadata
 --sub-langs "english-subs"
---sub-format 'ass/vtt/srt'
+--sub-format 'ass/srt/vtt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata
@@ -243,7 +243,7 @@ Begin {
 --trim-filenames 248
 --add-metadata
 --sub-langs "en.*"
---sub-format 'ass/vtt/srt'
+--sub-format 'ass/srt/vtt'
 --convert-subs 'ass'
 --write-subs
 --embed-metadata

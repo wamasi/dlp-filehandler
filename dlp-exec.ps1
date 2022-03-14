@@ -68,6 +68,8 @@ dlpParams = $dlpParams
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
 # If useSubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
+$completedF = ""
+$incompletefile = ""
 If ($useSubtitleEdit) {
     # Fixing subs - SubtitleEdit
     If ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
@@ -99,7 +101,6 @@ Else {
 }
 # If useMKVMerge = True then run MKVMerge against SiteSrc folder.
 If ($useMKVMerge) {
-    $incompletefile = ""
     ForEach ($folder in $SiteSrc) {
         If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0 -and (Get-ChildItem $folder -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - Processing files to fix subtitles and then combine with video."
@@ -254,7 +255,6 @@ Else {
 $incompletefile.Trim()
 # If Filebot = True then run Filebot aginst SiteHome folder
 If (($useFilebot) -and ($incompletefile.Trim() -eq "")) {
-    $completedF = ""
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
     ForEach ($folder in $SiteHome ) {
         If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
