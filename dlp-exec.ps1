@@ -1,4 +1,4 @@
-param ($dlpParams, $useFilebot, $useSubtitleEdit, $useMKVMerge, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $ConfigPath )
+param ($dlpParams, $useFilebot, $useSubtitleEdit, $useMKVMerge, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $SiteTempBaseMatch, $SiteSrcBaseMatch, $SiteHomeBaseMatch, $ConfigPath )
 # Function to check if file is locked by process before moving forward
 function Test-Lock {
     Param(
@@ -15,6 +15,21 @@ function Test-Lock {
         If ($stream) { $stream.Close() }
     }
     return $false
+}
+# Function to recurse delete empty folders
+$DeleteRecursion = {
+    param(
+        $Path
+    )
+    foreach ($childDirectory in Get-ChildItem -Force -LiteralPath $Path -Directory) {
+        & $DeleteRecursion -Path $childDirectory.FullName
+    }
+    $currentChildren = Get-ChildItem -Force -LiteralPath $Path
+    $isEmpty = $currentChildren -eq $null
+    if ($isEmpty) {
+        Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting '${Path}' folders/files if empty"
+        Remove-Item -Force -LiteralPath $Path -Verbose
+    }
 }
 # Deleting logs older than 1 days
 Write-Output "[LogCleanup] $(Get-Timestamp) - Deleting old logfiles"
@@ -346,20 +361,26 @@ Copy-Item -Path $BatFile -Destination "$SrcDrive\_shared" -PassThru
 Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ConfigPath to $SrcDrive."
 Copy-Item -Path $ConfigPath -Destination "$SrcDrive\_shared" -PassThru
 # Regardless of failures still force delete tmp for clean runs
-If ($SiteTemp -match "\\tmp\\") {
+If (($SiteTemp -match "\\tmp\\") -and ($SiteTemp -match $SiteTempBaseMatch)) {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteTemp folders/files"
     Remove-Item $SiteTemp -Recurse -Force -Confirm:$false -Verbose
 }
 Else {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Temp folder not matching as expected. Remove not completed"
 }
-# Clean up Dest folder if empty
-If ($SiteHome -match "\\tmp\\") {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteHome folders/files if empty"
-    Get-ChildItem -Path $SiteHome -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+# Clean up SiteSrc folder if empty
+If (($SiteSrc -match $SiteSrcBaseMatch) -and (Test-Path $SiteSrc)) {
+    & $DeleteRecursion -Path $SiteSrc
 }
 Else {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - Home folder not matching as expected. Remove not completed"
+    Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteSrc folder not matching as expected. Remove not completed"
+}
+# Clean up SiteHome folder if empty
+If (($SiteHome -match "\\tmp\\") -and ($SiteHome -match $SiteHomeBaseMatch) -and (Test-Path $SiteHome)) {
+    & $DeleteRecursion -Path $SiteHome
+}
+Else {
+    Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteHome folder not matching as expected. Remove not completed"
 }
 # End
 Write-Output "[END] $(Get-Timestamp) - Script completed"

@@ -537,13 +537,16 @@ Process {
             $SiteFolder = "$SiteFolder" + $SiteType
             # Site Temp folder
             $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1) + "M"
+            $SiteTempBaseMatch = $SiteTempBase.Replace("\","\\")
             $SiteTemp = "$SiteTempBase\$Time"
             Set-Folders $SiteTemp
             # Site Destination folder
             $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1) + "M"
+            $SiteSrcBaseMatch = $SiteSrcBase.Replace("\","\\")
             $SiteSrc = "$SiteSrcBase\$Time"
             Set-Folders $SiteSrc
             $SiteHomeBase = "$DestDrive\_M\" + $SiteName.Substring(0, 1)
+            $SiteHomeBaseMatch = $SiteHomeBase.Replace("\","\\")
             $SiteHome = "$SiteHomeBase\$Time"
             Set-Folders $SiteHome
             # Site Config
@@ -679,6 +682,7 @@ Process {
         # Runs execution
         & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -useMKVMerge $useMKVMerge `
             -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
-            -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath *>&1 | Tee-Object -FilePath $LFile -Append
+            -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath -SiteTempBaseMatch $SiteTempBaseMatch `
+            -SiteSrcBaseMatch $SiteSrcBaseMatch -SiteHomeBaseMatch $SiteHomeBaseMatch *>&1 | Tee-Object -FilePath $LFile -Append
     }
 }
