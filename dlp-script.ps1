@@ -122,6 +122,7 @@ Begin {
 --no-simulate
 --restrict-filenames
 --windows-filenames
+--replace-in-metadata "title" "[+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en.*"
@@ -135,7 +136,7 @@ Begin {
 --remux-video 'mkv'
 -N 32
 --downloader aria2c
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+--downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
@@ -146,6 +147,7 @@ Begin {
 --no-simulate
 --restrict-filenames
 --windows-filenames
+--replace-in-metadata "title" "[+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en-US"
@@ -158,7 +160,7 @@ Begin {
 --remux-video 'mkv'
 -N 32
 --downloader aria2c
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+--downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv[format_id*=-ja-JP][format_id!*=hardsub][height>=1080]+ba[format_id*=-ja-JP][format_id!*=hardsub] / b[format_id*=-ja-JP][format_id!*=hardsub][height>=1080] / b*[format_id*=-ja-JP][format_id!*=hardsub]'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
@@ -169,6 +171,7 @@ Begin {
 --no-simulate
 --restrict-filenames
 --windows-filenames
+--replace-in-metadata "title" "[+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en-US"
@@ -182,7 +185,7 @@ Begin {
 -N 32
 --extractor-arg crunchyrollbetashow:type=sub
 --downloader aria2c
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+--downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv[height>=1080]+ba[height>=1080] / bv+ba / b*'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
@@ -193,6 +196,7 @@ Begin {
 --no-simulate
 --restrict-filenames
 --windows-filenames
+--replace-in-metadata "title" "[+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs 'en.*'
@@ -206,7 +210,7 @@ Begin {
 -N 32
 --downloader aria2c
 --extractor-args 'funimation:language=japanese'
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+--downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
@@ -217,6 +221,7 @@ Begin {
 --no-simulate
 --restrict-filenames
 --windows-filenames
+--replace-in-metadata "title" "[+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "english-subs"
@@ -229,7 +234,7 @@ Begin {
 --remux-video 'mkv'
 -N 32
 --downloader aria2c
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+--downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
@@ -240,6 +245,7 @@ Begin {
 --no-simulate
 --restrict-filenames
 --windows-filenames
+--replace-in-metadata "title" "[+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en.*"
@@ -252,7 +258,7 @@ Begin {
 --remux-video 'mkv'
 -N 32
 --downloader aria2c
---downloader-args aria2c:'-c -j 32 -s 32 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
+--downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
@@ -449,6 +455,13 @@ Process {
         $SitePass = $SN.SPW
         $SiteLib = $SN.SLI
         $SubFont = $SN.SFT
+        if ($site -ne $SiteName) {
+            Write-Output "$site != $SiteName. Exiting..."
+            exit
+        }
+        else { 
+            Write-Output "$site = $SiteName. Continuing..."
+        }
         # Setting Temp, Src, home and FFMPEG variables
         $TempDrive = $ConfigFile.configuration.Directory.temp.location
         $SrcDrive = $ConfigFile.configuration.Directory.src.location

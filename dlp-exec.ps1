@@ -292,7 +292,6 @@ If (($useFilebot) -and ($incompletefile.Trim() -eq "")) {
         Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - File needs processing."
         If ($isDaily) {
             Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - Daily run - Script completed with ERRORS"
-            break
         }
         Else {
             Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - Manual run - Script completed"
@@ -308,7 +307,6 @@ If (($useFilebot) -and ($incompletefile.Trim() -eq "")) {
             }
             Else {
                 Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
-                break
             }
         }
         Else {
@@ -321,7 +319,6 @@ elseif (($useFilebot) -and ($incompletefile)) {
 [Filebot] $(Get-Timestamp) - Incomplete files in $SiteSrc\: `n$incompletefile
 [Filebot] $(Get-Timestamp) - [End] - Files in $SiteSrc need manual attention. Skipping to next step...
 "@
-    break
 }
 Else {
     Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
