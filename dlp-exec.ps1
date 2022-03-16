@@ -88,6 +88,7 @@ Invoke-Expression $dlpParams
 # If useSubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
 $completedF = ""
 $incompletefile = ""
+[bool] $SiteSrcDeleted = $false
 If ($useSubtitleEdit) {
     # Fixing subs - SubtitleEdit
     If ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
@@ -122,10 +123,10 @@ If ($useMKVMerge) {
     ForEach ($folder in $SiteSrc) {
         If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0 -and (Get-ChildItem $folder -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - Processing files to fix subtitles and then combine with video."
-            # Embedding subs into video files - ffmpeg
+            # Embedding subs into video files - MKVMerge
             Write-Output "[MKVMerge] $(Get-Timestamp) - Checking for subtitle and video files to merge."
             Get-ChildItem $folder -Recurse -File -Include "$VidType" | ForEach-Object {
-                # grabbing associated variables needed to pass onto FFMPEG
+                # grabbing associated variables needed to pass onto MKVMerge
                 $inputs = $_.FullName
                 $filename = $_.BaseName
                 $subtitle = Get-ChildItem $folder -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $filename } | Select-Object -First 1
@@ -149,12 +150,12 @@ If ($useMKVMerge) {
                         Else {
                             Write-Output "[MKVMerge] $(Get-Timestamp) - File not locked. Formatting $subtitle file."
                             If ($SF -ne "None") {
-                                Write-Output "[MKVMerge] $(Get-Timestamp) - Python - Regex through $subtitle file with $SF."
+                                Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - Python - Regex through $subtitle file with $SF."
                                 python $SubtitleRegex $subtitle $SF
                                 break
                             }
                             Else {
-                                Write-Output "[MKVMerge] $(Get-Timestamp) - Python - No Font specified for $subtitle file."
+                                Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - No Font specified for $subtitle file."
                             }
                         }
                         Start-Sleep -Seconds 1
@@ -168,12 +169,12 @@ If ($useMKVMerge) {
                         }
                         Else {
                             If ($SubFontDir -ne "None") {
-                                Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMERGE - File not locked.  Combining $subtitle and $inputs files with $SubFontDir."
+                                Write-Output "[MKVMerge] $(Get-Timestamp) - [MKVMERGE] - File not locked.  Combining $subtitle and $inputs files with $SubFontDir."
                                 mkvmerge -o $tempvideo $inputs $subtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font
                                 break
                             }
                             Else {
-                                Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMERGE - Merging as-is. No Font specified for $subtitle and $inputs files with $SubFontDir."
+                                Write-Output "[MKVMerge] $(Get-Timestamp) - [MKVMERGE] - Merging as-is. No Font specified for $subtitle and $inputs files with $SubFontDir."
                                 mkvmerge -o $tempvideo $inputs $subtitle
                             }
                         }
@@ -248,12 +249,15 @@ If ($useMKVMerge) {
     Else {
         Write-Output "[MKVMerge] $(Get-Timestamp)- All files had matching subtitle file"
         # Moving files from SiteSrc to SiteHome for Filebot processing
-        If ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -eq 0) {
-            Write-Output "[MKVMerge] $(Get-Timestamp) - $SiteSrc does not have any files. Removing folder..."
+        If ((Test-Path -path $SiteTempBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -eq 0) {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc does not have any files. Removing folder..."
             Remove-Item $SiteSrc -Recurse -Force -Confirm:$false -Verbose
+            $SiteSrcDeleted = $true
+            Write-Output "[MKVMerge] $(Get-Timestamp) - SiteSrcDeleted = $SiteSrcDeleted"
+
         }
         elseIf ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
-            Write-Output "[MKVMerge] $(Get-Timestamp) - $SiteSrc contains foles. Moving to $SiteHomeBase..."
+            Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
         }
     }
@@ -262,11 +266,11 @@ Else {
     Write-Output "[MKVMerge] $(Get-Timestamp) - [End] - Not running"
     # Moving files from SiteSrc to SiteHome for Filebot processing
     If ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -eq 0) {
-        Write-Output "[MKVMerge] $(Get-Timestamp) - $SiteSrc does not have any files. Removing folder..."
+        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc does not have any files. Removing folder..."
         Remove-Item $SiteSrc -Recurse -Force -Confirm:$false -Verbose
     }
     elseIf ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
-        Write-Output "[MKVMerge] $(Get-Timestamp) - $SiteSrc contains foles. Moving to $SiteHomeBase..."
+        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains foles. Moving to $SiteHomeBase..."
         Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
     }
 }
@@ -343,7 +347,7 @@ Else {
 }
 # Backup of Archive file
 If ($ArchiveFile -ne "None") {
-    Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ArchiveFile and $BatFile to $SrcDrive."
+    Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ArchiveFile to $SrcDrive."
     Copy-Item -Path $ArchiveFile -Destination "$SrcDrive\_shared" -PassThru
 }
 Else {
@@ -364,7 +368,7 @@ Copy-Item -Path $BatFile -Destination "$SrcDrive\_shared" -PassThru
 Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ConfigPath to $SrcDrive."
 Copy-Item -Path $ConfigPath -Destination "$SrcDrive\_shared" -PassThru
 # Regardless of failures still force delete tmp for clean runs
-If (($SiteTemp -match "\\tmp\\") -and ($SiteTemp -match $SiteTempBaseMatch)) {
+If (($SiteTemp -match "\\tmp\\") -and ($SiteTemp -match $SiteTempBaseMatch) -and (Test-Path $SiteTemp)) {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteTemp folders/files"
     Remove-Item $SiteTemp -Recurse -Force -Confirm:$false -Verbose
 }
@@ -372,11 +376,16 @@ Else {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Temp folder not matching as expected. Remove not completed"
 }
 # Clean up SiteSrc folder if empty
-If (($SiteSrc -match $SiteSrcBaseMatch) -and (Test-Path $SiteSrc)) {
+If (($SiteSrc -match "\\src\\") -and ($SiteSrc -match $SiteSrcBaseMatch) -and (Test-Path $SiteSrc)) {
     & $DeleteRecursion -Path $SiteSrc
 }
 Else {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteSrc folder not matching as expected. Remove not completed"
+    if ($SiteSrcDeleted) {
+        Write-Output "[FolderCleanup] $(Get-Timestamp) - $SiteSrc folder already removed."
+    }
+    else {
+        Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteSrc($SiteSrc) folder not matching as expected. Remove not completed"
+    }
 }
 # Clean up SiteHome folder if empty
 If (($SiteHome -match "\\tmp\\") -and ($SiteHome -match $SiteHomeBaseMatch) -and (Test-Path $SiteHome)) {
