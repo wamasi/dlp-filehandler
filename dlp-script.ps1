@@ -510,13 +510,16 @@ Process {
             $SiteFolder = "$SiteFolder" + $SiteType
             # Video Temp folder
             $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1)
+            $SiteTempBaseMatch = $SiteTempBase.Replace("\","\\")
             $SiteTemp = "$SiteTempBase\$Time"
             Set-Folders $SiteTemp
             # Video Destination folder
             $SrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1)
+            $SiteSrcBaseMatch = $SiteSrcBase.Replace("\","\\")
             $SiteSrc = "$SrcBase\$Time"
             Set-Folders $SiteSrc
             $SiteHomeBase = "$DestDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
+            $SiteHomeBaseMatch = $SiteHomeBase.Replace("\","\\")
             $SiteHome = "$SiteHomeBase\$Time"
             Set-Folders $SiteHome
             # Setting Site config
