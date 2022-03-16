@@ -424,7 +424,7 @@ Process {
         $DLPScript = "$ScriptDirectory\dlp-script.ps1"
         $DLPExecScript = "$ScriptDirectory\dlp-exec.ps1"
         $SubtitleRegex = "$ScriptDirectory\subtitle_regex.py"
-        if (!(Test-Path -Path $DLPScript) -or !(Test-Path -Path $DLPExecScript) -or !(Test-Path -Path $SubtitleRegex)) {
+        if (!(Test-Path -Path $DLPScript) -or !(Test-Path -Path $DLPExecScript) -or (!(Test-Path -Path $SubtitleRegex) -and $useSubtitleEdit)) {
             Write-Output "$(Get-Timestamp) - dlp-script.ps1, dlp-exec.ps1, subtitle_regex.py does not exist or was not found in $ScriptDirectory folder. Exiting..."
             Exit
         }
