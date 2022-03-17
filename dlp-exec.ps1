@@ -66,6 +66,9 @@ ConfigPath = $ConfigPath
 Script Directory = $ScriptDirectory
 dlpParams = $dlpParams
 "@
+$completedF = ""
+$incompletefile = ""
+[bool] $SiteSrcDeleted = $false
 # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
 Set-Folders $TempDrive
 Set-Folders $SrcDrive
@@ -94,9 +97,6 @@ Else {
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
 # If useSubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
-$completedF = ""
-$incompletefile = ""
-[bool] $SiteSrcDeleted = $false
 If ($useSubtitleEdit) {
     # Fixing subs - SubtitleEdit
     If ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
