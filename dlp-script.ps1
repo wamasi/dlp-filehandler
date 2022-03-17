@@ -659,5 +659,5 @@ if ($Site) {
     & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -useMKVMerge $useMKVMerge `
         -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
         -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath -SiteTempBaseMatch $SiteTempBaseMatch `
-        -SiteSrcBaseMatch $SiteSrcBaseMatch -SiteHomeBaseMatch $SiteHomeBaseMatch *>&1 | Tee-Object -FilePath $LFile -Append
+        -SiteSrcBaseMatch $SiteSrcBaseMatch -SiteHomeBaseMatch $SiteHomeBaseMatch -SrcDriveShared $SrcDriveShared *>&1 | Tee-Object -FilePath $LFile -Append
 }
