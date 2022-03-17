@@ -31,23 +31,6 @@ $DeleteRecursion = {
         Remove-Item -Force -LiteralPath $Path -Verbose
     }
 }
-# Deleting logs older than 1 days
-Write-Output "[LogCleanup] $(Get-Timestamp) - Deleting old logfiles"
-$limit = (Get-Date).AddDays(-1)
-# Delete files older than the $limit.
-If (!(Test-Path $LFolderBase)) {
-    Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup..."
-    break
-}
-Else {
-    Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting log cleanup..."
-    # Delete any 1 day old log files.
-    Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | ForEach-Object {
-        $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
-    }
-    # Delete any empty directories left behind after deleting the old files.
-    Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { $_.PSIsContainer -and (Get-ChildItem -Path $_.FullName -Recurse -Force | Where-Object { !$_.PSIsContainer }) -eq $null } | Remove-Item -Recurse -Force -Confirm:$false -Verbose
-}
 # Writing all variables
 Write-Output @"
 Site = $SiteName
@@ -83,6 +66,23 @@ ConfigPath = $ConfigPath
 Script Directory = $ScriptDirectory
 dlpParams = $dlpParams
 "@
+# Deleting logs older than 1 days
+Write-Output "[LogCleanup] $(Get-Timestamp) - Deleting old logfiles"
+$limit = (Get-Date).AddDays(-1)
+# Delete files older than the $limit.
+If (!(Test-Path $LFolderBase)) {
+    Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup..."
+    break
+}
+Else {
+    Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting log cleanup..."
+    # Delete any 1 day old log files.
+    Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | ForEach-Object {
+        $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+    }
+    # Delete any empty directories left behind after deleting the old files.
+    & $DeleteRecursion -Path $LFolderBase
+}
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
 # If useSubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
