@@ -51,13 +51,8 @@ function Set-Folders {
         [string] $Fullpath
     )
     if (!(Test-Path -Path $Fullpath)) {
-        try {
-            New-Item -ItemType Directory -Path $Fullpath -Force -Verbose
+            New-Item -ItemType Directory -Path $Fullpath -Force
             Write-Output "$(Get-Timestamp) - $Fullpath has been created."
-        }
-        catch {
-            throw $_.Exception.Message
-        }
     }
     else {
         Write-Output "$(Get-Timestamp) - $Fullpath already exists."
@@ -485,29 +480,23 @@ if ($Site) {
     $SrcDriveShared = "$SrcDrive\_shared\"
     # Base command for yt-dlp
     $dlpParams = 'yt-dlp'
-    # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
-    Set-Folders $TempDrive
-    Set-Folders $SrcDrive
-    Set-Folders $SrcDriveShared
-    Set-Folders $DestDrive
+
     if ($isDaily) {
         # Site folder
         $SiteType = $SiteName + "_D"
         $SiteFolder = "$SiteFolder" + $SiteType
-        # Video Temp folder
+        # Site Temp folder
         $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1)
         $SiteTempBaseMatch = $SiteTempBase.Replace("\", "\\")
         $SiteTemp = "$SiteTempBase\$Time"
-        Set-Folders $SiteTemp
-        # Video Destination folder
+        # Site Source folder
         $SrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1)
         $SiteSrcBaseMatch = $SiteSrcBase.Replace("\", "\\")
         $SiteSrc = "$SrcBase\$Time"
-        Set-Folders $SiteSrc
+        # Site Destination folder
         $SiteHomeBase = "$DestDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
         $SiteHomeBaseMatch = $SiteHomeBase.Replace("\", "\\")
         $SiteHome = "$SiteHomeBase\$Time"
-        Set-Folders $SiteHome
         # Setting Site config
         $SiteConfig = $SiteFolder + "\yt-dlp.conf"
         if ((Test-Path -Path $SiteConfig)) {
@@ -528,16 +517,14 @@ if ($Site) {
         $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1) + "M"
         $SiteTempBaseMatch = $SiteTempBase.Replace("\", "\\")
         $SiteTemp = "$SiteTempBase\$Time"
-        Set-Folders $SiteTemp
-        # Site Destination folder
+        # Site Source folder
         $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1) + "M"
         $SiteSrcBaseMatch = $SiteSrcBase.Replace("\", "\\")
         $SiteSrc = "$SiteSrcBase\$Time"
-        Set-Folders $SiteSrc
+        # Site Destination folder
         $SiteHomeBase = "$DestDrive\_M\" + $SiteName.Substring(0, 1)
         $SiteHomeBaseMatch = $SiteHomeBase.Replace("\", "\\")
         $SiteHome = "$SiteHomeBase\$Time"
-        Set-Folders $SiteHome
         # Site Config
         $SiteConfig = $SiteFolder + "\yt-dlp.conf"
         if ((Test-Path -Path $SiteConfig)) {

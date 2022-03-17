@@ -66,6 +66,14 @@ ConfigPath = $ConfigPath
 Script Directory = $ScriptDirectory
 dlpParams = $dlpParams
 "@
+# Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
+Set-Folders $TempDrive
+Set-Folders $SrcDrive
+Set-Folders $SrcDriveShared
+Set-Folders $DestDrive
+Set-Folders $SiteTemp
+Set-Folders $SiteSrc
+Set-Folders $SiteHome
 # Deleting logs older than 1 days
 Write-Output "[LogCleanup] $(Get-Timestamp) - Deleting old logfiles"
 $limit = (Get-Date).AddDays(-1)
