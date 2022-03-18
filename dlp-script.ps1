@@ -51,8 +51,8 @@ function Set-Folders {
         [string] $Fullpath
     )
     if (!(Test-Path -Path $Fullpath)) {
-            New-Item -ItemType Directory -Path $Fullpath -Force
-            Write-Output "$(Get-Timestamp) - $Fullpath has been created."
+        New-Item -ItemType Directory -Path $Fullpath -Force
+        Write-Output "$(Get-Timestamp) - $Fullpath has been created."
     }
     else {
         Write-Output "$(Get-Timestamp) - $Fullpath already exists."
@@ -78,33 +78,33 @@ function Resolve-Configs {
         [Parameter(Mandatory = $true)]
         [string] $Configs
     )
-        New-Item $Configs -ItemType File -Force
-        Write-Output "Creating $Configs"
-        if ($Configs -match "vrv") {
-            $vrvconfig | Set-Content $Configs
-            Write-Output "$Configs created with VRV values."
-        }
-        elseif ($Configs -match "crunchyroll") {
-            $crunchyrollconfig | Set-Content $Configs
-            Write-Output "$Configs created with Crunchyroll values."
-        }
-        elseif ($Configs -match "funimation") {
-            $funimationconfig | Set-Content $Configs
-            Write-Output "$Configs created with Funimation values."
-        }
-        elseif ($Configs -match "hidive") {
-            $hidiveconfig | Set-Content $Configs
-            Write-Output "$Configs created with Hidive values."
-        }
-        elseif ($Configs -match "paramountplus") {
-            $paramountplusconfig | Set-Content $Configs
-            Write-Output "$Configs created with ParamountPlus values."
-        }
-        else {
-            $defaultconfig | Set-Content $Configs
-            Write-Output "$Configs created with default values."
-        }
+    New-Item $Configs -ItemType File -Force
+    Write-Output "Creating $Configs"
+    if ($Configs -match "vrv") {
+        $vrvconfig | Set-Content $Configs
+        Write-Output "$Configs created with VRV values."
     }
+    elseif ($Configs -match "crunchyroll") {
+        $crunchyrollconfig | Set-Content $Configs
+        Write-Output "$Configs created with Crunchyroll values."
+    }
+    elseif ($Configs -match "funimation") {
+        $funimationconfig | Set-Content $Configs
+        Write-Output "$Configs created with Funimation values."
+    }
+    elseif ($Configs -match "hidive") {
+        $hidiveconfig | Set-Content $Configs
+        Write-Output "$Configs created with Hidive values."
+    }
+    elseif ($Configs -match "paramountplus") {
+        $paramountplusconfig | Set-Content $Configs
+        Write-Output "$Configs created with ParamountPlus values."
+    }
+    else {
+        $defaultconfig | Set-Content $Configs
+        Write-Output "$Configs created with default values."
+    }
+}
 # Removing Empty whitespace
 function Remove-Spaces {
     param (
@@ -632,16 +632,38 @@ if ($Site) {
         Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
     }
     # If SubetitleEdit or Filebot true then check config for subtitle/video outputs and store in variables
-    if ($UseSubtitleEdit -or $UseFileBot -or $useMKVMerge) {
+    if ($UseSubtitleEdit -or $useMKVMerge) {
         Select-String -Path $SiteConfig -Pattern "--convert-subs.*" | ForEach-Object {
             $SubType = "*." + ($_ -split " ")[1]
             $SubType = $SubType.Replace("'", "").Replace('"', "")
-            Write-Output "$(Get-Timestamp) - Using $SubType"
+            if ($SubType -ne "\*.ass") {
+                Write-Output "$(Get-Timestamp) - Using $SubType"
+            }
+            else {
+                Write-Output "$(Get-Timestamp) - Subtype(ass) is missing"
+                exit
+            }
         }
         Select-String -Path $SiteConfig -Pattern "--remux-video.*" | ForEach-Object {
             $VidType = "*." + ($_ -split " ")[1]
             $VidType = $VidType.Replace("'", "").Replace('"', "")
-            Write-Output "$(Get-Timestamp) - Using $VidType"
+            if ($SubType -ne "\*.mkv") {
+                Write-Output "$(Get-Timestamp) - Using $VidType"
+            }
+            else {
+                Write-Output "$(Get-Timestamp) - VidType(mkv) is missing..."
+                exit
+            }
+        }
+        Select-String -Path $SiteConfig -Pattern "--write-subs.*" | ForEach-Object {
+            $SubWrite = ($_)
+            if ($SubWrite -ne "") {
+                Write-Output "$(Get-Timestamp) - SubWrite($SubWrite) is in config."
+            }
+            else {
+                Write-Output "$(Get-Timestamp) - SubSubWrite is missing..."
+                exit
+            }
         }
     }
     # Creating associated log folder and file

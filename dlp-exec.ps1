@@ -56,6 +56,8 @@ Ffmpeg = $Ffmpeg
 SF = $SF
 SubFont = $SubFont
 SubFontDir = $SubFontDir
+SubType = $SubType
+VidType = $VidType
 useSubtitleEdit = $useSubtitleEdit
 useMKVMerge = $useMKVMerge
 UseFilebot = $useFilebot
@@ -66,8 +68,8 @@ ConfigPath = $ConfigPath
 Script Directory = $ScriptDirectory
 dlpParams = $dlpParams
 "@
-$completedF = ""
-$incompletefile = ""
+$completedFiles = ""
+$incompleteFiles = ""
 [bool] $SiteSrcDeleted = $false
 # Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
 Set-Folders $TempDrive
@@ -235,7 +237,7 @@ If ($useMKVMerge) {
                     }
                 }
                 Else {
-                    $incompletefile += "$inputs`n"
+                    $incompleteFiles += "$inputs`n"
                     Write-Output "[MKVMerge] $(Get-Timestamp) - No matching subtitle files to process. Skipping file."
                     
                 }
@@ -245,10 +247,10 @@ If ($useMKVMerge) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - No files to process"
         }
     }
-    If ($incompletefile) {
+    If ($incompleteFiles) {
         # If $incomplete file is not empty/null then write out what files have an issue
         Write-Output @"
-[MKVMerge] $(Get-Timestamp) - The following files did not have matching subtitle file: $incompletefile
+[MKVMerge] $(Get-Timestamp) - The following files did not have matching subtitle file: $incompleteFiles
 [MKVMerge] $(Get-Timestamp) - Not moving files. Script completed with ERRORS
 [END] $(Get-Timestamp) - Script finished incompleted.
 "@
@@ -282,9 +284,9 @@ Else {
         Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
     }
 }
-$incompletefile.Trim()
+$incompleteFiles.Trim()
 # If Filebot = True then run Filebot aginst SiteHome folder
-If (($useFilebot) -and ($incompletefile.Trim() -eq "")) {
+If (($useFilebot) -and ($incompleteFiles.Trim() -eq "")) {
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
     ForEach ($folder in $SiteHome ) {
         If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
@@ -299,17 +301,17 @@ If (($useFilebot) -and ($incompletefile.Trim() -eq "")) {
                     Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place"
                     filebot -rename "$inputs" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
                 }
-                $completedF += "$inputs`n"
+                $completedFiles += "$inputs`n"
             }
         }
         Else {
             Write-Output "[Filebot] $(Get-Timestamp) - No files to process"
         }
     }
-    $completedF.Trim()
-    if ($completedF) {
+    $completedFiles.Trim()
+    if ($completedFiles) {
         write-output @"
-[Filebot] $(Get-Timestamp) - Completed files: `n$completedF
+[Filebot] $(Get-Timestamp) - Completed files: `n$completedFiles
 [Filebot] $(Get-Timestamp) - No other files need to be processed. Attempting Filebot cleanup.
 "@
     }
@@ -328,7 +330,7 @@ If (($useFilebot) -and ($incompletefile.Trim() -eq "")) {
         }
     }
     Else {
-        If ($completedF) {
+        If ($completedFiles) {
             # If plex values not null then run api call else skip
             If ($PlexHost -and $PlexToken -and $PlexLibId) {
                 Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
@@ -344,9 +346,9 @@ If (($useFilebot) -and ($incompletefile.Trim() -eq "")) {
         }
     }
 }
-elseif (($useFilebot) -and ($incompletefile)) {
+elseif (($useFilebot) -and ($incompleteFiles)) {
     Write-Output @"
-[Filebot] $(Get-Timestamp) - Incomplete files in $SiteSrc\: `n$incompletefile
+[Filebot] $(Get-Timestamp) - Incomplete files in $SiteSrc\: `n$incompleteFiles
 [Filebot] $(Get-Timestamp) - [End] - Files in $SiteSrc need manual attention. Skipping to next step...
 "@
 }
