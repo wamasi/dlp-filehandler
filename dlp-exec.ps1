@@ -31,43 +31,6 @@ $DeleteRecursion = {
         Remove-Item -Force -LiteralPath $Path -Verbose
     }
 }
-# Writing all variables
-Write-Output @"
-Site = $SiteName
-SiteType = $SiteType
-isDaily = $isDaily
-SiteUser = $SiteUser
-SitePass = $SitePass
-UseLogin = $useLogin
-SiteFolder = $SiteFolder
-SiteTemp = $SiteTemp
-SiteTempBaseMatch = $SiteTempBaseMatch
-SiteSrc = $SiteSrc
-SiteSrcBaseMatch = $SiteSrcBaseMatch
-SiteHome = $SiteHome
-SiteHomeBaseMatch = $SiteHomeBaseMatch
-SiteConfig = $SiteConfig
-CookieFile = $CookieFile
-UseCookies = $useCookies
-Archive = $ArchiveFile
-UseDownloadArchive = $useArchive
-Bat = $BatFile
-Ffmpeg = $Ffmpeg
-SF = $SF
-SubFont = $SubFont
-SubFontDir = $SubFontDir
-SubType = $SubType
-VidType = $VidType
-useSubtitleEdit = $useSubtitleEdit
-useMKVMerge = $useMKVMerge
-UseFilebot = $useFilebot
-PlexHost = $PlexHost
-PlexLibPath = $PlexLibPath
-PlexLibId = $PlexLibId
-ConfigPath = $ConfigPath
-Script Directory = $ScriptDirectory
-dlpParams = $dlpParams
-"@
 $completedFiles = ""
 $incompleteFiles = ""
 [bool] $SiteSrcDeleted = $false

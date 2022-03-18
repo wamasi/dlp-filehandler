@@ -31,9 +31,14 @@ param(
     [Alias("SU")]
     [switch]$createsupportfiles,
     [Parameter(Mandatory = $false)]
+    [Alias("T")]
+    [switch]$testScript,
+    [Parameter(Mandatory = $false)]
     [Alias("H")]
     [switch]$help
 )
+# Removes erroring characters from output logs
+$PSStyle.OutputRendering = [System.Management.Automation.OutputRendering]::PlainText
 # Getting date and datetime
 function Get-Day {
     return (Get-Date -Format "yy-MM-dd")
@@ -331,7 +336,7 @@ if (!(Test-Path "$ScriptDirectory\config.xml" -PathType Leaf)) {
     New-Item "$ScriptDirectory\config.xml" -ItemType File -Force
 }
 # Help text to remind me what I did/it does when set to true or all parameters false
-if ($help -or [string]::IsNullOrEmpty($site) -and $isDaily -eq $false -and $useArchive -eq $false -and $useLogin -eq $false -and $useFilebot -eq $false -and $useSubtitleEdit -eq $false -and $newconfig -eq $false -and $createsupportfiles -eq $false -and $newSiteconfig -eq $false) {
+if ($help -or [string]::IsNullOrEmpty($site) -and $isDaily -eq $false -and $useArchive -eq $false -and $useLogin -eq $false -and $useFilebot -eq $false -and $useSubtitleEdit -eq $false -and $newconfig -eq $false -and $createsupportfiles -eq $false -and $newSiteconfig -eq $false -and $DebugScript -eq $false) {
     Show-Markdown -Path "$ScriptDirectory\README.md" -UseBrowser
 }
 # Create config if newconfig = True
@@ -666,20 +671,41 @@ if ($Site) {
             }
         }
     }
+    
+    # Writing all variables
+    $DebugVars = [ordered]@{Site = $SiteName; SiteType = $SiteType; isDaily = $isDaily; SiteUser = $SiteUser; SitePass = $SitePass; UseLogin = $useLogin; SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; `
+            SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBaseMatch = $SiteSrcBaseMatch; SiteHome = $SiteHome; SiteHomeBaseMatch = $SiteHomeBaseMatch; SiteConfig = $SiteConfig; CookieFile = $CookieFile; `
+            UseCookies = $useCookies; Archive = $ArchiveFile; UseDownloadArchive = $useArchive; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; `
+            useSubtitleEdit = $useSubtitleEdit; useMKVMerge = $useMKVMerge; UseFilebot = $useFilebot; PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; ConfigPath = $ConfigPath; "Script Directory" = $ScriptDirectory; `
+            dlpParams = $dlpParams
+    }
     # Creating associated log folder and file
     $LFolderBase = "$SiteFolder\log\"
     $LFile = "$SiteFolder\log\$Date\$DateTime.log"
     New-Item -Path $LFile -ItemType File -Force
-    # Setting log header row based on daily vs Manual
-    if ($isDaily) {
-        Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
-    }
-    else {
-        Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
-    }
     # Runs execution
+    if ($testScript) {
+        Write-Output "[START] $DateTime - $SiteName - DEBUG Run" *>&1 | Tee-Object -FilePath $LFile -Append
+        $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[End] - Debugging enabled. Exiting..." *>&1 | Tee-Object -FilePath $LFile -Append
+        exit
+    }
+    # Setting log header row based on daily vs Manual
+    if (($isDaily) -and (!($testScript))) {
+        $DebugVars.Remove("SitePass")
+        $DebugVars.Remove("PlexToken")
+        Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
+        $TesDebugVarstVar *>&1 | Tee-Object -FilePath $LFile -Append
+    }
+    elseif (!($isDaily) -and (!($testScript))) {
+        $DebugVars.Remove("SitePass")
+        $DebugVars.Remove("PlexToken")
+        Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
+        $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
+    }
     & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -useMKVMerge $useMKVMerge `
         -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
         -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath -SiteTempBaseMatch $SiteTempBaseMatch `
         -SiteSrcBaseMatch $SiteSrcBaseMatch -SiteHomeBaseMatch $SiteHomeBaseMatch -SrcDriveShared $SrcDriveShared *>&1 | Tee-Object -FilePath $LFile -Append
+    
 }
