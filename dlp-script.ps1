@@ -695,7 +695,7 @@ if ($Site) {
         $DebugVars.Remove("SitePass")
         $DebugVars.Remove("PlexToken")
         Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
-        $TesDebugVarstVar *>&1 | Tee-Object -FilePath $LFile -Append
+        $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
     }
     elseif (!($isDaily) -and (!($testScript))) {
         $DebugVars.Remove("SitePass")
