@@ -38,7 +38,7 @@ param(
     [switch]$help
 )
 # Removes erroring characters from output logs
-$PSStyle.OutputRendering = [System.Management.Automation.OutputRendering]::PlainText
+$PSStyle.OutputRendering = 'Host'
 # Getting date and datetime
 function Get-Day {
     return (Get-Date -Format "yy-MM-dd")
