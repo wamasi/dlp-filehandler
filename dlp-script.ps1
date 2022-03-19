@@ -495,7 +495,7 @@ if ($Site) {
         $SiteTempBaseMatch = $SiteTempBase.Replace("\", "\\")
         $SiteTemp = "$SiteTempBase\$Time"
         # Site Source folder
-        $SrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1)
+        $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1)
         $SiteSrcBaseMatch = $SiteSrcBase.Replace("\", "\\")
         $SiteSrc = "$SrcBase\$Time"
         # Site Destination folder
