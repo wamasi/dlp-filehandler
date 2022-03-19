@@ -39,6 +39,17 @@ Mkvtoolnix
 Plex
 - Media Server
 - https://www.plex.tv/
+- Getting Plex token:
+  - https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/
+     - Navigate to a item in your library
+     - Right click "Get Info"
+     - Select "View XML"
+     - End of url will have `&X-Plex-Token=<YourPLEXTokenHere>`
+     - Getting Plex Library Id:
+       - Filling and paste into browser:
+         - http://`<PlexIP>`:`<PlexPORT>`/library/sections?X-Plex-Token=`<PlexToken>`
+       - Library Id = `key`
+          - ex: `key = "1"`
 ## Steps to run:
 1. Install or download prereqs and map to PATH as needed.
 2. Run: `path\to\dlp-script.ps1 -NC` to generate base XML
@@ -84,9 +95,9 @@ Plex
          - Clean up of `tmp`, `src`, and `dest` folders.
             - `tmp` will always be deleted at the end of a run
 # Parameters explained:
-| Arguments/Switches | Abbreviation | Description|Notes|
+| Arguments/Switches | Abbreviation | Description | Notes |
  :--- | :--- | :--- | :--- |
-|-site|-sn/-SN|Tells the script what site its working with|Hardcoded acceptable values.| Reads from root\config.xml file for list of applicable values|
+|-site|-sn/-SN|Tells the script what site its working with|Hardcoded acceptable values. Reads from root\config.xml file for list of applicable values|
 |-isDaily|-d/-D|Will use different yt-dlp configs and files and temp/home folder structure.| If -D = true then it will use the \_D suffix named files.|
 |-useArchive|-a/-A|Will tell yt-dlp command to use or not use archive file.| If -A = true then it will use the \_A suffix named files.|
 |-useLogin|-l/-L|Tells yt-dlp command to use credentials stored in config xml.| If -L = false then it will use the \_C suffix named files. Will check ReqCookies file if site matches in text then will throw error.|

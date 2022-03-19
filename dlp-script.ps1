@@ -191,7 +191,7 @@ $defaultconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title" "[+]" "-"
+--replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en.*"
@@ -216,7 +216,7 @@ $vrvconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title" "[+]" "-"
+--replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en-US"
@@ -240,7 +240,7 @@ $crunchyrollconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title" "[+]" "-"
+--replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en-US"
@@ -265,7 +265,7 @@ $funimationconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title" "[+]" "-"
+--replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs 'en.*'
@@ -290,7 +290,7 @@ $hidiveconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title" "[+]" "-"
+--replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "english-subs"
@@ -314,7 +314,7 @@ $paramountplusconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title" "[+]" "-"
+--replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en.*"
@@ -336,8 +336,9 @@ if (!(Test-Path "$ScriptDirectory\config.xml" -PathType Leaf)) {
     New-Item "$ScriptDirectory\config.xml" -ItemType File -Force
 }
 # Help text to remind me what I did/it does when set to true or all parameters false
-if ($help -or [string]::IsNullOrEmpty($site) -and $isDaily -eq $false -and $useArchive -eq $false -and $useLogin -eq $false -and $useFilebot -eq $false -and $useSubtitleEdit -eq $false -and $newconfig -eq $false -and $createsupportfiles -eq $false -and $newSiteconfig -eq $false -and $DebugScript -eq $false) {
+if ($help) {
     Show-Markdown -Path "$ScriptDirectory\README.md" -UseBrowser
+    exit
 }
 # Create config if newconfig = True
 if ($newconfig) {
@@ -483,6 +484,7 @@ if ($Site) {
     $SiteFolder = "$ScriptDirectory\sites\"
     $SiteShared = "$ScriptDirectory\shared\"
     $SrcDriveShared = "$SrcDrive\_shared\"
+    $SrcDriveSharedFonts = "$SrcDriveShared\fonts\"
     # Base command for yt-dlp
     $dlpParams = 'yt-dlp'
 
@@ -706,6 +708,6 @@ if ($Site) {
     & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -useMKVMerge $useMKVMerge `
         -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
         -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath -SiteTempBaseMatch $SiteTempBaseMatch `
-        -SiteSrcBaseMatch $SiteSrcBaseMatch -SiteHomeBaseMatch $SiteHomeBaseMatch -SrcDriveShared $SrcDriveShared *>&1 | Tee-Object -FilePath $LFile -Append
-    
+        -SiteSrcBaseMatch $SiteSrcBaseMatch -SiteHomeBaseMatch $SiteHomeBaseMatch -SrcDriveShared $SrcDriveShared `
+        -SrcDriveSharedFonts $SrcDriveSharedFonts *>&1 | Tee-Object -FilePath $LFile -Append
 }

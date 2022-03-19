@@ -38,6 +38,7 @@ $incompleteFiles = ""
 Set-Folders $TempDrive
 Set-Folders $SrcDrive
 Set-Folders $SrcDriveShared
+Set-Folders $SrcDriveSharedFonts
 Set-Folders $DestDrive
 Set-Folders $SiteTemp
 Set-Folders $SiteSrc
@@ -227,21 +228,13 @@ If ($useMKVMerge) {
             Remove-Item $SiteSrc -Recurse -Force -Confirm:$false -Verbose
             $SiteSrcDeleted = $true
             Write-Output "[MKVMerge] $(Get-Timestamp) - SiteSrcDeleted = $SiteSrcDeleted"
-
         }
         elseIf ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
-            While ($True) {
-                If ((Test-Path -path $SiteTempBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
-                    Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Waiting to delete folder after move..."
-                    continue
-                }
-                else {
-                    Remove-Item $SiteSrc -Recurse -Force -Confirm:$false -Verbose
-                    $SiteSrcDeleted = $true
-                }
-            }
+        }
+        else {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Waiting to delete folder after move..."
         }
     }
 }
@@ -329,26 +322,34 @@ Else {
     Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
 }
 # Backup of Archive file
-If ($ArchiveFile -ne "None") {
-    Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ArchiveFile to $SrcDrive."
+If (($ArchiveFile.trim() -ne "") -and ($ArchiveFile -ne "None")) {
+    Write-Output "[FileBackup] $(Get-Timestamp) - Copying Archive($ArchiveFile) to $SrcDrive."
     Copy-Item -Path $ArchiveFile -Destination "$SrcDrive\_shared" -PassThru
 }
 Else {
     Write-Output "[FileBackup] $(Get-Timestamp) - ArchiveFile is None. Nothing to copy..."
 }
 # Backup of Cookie file
-If ($CookieFile -ne "None") {
-    Write-Output "[FileBackup] $(Get-Timestamp) - Copying $CookieFile to $SrcDrive."
+If (($CookieFile.trim() -ne "") -and ($CookieFile -ne "None")) {
+    Write-Output "[FileBackup] $(Get-Timestamp) - Copying Cookie($CookieFile) to $SrcDrive."
     Copy-Item -Path $CookieFile -Destination "$SrcDrive\_shared" -PassThru
 }
 Else {
     Write-Output "[FileBackup] $(Get-Timestamp) - CookieFile is None. Nothing to copy..."
 }
+# Backup of font file
+if (($SubFontDir.trim() -ne "") -and ($SubFontDir -ne "None")) {
+    Write-Output "[FileBackup] $(Get-Timestamp) - Copying Font($SubFontDir) to $SrcDrive."
+    Copy-Item -Path $SubFontDir -Destination "$SrcDrive\_shared\fonts" -PassThru
+}
+else {
+    Write-Output "[FileBackup] $(Get-Timestamp) - SubFontDir is None. Nothing to copy..."
+}
 # Backup of Bat file
-Write-Output "[FileBackup] $(Get-Timestamp) - Copying $BatFile to $SrcDrive."
+Write-Output "[FileBackup] $(Get-Timestamp) - Copying Bat($BatFile) to $SrcDrive."
 Copy-Item -Path $BatFile -Destination "$SrcDrive\_shared" -PassThru
 # Backup of config.xml file
-Write-Output "[FileBackup] $(Get-Timestamp) - Copying $ConfigPath to $SrcDrive."
+Write-Output "[FileBackup] $(Get-Timestamp) - Copying Config($ConfigPath) to $SrcDrive."
 Copy-Item -Path $ConfigPath -Destination "$SrcDrive\_shared" -PassThru
 # Regardless of failures still force delete tmp for clean runs
 If (($SiteTemp -match "\\tmp\\") -and ($SiteTemp -match $SiteTempBaseMatch) -and (Test-Path $SiteTemp)) {
@@ -359,9 +360,8 @@ Else {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Temp folder not matching as expected. Remove not completed"
 }
 # Clean up SiteSrc folder if empty
-If (($SiteSrc -match "\\src\\") -and ($SiteSrc -match $SiteSrcBaseMatch) -and (Test-Path $SiteSrc)) {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - cleaing up SiteSrc($SiteSrc) if empty."
-    & $DeleteRecursion -Path $SiteSrc
+If (($SiteSrc -match "\\src\\") -and ($SiteSrc -match $SiteSrcBaseMatch) -and (Test-Path $SiteSrc) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
+    Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteSrc($SiteSrc) contains files."
 }
 else {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteSrc($SiteSrc) folder not matching as expected. Remove not completed"
