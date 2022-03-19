@@ -232,6 +232,16 @@ If ($useMKVMerge) {
         elseIf ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
+            While ($True) {
+                If ((Test-Path -path $SiteTempBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
+                    Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Waiting to delete folder after move..."
+                    continue
+                }
+                else {
+                    Remove-Item $SiteSrc -Recurse -Force -Confirm:$false -Verbose
+                    $SiteSrcDeleted = $true
+                }
+            }
         }
     }
 }
@@ -350,15 +360,11 @@ Else {
 }
 # Clean up SiteSrc folder if empty
 If (($SiteSrc -match "\\src\\") -and ($SiteSrc -match $SiteSrcBaseMatch) -and (Test-Path $SiteSrc)) {
+    Write-Output "[FolderCleanup] $(Get-Timestamp) - cleaing up SiteSrc($SiteSrc) if empty."
     & $DeleteRecursion -Path $SiteSrc
 }
-Else {
-    if ($SiteSrcDeleted) {
-        Write-Output "[FolderCleanup] $(Get-Timestamp) - $SiteSrc folder already removed."
-    }
-    else {
-        Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteSrc($SiteSrc) folder not matching as expected. Remove not completed"
-    }
+else {
+    Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteSrc($SiteSrc) folder not matching as expected. Remove not completed"
 }
 # Clean up SiteHome folder if empty
 If (($SiteHome -match "\\tmp\\") -and ($SiteHome -match $SiteHomeBaseMatch) -and (Test-Path $SiteHome)) {

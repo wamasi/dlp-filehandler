@@ -497,7 +497,7 @@ if ($Site) {
         # Site Source folder
         $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1)
         $SiteSrcBaseMatch = $SiteSrcBase.Replace("\", "\\")
-        $SiteSrc = "$SrcBase\$Time"
+        $SiteSrc = "$SiteSrcBase\$Time"
         # Site Destination folder
         $SiteHomeBase = "$DestDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
         $SiteHomeBaseMatch = $SiteHomeBase.Replace("\", "\\")
