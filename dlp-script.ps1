@@ -31,6 +31,9 @@ param(
     [Alias("SU")]
     [switch]$createsupportfiles,
     [Parameter(Mandatory = $false)]
+    [Alias("ST")]
+    [switch]$SendTelegram,
+    [Parameter(Mandatory = $false)]
     [Alias("T")]
     [switch]$testScript,
     [Parameter(Mandatory = $false)]
@@ -143,6 +146,10 @@ $xmlconfig = @"
         <library libraryid="" />
         <library libraryid="" />
     </Plex>
+    <Telegram>
+        <token></token>
+        <chatid></chatid>
+    </Telegram>
     <credentials>
         <site id="dummy">
             <username></username>
@@ -462,7 +469,10 @@ if ($Site) {
     $PlexLibPath = $PlexLibrary.Attributes[1].'#text'
     # Plex Library ID
     $PlexLibId = $PlexLibrary.Attributes[0].'#text'
-    # Setting fonts per site. These are manually tested to work with embedding and displayin in video files
+    # Telegram Bot credentials
+    $Telegramtoken = $ConfigFile.configuration.Telegram.token
+    $Telegramchatid = $ConfigFile.configuration.Telegram.chatid
+       # Setting fonts per site. These are manually tested to work with embedding and displayin in video files
     if ($SubFont.Trim() -ne "") {
         $SubFontDir = "$ScriptDirectory\fonts\$Subfont"
         if (Test-Path $SubFontDir) {
@@ -678,7 +688,8 @@ if ($Site) {
     $DebugVars = [ordered]@{Site = $SiteName; SiteType = $SiteType; isDaily = $isDaily; SiteUser = $SiteUser; SitePass = $SitePass; UseLogin = $useLogin; SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; `
             SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBaseMatch = $SiteSrcBaseMatch; SiteHome = $SiteHome; SiteHomeBaseMatch = $SiteHomeBaseMatch; SiteConfig = $SiteConfig; CookieFile = $CookieFile; `
             UseCookies = $useCookies; Archive = $ArchiveFile; UseDownloadArchive = $useArchive; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; `
-            useSubtitleEdit = $useSubtitleEdit; useMKVMerge = $useMKVMerge; UseFilebot = $useFilebot; PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; ConfigPath = $ConfigPath; "Script Directory" = $ScriptDirectory; `
+            useSubtitleEdit = $useSubtitleEdit; useMKVMerge = $useMKVMerge; UseFilebot = $useFilebot; PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; `
+            TelegramToken = $TelegramToken;TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; "Script Directory" = $ScriptDirectory; `
             dlpParams = $dlpParams
     }
     # Creating associated log folder and file
@@ -696,12 +707,16 @@ if ($Site) {
     if (($isDaily) -and (!($testScript))) {
         $DebugVars.Remove("SitePass")
         $DebugVars.Remove("PlexToken")
+        $DebugVars.Remove("TelegramToken")
+        $DebugVars.Remove("TelegramChatId")
         Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
     }
     elseif (!($isDaily) -and (!($testScript))) {
         $DebugVars.Remove("SitePass")
         $DebugVars.Remove("PlexToken")
+        $DebugVars.Remove("TelegramToken")
+        $DebugVars.Remove("TelegramChatId")
         Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
     }

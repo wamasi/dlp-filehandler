@@ -59,6 +59,8 @@ Plex
    - Path the ffmpeg location
    - Url, Token, LibraryIds to to plex
    - Site credentials and corresponding LibraryId for final destination
+   - Optional:
+     - Fill out Telegram section with token and chatid to send notification of new video with `-st` and `-mk` parameter.
 4. Run: `path\to\dlp-script.ps1 -SU` to generate supporting files
    - Generates
       - `fonts` folder
@@ -104,6 +106,7 @@ Plex
 |-useFilebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml.| Outputs file with \{ plex.tail \}|
 |-useMKVMerge|-mk/-MK|Tells script to run `subtitle_regex.py` and MKVMerge against file| Expects presence of mkv and ass file.|
 |-useSubtitleEdit|-se/-SE|Tells script to run SubetitleEdit to fix common problems with .srt files if they are present.| Expects presence of mkv and ass file.|
+|-SendTelegram|-st/-ST|If token/id filled out in `config.xml` will send out message to chat group with out of new videos.| |
 |-newconfig|-nc/-NC|Used to generate empty config if none is present.| |
 |-createsupportfiles|-su/-SU|Creates support files like archives, batch, some basic configs and cookies files for sites in the `config.xml`.| |
 |-help|-h/-H|Shows MD file.| If help is true or all parameters false/null then displays readme. |

@@ -31,6 +31,14 @@ $DeleteRecursion = {
         Remove-Item -Force -LiteralPath $Path -Verbose
     }
 }
+# Optional sending To telegram for new file notifications
+Function Send-Telegram {
+    Param([Parameter(Mandatory = $true)][String]$Message)
+    $Telegramtoken
+    $Telegramchatid
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($Message)"
+}
 $completedFiles = ""
 $incompleteFiles = ""
 [bool] $SiteSrcDeleted = $false
@@ -231,6 +239,21 @@ If ($useMKVMerge) {
         }
         elseIf ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
+            if ($SendTelegram) {
+                Get-ChildItem $SiteSrc -Recurse -Exclude $Time | Where-Object { !$_.PSisContainer } | ForEach-Object { 
+                    $Title = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
+                    $Base = $_.BaseName.Replace("_", " ")
+                    $Tmessage = @"
+From: $Site
+New Episode:
+$Title
+$Base
+"@
+                    Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for $Title - $Base."
+                    # Out-Null prevents request from being output into console/logs
+                    Send-Telegram -Message "$Tmessage" | Out-Null
+                }
+            } 
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
         }
         else {
