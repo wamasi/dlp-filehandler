@@ -60,7 +60,7 @@ Plex
    - Url, Token, LibraryIds to to plex
    - Site credentials and corresponding LibraryId for final destination
    - Optional:
-     - Fill out Telegram section with token and chatid to send notification of new video with `-st` and `-mk` parameter.
+     - Fill out Telegram section with token and chatid to send notification of new video with `-st` parameter.
 4. Run: `path\to\dlp-script.ps1 -SU` to generate supporting files
    - Generates
       - `fonts` folder

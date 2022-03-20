@@ -37,7 +37,7 @@ Function Send-Telegram {
     $Telegramtoken
     $Telegramchatid
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($Message)"
+    Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($Message)&parse_mode=html"
 }
 $completedFiles = ""
 $incompleteFiles = ""
@@ -251,13 +251,13 @@ If ($useMKVMerge) {
                         }
                     }
                 }
-                $Tmessage = "Site: $Site"
+                $Tmessage = "Site: <b>$Site</b>"
                 $data | ForEach-Object {
                     $Series = $_.Series
-                    $Tmessage += "`nSeries: $Series`nEpisode:`n"
+                    $Tmessage += "`nSeries: <b>$Series</b>`n<i>Episode:</i>`n"
                     $_ | Where-Object { $_.Series -eq $Series } | Select-Object -Unique | Sort-Object | ForEach-Object {
                         $Episode = $_.Episode
-                        $Tmessage += $Episode + "`n"
+                        $Tmessage += "<b>$Episode</b>`n"
                     }
                 }
                 Send-Telegram -Message "$Tmessage" | Out-Null
