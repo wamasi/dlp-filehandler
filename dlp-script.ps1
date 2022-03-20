@@ -689,7 +689,7 @@ if ($Site) {
             SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBaseMatch = $SiteSrcBaseMatch; SiteHome = $SiteHome; SiteHomeBaseMatch = $SiteHomeBaseMatch; SiteConfig = $SiteConfig; CookieFile = $CookieFile; `
             UseCookies = $useCookies; Archive = $ArchiveFile; UseDownloadArchive = $useArchive; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; `
             useSubtitleEdit = $useSubtitleEdit; useMKVMerge = $useMKVMerge; UseFilebot = $useFilebot; PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; `
-            TelegramToken = $TelegramToken;TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; "Script Directory" = $ScriptDirectory; `
+            TelegramToken = $TelegramToken;TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; `
             dlpParams = $dlpParams
     }
     # Creating associated log folder and file
