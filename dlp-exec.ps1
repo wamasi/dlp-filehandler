@@ -260,7 +260,7 @@ If ($useMKVMerge) {
                         $Tmessage += $Episode + "`n"
                     }
                 }
-                Send-Telegram -Message "$Tmessage"
+                Send-Telegram -Message "$Tmessage" | Out-Null
             }
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
@@ -300,7 +300,7 @@ Else {
                     $Tmessage += $Episode + "`n"
                 }
             }
-            Send-Telegram -Message "$Tmessage"
+            Send-Telegram -Message "$Tmessage" | Out-Null
         }
         Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
         Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
