@@ -238,7 +238,7 @@ If ($useMKVMerge) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - SiteSrcDeleted = $SiteSrcDeleted"
         }
         elseIf ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
-            Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
+            Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
             if ($SendTelegram) {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
                 $data = @()
@@ -261,7 +261,8 @@ If ($useMKVMerge) {
                     }
                 }
                 Send-Telegram -Message "$Tmessage"
-            } 
+            }
+            Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
         }
         else {
@@ -277,7 +278,31 @@ Else {
         Remove-Item $SiteSrc -Recurse -Force -Confirm:$false -Verbose
     }
     elseIf ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
-        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains foles. Moving to $SiteHomeBase..."
+        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
+        if ($SendTelegram) {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
+            $data = @()
+            Get-ChildItem $SiteSrc | ForEach-Object {
+                foreach ($i in $_) {
+                    Get-ChildItem $i -Recurse -Include "*.mkv" | Select-Object -Unique | Sort-Object | ForEach-Object {
+                        $Series = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
+                        $Episode = $_.BaseName.Replace("_", " ")
+                        $data += [pscustomobject]@{Series = $Series; Episode = $Episode }
+                    }
+                }
+            }
+            $Tmessage = "Site: $Site"
+            $data | ForEach-Object {
+                $Series = $_.Series
+                $Tmessage += "`nSeries: $Series`nEpisode:`n"
+                $_ | Where-Object { $_.Series -eq $Series } | Select-Object -Unique | Sort-Object | ForEach-Object {
+                    $Episode = $_.Episode
+                    $Tmessage += $Episode + "`n"
+                }
+            }
+            Send-Telegram -Message "$Tmessage"
+        }
+        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
         Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
     }
 }

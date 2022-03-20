@@ -3,4 +3,5 @@ config.xml
 shared/
 fonts/
 sites/
+test/
 *.tff
