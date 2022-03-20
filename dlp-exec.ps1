@@ -240,19 +240,27 @@ If ($useMKVMerge) {
         elseIf ((Test-Path -path $SiteHomeBase) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
             if ($SendTelegram) {
-                Get-ChildItem $SiteSrc -Recurse -Exclude $Time | Where-Object { !$_.PSisContainer } | ForEach-Object { 
-                    $Title = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
-                    $Base = $_.BaseName.Replace("_", " ")
-                    $Tmessage = @"
-From: $Site
-New Episode:
-$Title
-$Base
-"@
-                    Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for $Title - $Base."
-                    # Out-Null prevents request from being output into console/logs
-                    Send-Telegram -Message "$Tmessage" | Out-Null
+                Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
+                $data = @()
+                Get-ChildItem $SiteSrc | ForEach-Object {
+                    foreach ($i in $_) {
+                        Get-ChildItem $i -Recurse -Include "*.mkv" | Select-Object -Unique | Sort-Object | ForEach-Object {
+                            $Series = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
+                            $Episode = $_.BaseName.Replace("_", " ")
+                            $data += [pscustomobject]@{Series = $Series; Episode = $Episode }
+                        }
+                    }
                 }
+                $Tmessage = "Site: $Site"
+                $data | ForEach-Object {
+                    $Series = $_.Series
+                    $Tmessage += "`nSeries: $Series`nEpisode:`n"
+                    $_ | Where-Object { $_.Series -eq $Series } | Select-Object -Unique | Sort-Object | ForEach-Object {
+                        $Episode = $_.Episode
+                        $Tmessage += $Episode + "`n"
+                    }
+                }
+                Send-Telegram -Message "$Tmessage"
             } 
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
         }

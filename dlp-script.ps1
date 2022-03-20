@@ -558,7 +558,7 @@ if ($Site) {
     if ($useLogin) {
         # Setting cookie variable to none
         # Setting User and Password command
-        if (($SiteUser -and $SitePass)) {
+        if ($SiteUser -and $SitePass) {
             Write-Output "$(Get-Timestamp) - useLogin is true and SiteUser/Password is filled. Continuing..."
             $dlpParams = $dlpParams + " -u $SiteUser -p $SitePass"
             if ($useCookies) {
