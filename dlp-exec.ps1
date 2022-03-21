@@ -74,7 +74,7 @@ Invoke-Expression $dlpParams
 If ($useSubtitleEdit) {
     # Fixing subs - SubtitleEdit
     If ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-        Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | ForEach-Object {
+        Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Sort-Object LastWriteTime | ForEach-Object {
             Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $_ subtitle"
             $subvar = $_.FullName
             # SubtitleEdit does not play well being called within a script
@@ -107,7 +107,7 @@ If ($useMKVMerge) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - Processing files to fix subtitles and then combine with video."
             # Embedding subs into video files - MKVMerge
             Write-Output "[MKVMerge] $(Get-Timestamp) - Checking for subtitle and video files to merge."
-            Get-ChildItem $folder -Recurse -File -Include "$VidType" | ForEach-Object {
+            Get-ChildItem $folder -Recurse -File -Include "$VidType" | Sort-Object LastWriteTime | ForEach-Object {
                 # grabbing associated variables needed to pass onto MKVMerge
                 $inputs = $_.FullName
                 $filename = $_.BaseName
@@ -242,9 +242,9 @@ If ($useMKVMerge) {
             if ($SendTelegram) {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
                 $data = @()
-                Get-ChildItem $SiteSrc | ForEach-Object {
+                Get-ChildItem $SiteSrc | Sort-Object LastWriteTime | ForEach-Object {
                     foreach ($i in $_) {
-                        Get-ChildItem $i -Recurse -Include "*.mkv" | Select-Object -Unique | Sort-Object | ForEach-Object {
+                        Get-ChildItem $i -Recurse -Include "*.mkv" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
                             $Series = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
                             $Episode = $_.BaseName.Replace("_", " ")
                             $data += [pscustomobject]@{Series = $Series; Episode = $Episode }
@@ -255,7 +255,7 @@ If ($useMKVMerge) {
                 $data | ForEach-Object {
                     $Series = $_.Series
                     $Tmessage += "`nSeries: <b>$Series</b>`n<i>Episode:</i>`n"
-                    $_ | Where-Object { $_.Series -eq $Series } | Select-Object -Unique | Sort-Object | ForEach-Object {
+                    $_ | Where-Object { $_.Series -eq $Series } | Select-Object -Unique | Sort-Object LastWriteTime | ForEach-Object {
                         $Episode = $_.Episode
                         $Tmessage += "<b>$Episode</b>`n"
                     }
@@ -282,9 +282,9 @@ Else {
         if ($SendTelegram) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
             $data = @()
-            Get-ChildItem $SiteSrc | ForEach-Object {
+            Get-ChildItem $SiteSrc | Sort-Object LastWriteTime | ForEach-Object {
                 foreach ($i in $_) {
-                    Get-ChildItem $i -Recurse -Include "*.mkv" | Select-Object -Unique | Sort-Object | ForEach-Object {
+                    Get-ChildItem $i -Recurse -Include "*.mkv" | Select-Object -Unique | Sort-Object LastWriteTime | ForEach-Object {
                         $Series = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
                         $Episode = $_.BaseName.Replace("_", " ")
                         $data += [pscustomobject]@{Series = $Series; Episode = $Episode }
@@ -295,7 +295,7 @@ Else {
             $data | ForEach-Object {
                 $Series = $_.Series
                 $Tmessage += "`nSeries: $Series`nEpisode:`n"
-                $_ | Where-Object { $_.Series -eq $Series } | Select-Object -Unique | Sort-Object | ForEach-Object {
+                $_ | Where-Object { $_.Series -eq $Series } | Select-Object -Unique | Sort-Object LastWriteTime | ForEach-Object {
                     $Episode = $_.Episode
                     $Tmessage += $Episode + "`n"
                 }
@@ -311,8 +311,8 @@ $incompleteFiles.Trim()
 If (($useFilebot) -and ($incompleteFiles.Trim() -eq "")) {
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
     ForEach ($folder in $SiteHome ) {
-        If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-            Get-ChildItem $folder -Recurse -File -Include "$VidType" | ForEach-Object {
+        If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count -gt 0) {
+            Get-ChildItem $folder -Recurse -File -Include "$VidType" | Sort-Object LastWriteTime | ForEach-Object {
                 $inputs = $_.FullName
                 # Filebot command
                 If ($PlexLibPath) {
