@@ -1,4 +1,19 @@
 param ($dlpParams, $useFilebot, $useSubtitleEdit, $useMKVMerge, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $SiteTempBaseMatch, $SiteSrcBaseMatch, $SiteHomeBaseMatch, $ConfigPath )
+
+# defining Class for Telegram messages
+class SeriesEpisode {
+    [string]$_Site
+    [string]$_Series
+    [string]$_Episode
+
+    SeriesEpisode([string]$sSite, [string]$Series, [string]$Episode) {
+        $this._Site = $sSite
+        $this._Series = $Series
+        $this._Episode = $Episode
+    }
+}
+[System.Collections.ArrayList]$SeriesEpisodeList = @()
+
 # Function to check if file is locked by process before moving forward
 function Test-Lock {
     Param(
@@ -30,6 +45,39 @@ $DeleteRecursion = {
         Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting '${Path}' folders/files if empty"
         Remove-Item -Force -LiteralPath $Path -Verbose
     }
+}
+# Getting list of Site, Series, and Episodes for Telegram messages
+function Get-SiteSeriesEpisode {
+    param (
+        [parameter(Mandatory = $true)]
+        $Path,
+        [parameter(Mandatory = $true)]
+        $VidType
+    )
+    Get-ChildItem $Path -Recurse -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
+        $Series = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
+        $Episodes = $_.BaseName.Replace("_", " ")
+        foreach ($i in $_) {
+            $SeriesEpisodes = [SeriesEpisode]::new($sSite, $Series, $Episodes)
+            [void]$SeriesEpisodeList.Add($SeriesEpisodes)
+        }
+    }
+    $SEL = $SeriesEpisodeList | Group-Object -Property _Site, _Series |
+    Select-Object @{n = 'Site'; e = { $_.Values[0] } }, `
+    @{ n = 'Series'; e = { $_.Values[1] } }, `
+    @{n = 'Episode'; e = { $_.Group | Select-Object _Episode } }
+    $Telegrammessage = "<b>Site:</b> " + $Site
+    $Tmessage = ""
+    $SEL | ForEach-Object {
+        $EpList = ""
+        foreach ($i in $_) {
+            $EpList = $_.Episode._Episode | Out-String
+        }
+        $Tmessage = "`n<b>Series:</b> " + $_.Series + "`n<b>Episode:</b>`n" + $EpList
+        $Telegrammessage += $Tmessage + "`n"
+    }
+    Write-Host $Telegrammessage
+    return $Telegrammessage
 }
 # Optional sending To telegram for new file notifications
 Function Send-Telegram {
@@ -241,26 +289,8 @@ If ($useMKVMerge) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
             if ($SendTelegram) {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
-                $data = @()
-                Get-ChildItem $SiteSrc | Sort-Object LastWriteTime | ForEach-Object {
-                    foreach ($i in $_) {
-                        Get-ChildItem $i -Recurse -Include "*.mkv" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
-                            $Series = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
-                            $Episode = $_.BaseName.Replace("_", " ")
-                            $data += [pscustomobject]@{Series = $Series; Episode = $Episode }
-                        }
-                    }
-                }
-                $Tmessage = "Site: <b>$Site</b>"
-                $data | ForEach-Object {
-                    $Series = $_.Series
-                    $Tmessage += "`nSeries: <b>$Series</b>`n<i>Episode:</i>`n"
-                    $_ | Where-Object { $_.Series -eq $Series } | Select-Object -Unique | Sort-Object LastWriteTime | ForEach-Object {
-                        $Episode = $_.Episode
-                        $Tmessage += "<b>$Episode</b>`n"
-                    }
-                }
-                Send-Telegram -Message "$Tmessage" | Out-Null
+                $TM = Get-SiteSeriesEpisode -Path $SiteSrc -VidType $sVidType
+                Send-Telegram -Message $TM | Out-Null
             }
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
@@ -281,26 +311,8 @@ Else {
         Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
         if ($SendTelegram) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
-            $data = @()
-            Get-ChildItem $SiteSrc | Sort-Object LastWriteTime | ForEach-Object {
-                foreach ($i in $_) {
-                    Get-ChildItem $i -Recurse -Include "*.mkv" | Select-Object -Unique | Sort-Object LastWriteTime | ForEach-Object {
-                        $Series = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
-                        $Episode = $_.BaseName.Replace("_", " ")
-                        $data += [pscustomobject]@{Series = $Series; Episode = $Episode }
-                    }
-                }
-            }
-            $Tmessage = "Site: $Site"
-            $data | ForEach-Object {
-                $Series = $_.Series
-                $Tmessage += "`nSeries: $Series`nEpisode:`n"
-                $_ | Where-Object { $_.Series -eq $Series } | Select-Object -Unique | Sort-Object LastWriteTime | ForEach-Object {
-                    $Episode = $_.Episode
-                    $Tmessage += $Episode + "`n"
-                }
-            }
-            Send-Telegram -Message "$Tmessage" | Out-Null
+            $TM = Get-SiteSeriesEpisode -Path $SiteSrc -VidType $sVidType
+            Send-Telegram -Message $TM | Out-Null
         }
         Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
         Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose

@@ -696,14 +696,14 @@ if ($Site) {
     $LFolderBase = "$SiteFolder\log\"
     $LFile = "$SiteFolder\log\$Date\$DateTime.log"
     New-Item -Path $LFile -ItemType File -Force
-    # Runs execution
+    # Will generate log file for site run will all variables for debugging setup
     if ($testScript) {
         Write-Output "[START] $DateTime - $SiteName - DEBUG Run" *>&1 | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
         Write-Output "[End] - Debugging enabled. Exiting..." *>&1 | Tee-Object -FilePath $LFile -Append
         exit
     }
-    # Setting log header row based on daily vs Manual
+    # Will generate log file for site run most variables
     if (($isDaily) -and (!($testScript))) {
         $DebugVars.Remove("SitePass")
         $DebugVars.Remove("PlexToken")
@@ -720,6 +720,7 @@ if ($Site) {
         Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
     }
+    # Runs dlp-exec.ps1 execution
     & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -useFilebot $useFilebot -useSubtitleEdit $useSubtitleEdit -useMKVMerge $useMKVMerge `
         -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
         -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath -SiteTempBaseMatch $SiteTempBaseMatch `
