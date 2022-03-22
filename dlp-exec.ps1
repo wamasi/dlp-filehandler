@@ -1,4 +1,4 @@
-param ($dlpParams, $useFilebot, $useSubtitleEdit, $useMKVMerge, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $SiteTempBaseMatch, $SiteSrcBaseMatch, $SiteHomeBaseMatch, $ConfigPath )
+param ($dlpParams, $Filebot, $SubtitleEdit, $MKVMerge, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $SiteTempBaseMatch, $SiteSrcBaseMatch, $SiteHomeBaseMatch, $ConfigPath )
 # defining Class for Telegram messages
 class SeriesEpisode {
     [string]$_Site
@@ -88,7 +88,7 @@ Function Send-Telegram {
 $completedFiles = ""
 $incompleteFiles = ""
 [bool] $SiteSrcDeleted = $false
-# Depending on if isDaily is set will use appropriate files and setup temp/home directory paths
+# Depending on if Daily is set will use appropriate files and setup temp/home directory paths
 Set-Folders $TempDrive
 Set-Folders $SrcDrive
 Set-Folders $SrcDriveShared
@@ -116,8 +116,8 @@ Else {
 }
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
-# If useSubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
-If ($useSubtitleEdit) {
+# If SubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
+If ($SubtitleEdit) {
     # Fixing subs - SubtitleEdit
     If ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
         Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Sort-Object LastWriteTime | ForEach-Object {
@@ -146,8 +146,8 @@ If ($useSubtitleEdit) {
 Else {
     Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running"
 }
-# If useMKVMerge = True then run MKVMerge against SiteSrc folder.
-If ($useMKVMerge) {
+# If MKVMerge = True then run MKVMerge against SiteSrc folder.
+If ($MKVMerge) {
     ForEach ($folder in $SiteSrc) {
         If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0 -and (Get-ChildItem $folder -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - Processing files to fix subtitles and then combine with video."
@@ -318,7 +318,7 @@ Else {
 }
 $incompleteFiles.Trim()
 # If Filebot = True then run Filebot aginst SiteHome folder
-If (($useFilebot) -and ($incompleteFiles.Trim() -eq "")) {
+If (($Filebot) -and ($incompleteFiles.Trim() -eq "")) {
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
     ForEach ($folder in $SiteHome ) {
         If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count -gt 0) {
@@ -354,7 +354,7 @@ If (($useFilebot) -and ($incompleteFiles.Trim() -eq "")) {
     # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
     If ((Get-ChildItem $folder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
         Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - File needs processing."
-        If ($isDaily) {
+        If ($Daily) {
             Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - Daily run - Script completed with ERRORS"
         }
         Else {
@@ -378,7 +378,7 @@ If (($useFilebot) -and ($incompleteFiles.Trim() -eq "")) {
         }
     }
 }
-elseif (($useFilebot) -and ($incompleteFiles)) {
+elseif (($Filebot) -and ($incompleteFiles)) {
     Write-Output @"
 [Filebot] $(Get-Timestamp) - Incomplete files in $SiteSrc\: `n$incompleteFiles
 [Filebot] $(Get-Timestamp) - [End] - Files in $SiteSrc need manual attention. Skipping to next step...
