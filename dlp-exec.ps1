@@ -1,5 +1,4 @@
 param ($dlpParams, $useFilebot, $useSubtitleEdit, $useMKVMerge, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $SiteTempBaseMatch, $SiteSrcBaseMatch, $SiteHomeBaseMatch, $ConfigPath )
-
 # defining Class for Telegram messages
 class SeriesEpisode {
     [string]$_Site
@@ -13,7 +12,6 @@ class SeriesEpisode {
     }
 }
 [System.Collections.ArrayList]$SeriesEpisodeList = @()
-
 # Function to check if file is locked by process before moving forward
 function Test-Lock {
     Param(
@@ -66,14 +64,14 @@ function Get-SiteSeriesEpisode {
     Select-Object @{n = 'Site'; e = { $_.Values[0] } }, `
     @{ n = 'Series'; e = { $_.Values[1] } }, `
     @{n = 'Episode'; e = { $_.Group | Select-Object _Episode } }
-    $Telegrammessage = "<b>Site:</b> " + $Site
+    $Telegrammessage = "<b>Site:</b> " + $Site + "`n"
     $Tmessage = ""
     $SEL | ForEach-Object {
         $EpList = ""
         foreach ($i in $_) {
             $EpList = $_.Episode._Episode | Out-String
         }
-        $Tmessage = "`n<b>Series:</b> " + $_.Series + "`n<b>Episode:</b>`n" + $EpList
+        $Tmessage = "<b>Series:</b> " + $_.Series + "`n<b>Episode:</b>`n" + $EpList
         $Telegrammessage += $Tmessage + "`n"
     }
     Write-Host $Telegrammessage
