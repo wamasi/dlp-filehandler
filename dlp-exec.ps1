@@ -48,11 +48,11 @@ $DeleteRecursion = {
 function Get-SiteSeriesEpisode {
     param (
         [parameter(Mandatory = $true)]
-        $Path,
+        $VPath,
         [parameter(Mandatory = $true)]
-        $VidType
+        $VType
     )
-    Get-ChildItem $Path -Recurse -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
+    Get-ChildItem $VPath -Recurse -Include "$VType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
         $Series = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
         $Episodes = $_.BaseName.Replace("_", " ")
         foreach ($i in $_) {
@@ -65,14 +65,14 @@ function Get-SiteSeriesEpisode {
     @{ n = 'Series'; e = { $_.Values[1] } }, `
     @{n = 'Episode'; e = { $_.Group | Select-Object _Episode } }
     $Telegrammessage = "<b>Site:</b> " + $Site + "`n"
-    $Tmessage = ""
+    $SeriesMessage = ""
     $SEL | ForEach-Object {
         $EpList = ""
         foreach ($i in $_) {
             $EpList = $_.Episode._Episode | Out-String
         }
-        $Tmessage = "<b>Series:</b> " + $_.Series + "`n<b>Episode:</b>`n" + $EpList
-        $Telegrammessage += $Tmessage + "`n"
+        $SeriesMessage = "<b>Series:</b> " + $_.Series + "`n<b>Episode:</b>`n" + $EpList
+        $Telegrammessage += $SeriesMessage + "`n"
     }
     Write-Host $Telegrammessage
     return $Telegrammessage
@@ -287,7 +287,7 @@ If ($MKVMerge) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
             if ($SendTelegram) {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
-                $TM = Get-SiteSeriesEpisode -Path $SiteSrc -VidType $sVidType
+                $TM = Get-SiteSeriesEpisode -VPath $SiteSrc -VType $VidType
                 Send-Telegram -Message $TM | Out-Null
             }
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
@@ -309,7 +309,7 @@ Else {
         Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
         if ($SendTelegram) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
-            $TM = Get-SiteSeriesEpisode -Path $SiteSrc -VidType $sVidType
+            $TM = Get-SiteSeriesEpisode -VPath $SiteSrc -VType $VidType
             Send-Telegram -Message $TM | Out-Null
         }
         Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
