@@ -12,38 +12,6 @@ class SeriesEpisode {
     }
 }
 [System.Collections.ArrayList]$SeriesEpisodeList = @()
-# Function to check if file is locked by process before moving forward
-function Test-Lock {
-    Param(
-        [parameter(Mandatory = $true)]
-        $filename
-    )
-    $file = Get-Item (Resolve-Path $filename) -Force
-    If ($file -is [IO.FileInfo]) {
-        trap {
-            return $true
-            continue
-        }
-        $stream = New-Object system.IO.StreamReader $file
-        If ($stream) { $stream.Close() }
-    }
-    return $false
-}
-# Function to recurse delete empty folders
-$DeleteRecursion = {
-    param(
-        $Path
-    )
-    foreach ($childDirectory in Get-ChildItem -Force -LiteralPath $Path -Directory) {
-        & $DeleteRecursion -Path $childDirectory.FullName
-    }
-    $currentChildren = Get-ChildItem -Force -LiteralPath $Path
-    $isEmpty = $currentChildren -eq $null
-    if ($isEmpty) {
-        Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting '${Path}' folders/files if empty"
-        Remove-Item -Force -LiteralPath $Path -Verbose
-    }
-}
 # Getting list of Site, Series, and Episodes for Telegram messages
 function Get-SiteSeriesEpisode {
     param (
@@ -64,7 +32,7 @@ function Get-SiteSeriesEpisode {
     Select-Object @{n = 'Site'; e = { $_.Values[0] } }, `
     @{ n = 'Series'; e = { $_.Values[1] } }, `
     @{n = 'Episode'; e = { $_.Group | Select-Object _Episode } }
-    $Telegrammessage = "<b>Site:</b> " + $Site + "`n"
+    $Telegrammessage = "<b>Site:</b> " + $SiteNameRaw + "`n"
     $SeriesMessage = ""
     $SEL | ForEach-Object {
         $EpList = ""
@@ -77,6 +45,39 @@ function Get-SiteSeriesEpisode {
     Write-Host $Telegrammessage
     return $Telegrammessage
 }
+# Function to check if file is locked by process before moving forward
+function Test-Lock {
+    Param(
+        [parameter(Mandatory = $true)]
+        $filename
+    )
+    $file = Get-Item (Resolve-Path $filename) -Force
+    If ($file -is [IO.FileInfo]) {
+        trap {
+            return $true
+            continue
+        }
+        $stream = New-Object system.IO.StreamReader $file
+        If ($stream) { $stream.Close() }
+    }
+    return $false
+}
+# Function to recurse delete empty parent and subfolders
+$DeleteRecursion = {
+    param(
+        $Path
+    )
+    foreach ($childDirectory in Get-ChildItem -Force -LiteralPath $Path -Directory) {
+        & $DeleteRecursion -Path $childDirectory.FullName
+    }
+    $currentChildren = Get-ChildItem -Force -LiteralPath $Path
+    $isEmpty = $currentChildren -eq $null
+    if ($isEmpty) {
+        Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting '${Path}' folders/files if empty"
+        Remove-Item -Force -LiteralPath $Path -Verbose
+    }
+}
+
 # Optional sending To telegram for new file notifications
 Function Send-Telegram {
     Param([Parameter(Mandatory = $true)][String]$Message)
@@ -159,13 +160,9 @@ If ($MKVMerge) {
                 $filename = $_.BaseName
                 $subtitle = Get-ChildItem $folder -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $filename } | Select-Object -First 1
                 $tempvideo = $_.DirectoryName + "\" + $_.BaseName + ".temp" + $_.Extension
-                Write-Output @"
-[SubtitleEdit] $(Get-Timestamp) - Checking for $subtitle and $inputs file to merge.
-[Input Filename]    = $inputs
-[Base Filename]     = $filename
-[Subtitle Filename] = $subtitle
-[Temp Video]        = $tempvideo
-"@
+                $MKVVidSubList = [ordered]@{VidInput = $inputs; VidBaseName = $filename; VidSubtitle = $subtitle; VidTempOutput = $tempvideo }
+                Write-Output "[SubtitleEdit] $(Get-Timestamp) - Checking for $subtitle and $inputs file to merge."
+                $MKVVidSubList | Out-String
                 # Only process files with matching subtitle
                 If ($subtitle) {
                     # Adding custom styling to ASS subtitle
@@ -342,10 +339,9 @@ If (($Filebot) -and ($incompleteFiles.Trim() -eq "")) {
     }
     $completedFiles.Trim()
     if ($completedFiles) {
-        write-output @"
-[Filebot] $(Get-Timestamp) - Completed files: `n$completedFiles
-[Filebot] $(Get-Timestamp) - No other files need to be processed. Attempting Filebot cleanup.
-"@
+        Write-Output "[Filebot] $(Get-Timestamp) - Completed files: `n$completedFiles"
+        Write-Output "[Filebot]$(Get-Timestamp) - No other files need to be processed. Attempting Filebot cleanup."
+
     }
     else {
         write-output "[Filebot] $(Get-Timestamp) - No file to process. Attempting Filebot cleanup."
@@ -379,10 +375,8 @@ If (($Filebot) -and ($incompleteFiles.Trim() -eq "")) {
     }
 }
 elseif (($Filebot) -and ($incompleteFiles)) {
-    Write-Output @"
-[Filebot] $(Get-Timestamp) - Incomplete files in $SiteSrc\: `n$incompleteFiles
-[Filebot] $(Get-Timestamp) - [End] - Files in $SiteSrc need manual attention. Skipping to next step...
-"@
+    Write-Output "[Filebot] $(Get-Timestamp) - Incomplete files in $SiteSrc\: `n$incompleteFiles"
+    Write-Output "[Filebot] $(Get-Timestamp) - [End] - Files in $SiteSrc need manual attention. Skipping to next step..."
 }
 Else {
     Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
@@ -390,7 +384,7 @@ Else {
 # Backup of Archive file
 If (($ArchiveFile.trim() -ne "") -and ($ArchiveFile -ne "None")) {
     Write-Output "[FileBackup] $(Get-Timestamp) - Copying Archive($ArchiveFile) to $SrcDrive."
-    Copy-Item -Path $ArchiveFile -Destination "$SrcDrive\_shared" -PassThru
+    Copy-Item -Path $ArchiveFile -Destination $SrcDriveShared -PassThru
 }
 Else {
     Write-Output "[FileBackup] $(Get-Timestamp) - ArchiveFile is None. Nothing to copy..."
@@ -398,7 +392,7 @@ Else {
 # Backup of Cookie file
 If (($CookieFile.trim() -ne "") -and ($CookieFile -ne "None")) {
     Write-Output "[FileBackup] $(Get-Timestamp) - Copying Cookie($CookieFile) to $SrcDrive."
-    Copy-Item -Path $CookieFile -Destination "$SrcDrive\_shared" -PassThru
+    Copy-Item -Path $CookieFile -Destination $SrcDriveShared -PassThru
 }
 Else {
     Write-Output "[FileBackup] $(Get-Timestamp) - CookieFile is None. Nothing to copy..."
@@ -406,17 +400,17 @@ Else {
 # Backup of font file
 if (($SubFontDir.trim() -ne "") -and ($SubFontDir -ne "None")) {
     Write-Output "[FileBackup] $(Get-Timestamp) - Copying Font($SubFontDir) to $SrcDrive."
-    Copy-Item -Path $SubFontDir -Destination "$SrcDrive\_shared\fonts" -PassThru
+    Copy-Item -Path $SubFontDir -Destination $SrcDriveSharedFonts -PassThru
 }
 else {
     Write-Output "[FileBackup] $(Get-Timestamp) - SubFontDir is None. Nothing to copy..."
 }
 # Backup of Bat file
 Write-Output "[FileBackup] $(Get-Timestamp) - Copying Bat($BatFile) to $SrcDrive."
-Copy-Item -Path $BatFile -Destination "$SrcDrive\_shared" -PassThru
+Copy-Item -Path $BatFile -Destination $SrcDriveShared -PassThru
 # Backup of config.xml file
 Write-Output "[FileBackup] $(Get-Timestamp) - Copying Config($ConfigPath) to $SrcDrive."
-Copy-Item -Path $ConfigPath -Destination "$SrcDrive\_shared" -PassThru
+Copy-Item -Path $ConfigPath -Destination $SrcDriveShared -PassThru
 # Regardless of failures still force delete tmp for clean runs
 If (($SiteTemp -match "\\tmp\\") -and ($SiteTemp -match $SiteTempBaseMatch) -and (Test-Path $SiteTemp)) {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteTemp folders/files"

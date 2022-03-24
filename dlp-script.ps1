@@ -438,6 +438,7 @@ if ($Site) {
     foreach ($object in $SNfile) {
         $SN = New-Object -TypeName PSObject -Property @{
             SN  = $object.id.ToLower()
+            SND = $object.id
             SUN = $object.username
             SPW = $object.password
             SLI = $object.libraryid
@@ -445,6 +446,7 @@ if ($Site) {
         }
     }
     $SiteName = $SN.SN
+    $SiteNameRaw = $SN.SND
     $SiteUser = $SN.SUN
     $SitePass = $SN.SPW
     $SiteLib = $SN.SLI
@@ -683,9 +685,8 @@ if ($Site) {
             }
         }
     }
-    
     # Writing all variables
-    $DebugVars = [ordered]@{Site = $SiteName; SiteType = $SiteType; Daily = $Daily; SiteUser = $SiteUser; SitePass = $SitePass; Login = $Login; SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; `
+    $DebugVars = [ordered]@{Site = $SiteName; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; Daily = $Daily; SiteUser = $SiteUser; SitePass = $SitePass; Login = $Login; SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; `
             SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBaseMatch = $SiteSrcBaseMatch; SiteHome = $SiteHome; SiteHomeBaseMatch = $SiteHomeBaseMatch; SiteConfig = $SiteConfig; CookieFile = $CookieFile; `
             Cookies = $Cookies; Archive = $ArchiveFile; UseDownloadArchive = $Archive; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; `
             SubtitleEdit = $SubtitleEdit; MKVMerge = $MKVMerge; Filebot = $Filebot; PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; `
@@ -722,7 +723,7 @@ if ($Site) {
     }
     # Runs dlp-exec.ps1 execution
     & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -Filebot $Filebot -SubtitleEdit $SubtitleEdit -MKVMerge $MKVMerge `
-        -SiteName $SiteName -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
+        -SiteName $SiteName -SiteNameRaw $SiteNameRaw -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
         -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath -SiteTempBaseMatch $SiteTempBaseMatch `
         -SiteSrcBaseMatch $SiteSrcBaseMatch -SiteHomeBaseMatch $SiteHomeBaseMatch -SrcDriveShared $SrcDriveShared `
         -SrcDriveSharedFonts $SrcDriveSharedFonts *>&1 | Tee-Object -FilePath $LFile -Append
