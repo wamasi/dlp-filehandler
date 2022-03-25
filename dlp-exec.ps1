@@ -67,8 +67,8 @@ $DeleteRecursion = {
     param(
         $DRPath
     )
-    foreach ($childDirectory in Get-ChildItem -Force -LiteralPath $DRPath -Directory) {
-        & $DeleteRecursion -Path $childDirectory.FullName
+    foreach ($DRchildDirectory in Get-ChildItem -Force -LiteralPath $DRPath -Directory) {
+        & $DeleteRecursion -DRPath $DRchildDirectory.FullName
     }
     $DRcurrentChildren = Get-ChildItem -Force -LiteralPath $DRPath
     $DRisEmpty = $DRcurrentChildren -eq $null
@@ -85,8 +85,9 @@ Function Send-Telegram {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html"
 }
-$completedFiles = [ordered]@{}
-$incompleteFiles = [ordered]@{}
+[System.Collections.ArrayList]$MKVCompletedFiles = [ordered]@{}
+[System.Collections.ArrayList]$FBCompletedFiles = [ordered]@{}
+[System.Collections.ArrayList]$incompleteFiles = [ordered]@{}
 [bool] $SiteSrcDeleted = $false
 # Depending on if Daily is set will use appropriate files and setup temp/home directory paths
 $CreateFolders = $TempDrive, $SrcDrive, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
@@ -108,7 +109,7 @@ else {
         $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
     }
     # Delete any empty directories left behind after deleting the old files.
-    & $DeleteRecursion -Path $LFolderBase
+    & $DeleteRecursion -DRPath $LFolderBase
 }
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
@@ -245,9 +246,10 @@ if ($MKVMerge) {
                         }
                         Start-Sleep -Seconds 1
                     }
+                    [void]$MKVCompletedFiles.Add($MKVVidInput)
                 }
                 else {
-                    $incompleteFiles.Add($MKVVidInput)
+                    [void]$incompleteFiles.Add($MKVVidInput)
                     Write-Output "[MKVMerge] $(Get-Timestamp) - No matching subtitle files to process. Skipping file."
                     
                 }
@@ -257,7 +259,7 @@ if ($MKVMerge) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - No files to process"
         }
     }
-    if ($incompleteFiles) {
+    if ($incompleteFiles.count -gt 0) {
         # If $incomplete file is not empty/null then write out what files have an issue
         Write-Output "[MKVMerge] $(Get-Timestamp) - Not moving files. Script completed with ERRORS. The following files did not have matching subtitle file:"
         $incompleteFiles | Out-String
@@ -306,7 +308,7 @@ else {
     }
 }
 # If Filebot = True then run Filebot aginst SiteHome folder
-if (($Filebot) -and ($incompleteFiles.Trim() -eq "")) {
+if (($Filebot) -and ($incompleteFiles.count -eq 0)) {
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
     ForEach ($FBfolder in $SiteHome ) {
         if ((Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count -gt 0) {
@@ -321,20 +323,24 @@ if (($Filebot) -and ($incompleteFiles.Trim() -eq "")) {
                     Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place"
                     filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
                 }
-                $completedFiles.Add($FBVidInput)
+                if (!(Test-Path $FBVidInput)) {
+                    [void]$FBCompletedFiles.Add($FBVidInput)
+                }
             }
         }
         else {
             Write-Output "[Filebot] $(Get-Timestamp) - No files to process"
         }
     }
-    $completedFiles.Trim()
-    if ($completedFiles) {
-        Write-Output "[Filebot]$(Get-Timestamp) - No other files need to be processed. Attempting Filebot cleanup. Completed files:"
-        $completedFiles | Out-String
+    $fbc = $FBCompletedFiles.count
+    $mkvc = $MKVCompletedFiles.Count
+    if ($FBCompletedFiles.count -eq $MKVCompletedFiles.Count) {
+        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($fbc) = ($mkvc)MKV Video.n No other files need to be processed. Attempting Filebot cleanup. Completed files:"
+        $FBCompletedFiles | Out-String
+        filebot -script fn:cleaner "$SiteHome" --log all
     }
     else {
-        write-output "[Filebot] $(Get-Timestamp) - No file to process. Attempting Filebot cleanup."
+        write-output "[Filebot] $(Get-Timestamp) - Filebot($fbc) and MKV Video($mkvc) count mismatch. Manual check required."
     }
     filebot -script fn:cleaner "$SiteHome" --log all
     # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
@@ -348,12 +354,12 @@ if (($Filebot) -and ($incompleteFiles.Trim() -eq "")) {
         }
     }
     else {
-        if ($completedFiles) {
+        if ($FBCompletedFiles.Count -gt 0) {
             # If plex values not null then run api call else skip
             if ($PlexHost -and $PlexToken -and $PlexLibId) {
                 Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
                 $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
-                Invoke-RestMethod -UseBasicParsing -Verbose $PlexUrl
+                Invoke-RestMethod -UseBasicParsing $PlexUrl
             }
             else {
                 Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
@@ -403,7 +409,7 @@ elseif (!($SiteSrcDeleted) -and ($SiteSrc -match "\\src\\") -and ($SiteSrc -matc
 # Clean up SiteHome folder if empty
 if (($SiteHome -match "\\tmp\\") -and ($SiteHome -match $SiteHomeBaseMatch) -and (Test-Path $SiteHome)) {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting SiteHome($SiteHome) if still present."
-    & $DeleteRecursion -Path $SiteHome
+    & $DeleteRecursion -DRPath $SiteHome
 }
 else {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteHome folder already deleted. Nothing to remove."
