@@ -1,5 +1,5 @@
 param ($dlpParams, $Filebot, $SubtitleEdit, $MKVMerge, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $SiteTempBaseMatch, $SiteSrcBaseMatch, $SiteHomeBaseMatch, $ConfigPath )
-# defining Class for Telegram messages
+# defining Class and arraylist for Telegram messages
 class SeriesEpisode {
     [string]$_Site
     [string]$_Series
@@ -12,6 +12,12 @@ class SeriesEpisode {
     }
 }
 [System.Collections.ArrayList]$SeriesEpisodeList = @()
+# Setting up arraylist for MKV and Filebot lists
+[System.Collections.ArrayList]$MKVCompletedFiles = [ordered]@{}
+[System.Collections.ArrayList]$MKVIncompleteFiles = [ordered]@{}
+[System.Collections.ArrayList]$FBCompletedFiles = [ordered]@{}
+# Setting default value if site source folder was deleted
+[bool] $SiteSrcDeleted = $false
 # Getting list of Site, Series, and Episodes for Telegram messages
 function Get-SiteSeriesEpisode {
     param (
@@ -85,11 +91,7 @@ Function Send-Telegram {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html"
 }
-[System.Collections.ArrayList]$MKVCompletedFiles = [ordered]@{}
-[System.Collections.ArrayList]$FBCompletedFiles = [ordered]@{}
-[System.Collections.ArrayList]$incompleteFiles = [ordered]@{}
-[bool] $SiteSrcDeleted = $false
-# Depending on if Daily is set will use appropriate files and setup temp/home directory paths
+# Will use appropriate files and setup temp/home directory paths based on dlp-script.ps1 param logic
 $CreateFolders = $TempDrive, $SrcDrive, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
 foreach ($c in $CreateFolders) {
     Set-Folders $c
@@ -249,7 +251,7 @@ if ($MKVMerge) {
                     [void]$MKVCompletedFiles.Add($MKVVidInput)
                 }
                 else {
-                    [void]$incompleteFiles.Add($MKVVidInput)
+                    [void]$MKVIncompleteFiles.Add($MKVVidInput)
                     Write-Output "[MKVMerge] $(Get-Timestamp) - No matching subtitle files to process. Skipping file."
                     
                 }
@@ -259,10 +261,10 @@ if ($MKVMerge) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - No files to process"
         }
     }
-    if ($incompleteFiles.count -gt 0) {
+    if ($MKVIncompleteFiles.count -gt 0) {
         # If $incomplete file is not empty/null then write out what files have an issue
         Write-Output "[MKVMerge] $(Get-Timestamp) - Not moving files. Script completed with ERRORS. The following files did not have matching subtitle file:"
-        $incompleteFiles | Out-String
+        $MKVIncompleteFiles | Out-String
         break
     }
     else {
@@ -308,7 +310,7 @@ else {
     }
 }
 # If Filebot = True then run Filebot aginst SiteHome folder
-if (($Filebot) -and ($incompleteFiles.count -eq 0)) {
+if (($Filebot) -and ($MKVIncompleteFiles.count -eq 0)) {
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
     ForEach ($FBfolder in $SiteHome ) {
         if ((Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count -gt 0) {
@@ -370,9 +372,9 @@ if (($Filebot) -and ($incompleteFiles.count -eq 0)) {
         }
     }
 }
-elseif (($Filebot) -and ($incompleteFiles)) {
+elseif (($Filebot) -and ($MKVIncompleteFiles.Count -gt 0)) {
     Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc :"
-    $incompleteFiles | Out-String
+    $MKVIncompleteFiles | Out-String
 }
 else {
     Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
