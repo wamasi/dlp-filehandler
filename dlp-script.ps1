@@ -686,12 +686,16 @@ if ($Site) {
         }
     }
     # Writing all variables
-    $DebugVars = [ordered]@{Site = $SiteName; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; Daily = $Daily; SiteUser = $SiteUser; SitePass = $SitePass; Login = $Login; SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; `
-            SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBaseMatch = $SiteSrcBaseMatch; SiteHome = $SiteHome; SiteHomeBaseMatch = $SiteHomeBaseMatch; SiteConfig = $SiteConfig; CookieFile = $CookieFile; `
-            Cookies = $Cookies; Archive = $ArchiveFile; UseDownloadArchive = $Archive; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; `
-            SubtitleEdit = $SubtitleEdit; MKVMerge = $MKVMerge; Filebot = $Filebot; PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; `
-            TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; `
-            dlpParams = $dlpParams
+    $DebugVars = [ordered]@{Site = $SiteName; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; Daily = $Daily; `
+            SiteUser = $SiteUser; SitePass = $SitePass; Login = $Login; SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; `
+            SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBaseMatch = $SiteSrcBaseMatch; `
+            SiteHome = $SiteHome; SiteHomeBaseMatch = $SiteHomeBaseMatch; SiteConfig = $SiteConfig; `
+            CookieFile = $CookieFile; Cookies = $Cookies; Archive = $ArchiveFile; UseDownloadArchive = $Archive; `
+            Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; `
+            SubType = $SubType; VidType = $VidType; SubtitleEdit = $SubtitleEdit; MKVMerge = $MKVMerge; Filebot = $Filebot; `
+            PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; `
+            TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; `
+            ScriptDirectory = $ScriptDirectory; dlpParams = $dlpParams
     }
     # Creating associated log folder and file
     $LFolderBase = "$SiteFolder\log\"
@@ -705,19 +709,16 @@ if ($Site) {
         exit
     }
     # Will generate log file for site run most variables
+    $DebugVarRemove = "SitePass", "PlexToken", "TelegramToken", "TelegramChatId"
+    foreach ($dbv in $DebugVarRemove) {
+        $DebugVars.Remove($dbv)
+    }
     if (($Daily) -and (!($TestScript))) {
-        $DebugVars.Remove("SitePass")
-        $DebugVars.Remove("PlexToken")
-        $DebugVars.Remove("TelegramToken")
-        $DebugVars.Remove("TelegramChatId")
         Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
     }
     elseif (!($Daily) -and (!($TestScript))) {
-        $DebugVars.Remove("SitePass")
-        $DebugVars.Remove("PlexToken")
-        $DebugVars.Remove("TelegramToken")
-        $DebugVars.Remove("TelegramChatId")
+        =
         Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
     }
