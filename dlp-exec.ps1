@@ -471,7 +471,7 @@ elseif (!($SiteSrcDeleted) -and ($SiteSrc -match "\\src\\") -and ($SiteSrc -matc
     Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteSrc($SiteSrc) contains files."
 }
 # Clean up SiteHome folder if empty
-if (($SiteHome -match "\\tmp\\") -and ($SiteHome -match $SiteHomeBaseMatch) -and (Test-Path $SiteHome)) {
+if (($SiteHome -match "\\tmp\\") -and ($SiteHome -match $SiteHomeBaseMatch) -and (Test-Path $SiteHome) -and (Get-ChildItem $SiteHome -Recurse -File | Measure-Object).Count -eq 0) {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting SiteHome($SiteHome) if still present."
     & $DeleteRecursion -DRPath $SiteHome
 }
