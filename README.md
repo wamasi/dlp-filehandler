@@ -2,6 +2,21 @@
 Script used to fetch files with yt-dlp, fix subtitles, embed into video file, rename and move video files into media server folders.
 ## Prerequisites
 
+Windows
+- All file formatting is based on Windows
+
+Powershell 7+
+- Scripts probably work with earlier versions, but haven't tested them
+
+Python
+- Used for script to regex through subtitle file to edit fonts use
+- https://www.python.org/downloads/
+- Modules used:
+  - sys
+  - fileinput
+  - time
+  - regex
+
 YT-dlp
 - Downloading videos
 - https://github.com/yt-dlp/yt-dlp
@@ -22,15 +37,6 @@ Filebot
 Subtitle Edit
 - Fixes common subtitle issues like text timings
 - https://www.nikse.dk/SubtitleEdit/
-
-Python
-- Used for script to regex through subtitle file to edit fonts use
-- https://www.python.org/downloads/
-- Modules used:
-  - sys
-  - fileinput
-  - time
-  - regex
 
 Mkvtoolnix
 - Embeds subtitle and fonts

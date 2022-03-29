@@ -198,7 +198,7 @@ $defaultconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
+--replace-in-metadata "title,series,season,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en.*"
@@ -223,7 +223,7 @@ $vrvconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
+--replace-in-metadata "title,series,season,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en-US"
@@ -247,7 +247,7 @@ $crunchyrollconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
+--replace-in-metadata "title,series,season,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en-US"
@@ -259,7 +259,7 @@ $crunchyrollconfig = @"
 --convert-thumbnails 'png'
 --remux-video 'mkv'
 -N 32
---extractor-arg crunchyrollbetashow:type=sub
+--match-filter "season!~='\(.*\)'"
 --downloader aria2c
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv[height>=1080]+ba[height>=1080] / bv+ba / b*'
@@ -272,7 +272,7 @@ $funimationconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
+--replace-in-metadata "title,series,season,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs 'en.*'
@@ -297,7 +297,7 @@ $hidiveconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
+--replace-in-metadata "title,series,season,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "english-subs"
@@ -321,7 +321,7 @@ $paramountplusconfig = @"
 --no-simulate
 --restrict-filenames
 --windows-filenames
---replace-in-metadata "title,series,season_number,episode" "[$%^@.#+]" "-"
+--replace-in-metadata "title,series,season,season_number,episode" "[$%^@.#+]" "-"
 --trim-filenames 248
 --add-metadata
 --sub-langs "en.*"
@@ -476,13 +476,13 @@ if ($Site) {
     $Telegramchatid = $ConfigFile.configuration.Telegram.chatid
     # Setting fonts per site. These are manually tested to work with embedding and displayin in video files
     if ($SubFont.Trim() -ne "") {
-        $SubFontDir = "$ScriptDirectory\fonts\$Subfont"
+        $SubFontDir = "$FontFolder\$Subfont"
         if (Test-Path $SubFontDir) {
             $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
             Write-Output "$SubFont set for $SiteName"
         }
         else {
-            Write-Output "$SubFont is specified in $ConfigFile and is missing from $ScriptDirectory\fonts. Exiting..."
+            Write-Output "$SubFont is specified in $ConfigFile and is missing from $FontFolder. Exiting..."
             Exit
         }
     }
@@ -718,7 +718,6 @@ if ($Site) {
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
     }
     elseif (!($Daily) -and (!($TestScript))) {
-        =
         Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
     }
