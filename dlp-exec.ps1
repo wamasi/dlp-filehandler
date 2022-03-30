@@ -125,7 +125,7 @@ Invoke-Expression $dlpParams
 # Setting up arraylist values
 Write-Output "[VideoList] $(Get-Timestamp) - Fetching raw files for arraylist."
 if ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-    Get-ChildItem $SiteSrc -Recurse -Include "$VType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
+    Get-ChildItem $SiteSrc -Recurse -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
         $VSSeries = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
         $VSEpisode = $_.BaseName.Replace("_", " ")
         $VSEpisodeRaw = $_.BaseName
@@ -363,14 +363,14 @@ if (($Filebot) -and ($VSVMKVCount -eq $VSVTotCount)) {
             Write-Output "[Filebot] $(Get-Timestamp) - No files to process"
         }
     }
-    $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true } | Measure-Object).Count 
-    if ($VSVFBCount -ne $VSVTotCount) {
-        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVMKVCount)MKV Video. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
+    $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count 
+    if ($VSVFBCount -eq $VSVTotCount) {
+        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total Videos. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
         $VSCompletedFilesList | Out-String
         filebot -script fn:cleaner "$SiteHome" --log all
     }
     else {
-        write-output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and MKV Video($VSVMKVCount) count mismatch. Manual check required."
+        write-output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and Total Video($VSVTotCount) count mismatch. Manual check required."
     }
     filebot -script fn:cleaner "$SiteHome" --log all
     # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
@@ -421,7 +421,7 @@ elseif ($Filebot -and !($MKVMerge)) {
                     filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
                 }
                 if (!(Test-Path $FBVidInput)) {
-                    Set-VideoStatus -SVSEpisodeRaw $FBVidBaseName -SVSMKV $true
+                    Set-VideoStatus -SVSEpisodeRaw $FBVidBaseName -SVSFP $true
                 }
             }
         }
@@ -429,14 +429,14 @@ elseif ($Filebot -and !($MKVMerge)) {
             Write-Output "[Filebot] $(Get-Timestamp) - No files to process"
         }
     }
-    $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true } | Measure-Object).Count 
+    $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count 
     if ($VSVFBCount -eq $VSVTotCount) {
-        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total videos at the start. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
+        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total Videos. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
         $VSCompletedFilesList | Out-String
         filebot -script fn:cleaner "$SiteHome" --log all
     }
     else {
-        write-output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and MKV Video($VSVTotCount) count mismatch. Manual check required."
+        write-output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and Total Video($VSVTotCount) count mismatch. Manual check required."
     }
     filebot -script fn:cleaner "$SiteHome" --log all
     # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
