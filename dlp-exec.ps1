@@ -408,7 +408,6 @@ elseif ($Filebot -and !($MKVMerge)) {
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
     ForEach ($FBfolder in $SiteHome ) {
         if ((Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-            $FBTotalRawFiles = (Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count
             Get-ChildItem $FBfolder -Recurse -File -Include "$VidType" | Sort-Object LastWriteTime | ForEach-Object {
                 $FBVidInput = $_.FullName
                 $FBVidBaseName = $_.BaseName
