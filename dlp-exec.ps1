@@ -1,55 +1,68 @@
 param ($dlpParams, $Filebot, $SubtitleEdit, $MKVMerge, $SiteName, $SF, $SubFontDir, $PlexHost, $PlexToken, $PlexLibId, $LFolderBase, $SiteSrc, $SiteHome, $SiteTempBaseMatch, $SiteSrcBaseMatch, $SiteHomeBaseMatch, $ConfigPath )
-# defining Class and arraylist for Telegram messages
-class SeriesEpisode {
-    [string]$_Site
-    [string]$_Series
-    [string]$_Episode
+# Setting up arraylist for MKV and Filebot lists
+class VideoStatus {
+    [string]$_VSSite
+    [string]$_VSSeries
+    [string]$_VSEpisode
+    [string]$_VSEpisodeRaw
+    [string]$_VSMKVCompleted
+    [string]$_VSFBCompleted
 
-    SeriesEpisode([string]$sSite, [string]$Series, [string]$Episode) {
-        $this._Site = $sSite
-        $this._Series = $Series
-        $this._Episode = $Episode
+    VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSEpisodeRaw, [bool]$VSMKVCompleted, [bool]$VSFBCompleted) {
+        $this._VSSite = $VSSite
+        $this._VSSeries = $VSSeries
+        $this._VSEpisode = $VSEpisode
+        $this._VSEpisodeRaw = $VSEpisodeRaw
+        $this._VSMKVCompleted = $VSMKVCompleted
+        $this._VSFBCompleted = $VSFBCompleted
     }
 }
-[System.Collections.ArrayList]$SeriesEpisodeList = @()
-# Setting up arraylist for MKV and Filebot lists
-[System.Collections.ArrayList]$MKVCompletedFiles = [ordered]@{}
-[System.Collections.ArrayList]$MKVIncompleteFiles = [ordered]@{}
-[System.Collections.ArrayList]$FBCompletedFiles = [ordered]@{}
-# Setting default value if site source folder was deleted
-[bool] $SiteSrcDeleted = $false
-# Getting list of Site, Series, and Episodes for Telegram messages
-function Get-SiteSeriesEpisode {
+[System.Collections.ArrayList]$VSCompletedFilesList = @()
+# Update MKV/FB true false
+function Set-VideoStatus {
     param (
         [parameter(Mandatory = $true)]
-        $VPath,
-        [parameter(Mandatory = $true)]
-        $VType
+        [string]$SVSEpisodeRaw,
+        [parameter(Mandatory = $false)]
+        [bool]$SVSMKV,
+        [parameter(Mandatory = $false)]
+        [bool]$SVSFP
     )
-    Get-ChildItem $VPath -Recurse -Include "$VType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
-        $Series = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
-        $Episodes = $_.BaseName.Replace("_", " ")
-        foreach ($i in $_) {
-            $SeriesEpisodes = [SeriesEpisode]::new($sSite, $Series, $Episodes)
-            [void]$SeriesEpisodeList.Add($SeriesEpisodes)
+    $VSCompletedFilesList | Where-Object { $_._VSEpisodeRaw -eq $SVSEpisodeRaw } | ForEach-Object {
+        if ($SVSMKV) {
+            $_._VSMKVCompleted = $SVSMKV
+        }
+        if ($SVSFP) {
+            $_._VSFBCompleted = $SVSFP
         }
     }
-    $SEL = $SeriesEpisodeList | Group-Object -Property _Site, _Series |
+}
+# Getting list of Site, Series, and Episodes for Telegram messages
+function Get-SiteSeriesEpisode {
+    $SEL = $VSCompletedFilesList | Group-Object -Property _VSSite, _VSSeries |
     Select-Object @{n = 'Site'; e = { $_.Values[0] } }, `
     @{ n = 'Series'; e = { $_.Values[1] } }, `
-    @{n = 'Episode'; e = { $_.Group | Select-Object _Episode } }
+    @{n = 'Episode'; e = { $_.Group | Select-Object _VSEpisode } }
     $Telegrammessage = "<b>Site:</b> " + $SiteNameRaw + "`n"
     $SeriesMessage = ""
     $SEL | ForEach-Object {
         $EpList = ""
         foreach ($i in $_) {
-            $EpList = $_.Episode._Episode | Out-String
+            $EpList = $_.Episode._VSEpisode | Out-String
         }
         $SeriesMessage = "<b>Series:</b> " + $_.Series + "`n<b>Episode:</b>`n" + $EpList
         $Telegrammessage += $SeriesMessage + "`n"
     }
     Write-Host $Telegrammessage
     return $Telegrammessage
+}
+# Optional sending To telegram for new file notifications
+Function Send-Telegram {
+    Param([Parameter(Mandatory = $true)][String]$STMessage)
+    $Telegramtoken
+    $Telegramchatid
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html"
 }
 # Function to check if file is locked by process before moving forward
 function Test-Lock {
@@ -83,19 +96,13 @@ $DeleteRecursion = {
         Remove-Item -Force -LiteralPath $DRPath -Verbose
     }
 }
-# Optional sending To telegram for new file notifications
-Function Send-Telegram {
-    Param([Parameter(Mandatory = $true)][String]$STMessage)
-    $Telegramtoken
-    $Telegramchatid
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html"
-}
 # Will use appropriate files and setup temp/home directory paths based on dlp-script.ps1 param logic
 $CreateFolders = $TempDrive, $SrcDrive, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
 foreach ($c in $CreateFolders) {
     Set-Folders $c
 }
+# Setting default value if site source folder was deleted
+[bool] $SiteSrcDeleted = $false
 # Deleting logs older than 1 days
 Write-Output "[LogCleanup] $(Get-Timestamp) - Deleting old logfiles"
 $limit = (Get-Date).AddDays(-1)
@@ -115,6 +122,23 @@ else {
 }
 # Call to YT-DLP with parameters
 Invoke-Expression $dlpParams
+# Setting up arraylist values
+Write-Output "[VideoList] $(Get-Timestamp) - Fetching raw files for arraylist."
+if ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
+    Get-ChildItem $SiteSrc -Recurse -Include "$VType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
+        $VSSeries = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
+        $VSEpisode = $_.BaseName.Replace("_", " ")
+        $VSEpisodeRaw = $_.BaseName
+        foreach ($i in $_) {
+            $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSEpisodeRaw, $VSMKVCompleted, $VSFBCompleted)
+            [void]$VSCompletedFilesList.Add($VideoStatus)
+        }
+    }
+}
+else {
+    Write-Output "[VideoList] $(Get-Timestamp) - No files to process"
+}
+$VSCompletedFilesList
 # If SubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
 if ($SubtitleEdit) {
     # Fixing subs - SubtitleEdit
@@ -145,10 +169,12 @@ if ($SubtitleEdit) {
 else {
     Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running"
 }
+
 # If MKVMerge = True then run MKVMerge against SiteSrc folder.
 if ($MKVMerge) {
     ForEach ($SiteSrcfolder in $SiteSrc) {
-        if ((Get-ChildItem $SiteSrcfolder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0 -and (Get-ChildItem $SiteSrcfolder -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
+        if ((Get-ChildItem $SiteSrcfolder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0 -and `
+            (Get-ChildItem $SiteSrcfolder -Recurse -Force -File -Include "$SubType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - Processing files to fix subtitles and then combine with video."
             # Embedding subs into video files - MKVMerge
             Write-Output "[MKVMerge] $(Get-Timestamp) - Checking for subtitle and video files to merge."
@@ -248,10 +274,9 @@ if ($MKVMerge) {
                         }
                         Start-Sleep -Seconds 1
                     }
-                    [void]$MKVCompletedFiles.Add($MKVVidInput)
+                    Set-VideoStatus -SVSEpisodeRaw $MKVVidBaseName -SVSMKV $true
                 }
                 else {
-                    [void]$MKVIncompleteFiles.Add($MKVVidInput)
                     Write-Output "[MKVMerge] $(Get-Timestamp) - No matching subtitle files to process. Skipping file."
                     
                 }
@@ -261,10 +286,10 @@ if ($MKVMerge) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - No files to process"
         }
     }
-    if ($MKVIncompleteFiles.count -gt 0) {
+    if ($VSVTotCount -gt 0) {
         # If $incomplete file is not empty/null then write out what files have an issue
         Write-Output "[MKVMerge] $(Get-Timestamp) - Not moving files. Script completed with ERRORS. The following files did not have matching subtitle file:"
-        $MKVIncompleteFiles | Out-String
+        $VSCompletedFilesList | Out-String
         break
     }
     else {
@@ -280,7 +305,7 @@ if ($MKVMerge) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
             if ($SendTelegram) {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
-                $TM = Get-SiteSeriesEpisode -VPath $SiteSrc -VType $VidType
+                $TM = Get-SiteSeriesEpisode
                 Send-Telegram -STMessage $TM | Out-Null
             }
             Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
@@ -302,20 +327,24 @@ else {
         Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
         if ($SendTelegram) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
-            $TM = Get-SiteSeriesEpisode -VPath $SiteSrc -VType $VidType
+            $TM = Get-SiteSeriesEpisode
             Send-Telegram -STMessage $TM | Out-Null
         }
         Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
+        $VSCompletedFilesList | Out-String
         Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
     }
 }
+$VSVTotCount = ($VSCompletedFilesList | Measure-Object).Count
+$VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true } | Measure-Object).Count
 # If Filebot = True then run Filebot aginst SiteHome folder
-if (($Filebot) -and ($MKVIncompleteFiles.count -eq 0)) {
+if (($Filebot) -and ($VSVMKVCount -eq $VSVTotCount)) {
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
     ForEach ($FBfolder in $SiteHome ) {
         if ((Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count -gt 0) {
             Get-ChildItem $FBfolder -Recurse -File -Include "$VidType" | Sort-Object LastWriteTime | ForEach-Object {
                 $FBVidInput = $_.FullName
+                $FBVidBaseName = $_.BaseName
                 # Filebot command
                 if ($PlexLibPath) {
                     Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder"
@@ -326,7 +355,7 @@ if (($Filebot) -and ($MKVIncompleteFiles.count -eq 0)) {
                     filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
                 }
                 if (!(Test-Path $FBVidInput)) {
-                    [void]$FBCompletedFiles.Add($FBVidInput)
+                    Set-VideoStatus -SVSEpisodeRaw $FBVidBaseName -SVSFP $true
                 }
             }
         }
@@ -334,15 +363,14 @@ if (($Filebot) -and ($MKVIncompleteFiles.count -eq 0)) {
             Write-Output "[Filebot] $(Get-Timestamp) - No files to process"
         }
     }
-    $fbc = $FBCompletedFiles.count
-    $mkvc = $MKVCompletedFiles.Count
-    if ($FBCompletedFiles.count -eq $MKVCompletedFiles.Count) {
-        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($fbc) = ($mkvc)MKV Video.n No other files need to be processed. Attempting Filebot cleanup. Completed files:"
-        $FBCompletedFiles | Out-String
+    $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true } | Measure-Object).Count 
+    if ($VSVFBCount -ne $VSVTotCount) {
+        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVMKVCount)MKV Video. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
+        $VSCompletedFilesList | Out-String
         filebot -script fn:cleaner "$SiteHome" --log all
     }
     else {
-        write-output "[Filebot] $(Get-Timestamp) - Filebot($fbc) and MKV Video($mkvc) count mismatch. Manual check required."
+        write-output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and MKV Video($VSVMKVCount) count mismatch. Manual check required."
     }
     filebot -script fn:cleaner "$SiteHome" --log all
     # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
@@ -356,7 +384,7 @@ if (($Filebot) -and ($MKVIncompleteFiles.count -eq 0)) {
         }
     }
     else {
-        if ($FBCompletedFiles.Count -gt 0) {
+        if ($VSVFBCount -gt 0) {
             # If plex values not null then run api call else skip
             if ($PlexHost -and $PlexToken -and $PlexLibId) {
                 Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
@@ -372,9 +400,9 @@ if (($Filebot) -and ($MKVIncompleteFiles.count -eq 0)) {
         }
     }
 }
-elseif (($Filebot -and $MKVMerge) -and ($MKVIncompleteFiles.Count -gt 0)) {
-    Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc :"
-    $MKVIncompleteFiles | Out-String
+elseif (($Filebot -and $MKVMerge) -and ($VSVTotCount -gt $VSVMKVCount)) {
+    Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc\:"
+    $VSCompletedFilesList | Out-String
 }
 elseif ($Filebot -and !($MKVMerge)) {
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
@@ -383,6 +411,7 @@ elseif ($Filebot -and !($MKVMerge)) {
             $FBTotalRawFiles = (Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count
             Get-ChildItem $FBfolder -Recurse -File -Include "$VidType" | Sort-Object LastWriteTime | ForEach-Object {
                 $FBVidInput = $_.FullName
+                $FBVidBaseName = $_.BaseName
                 # Filebot command
                 if ($PlexLibPath) {
                     Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder"
@@ -393,7 +422,7 @@ elseif ($Filebot -and !($MKVMerge)) {
                     filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
                 }
                 if (!(Test-Path $FBVidInput)) {
-                    [void]$FBCompletedFiles.Add($FBVidInput)
+                    Set-VideoStatus -SVSEpisodeRaw $FBVidBaseName -SVSMKV $true
                 }
             }
         }
@@ -401,14 +430,14 @@ elseif ($Filebot -and !($MKVMerge)) {
             Write-Output "[Filebot] $(Get-Timestamp) - No files to process"
         }
     }
-    $fbc = $FBCompletedFiles.count
-    if ($fbc -eq $FBTotalRawFiles) {
-        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($fbc) = ($FBTotalRawFiles)Total videos at the start. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
-        $FBCompletedFiles | Out-String
+    $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true } | Measure-Object).Count 
+    if ($VSVFBCount -eq $VSVTotCount) {
+        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total videos at the start. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
+        $VSCompletedFilesList | Out-String
         filebot -script fn:cleaner "$SiteHome" --log all
     }
     else {
-        write-output "[Filebot] $(Get-Timestamp) - Filebot($fbc) and MKV Video($mkvc) count mismatch. Manual check required."
+        write-output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and MKV Video($VSVTotCount) count mismatch. Manual check required."
     }
     filebot -script fn:cleaner "$SiteHome" --log all
     # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
@@ -422,8 +451,8 @@ elseif ($Filebot -and !($MKVMerge)) {
         }
     }
     else {
-        if ($FBCompletedFiles.Count -gt 0) {
-            # If plex values not null then run api call else skip
+        if ($VSVFBCount -gt 0) {
+            # If plex valok ues not null then run api call else skip
             if ($PlexHost -and $PlexToken -and $PlexLibId) {
                 Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
                 $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
@@ -477,6 +506,13 @@ if (($SiteHome -match "\\tmp\\") -and ($SiteHome -match $SiteHomeBaseMatch) -and
 }
 else {
     Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteHome folder already deleted. Nothing to remove."
+}
+if ($VSVTotCount -gt 0) {
+    Write-Output "[VideoList] $(Get-Timestamp) - Final file status:"
+    $VSCompletedFilesList | Out-String
+}
+else {
+    Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded."
 }
 # End
 Write-Output "[END] $(Get-Timestamp) - Script completed"
