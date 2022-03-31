@@ -688,8 +688,8 @@ if ($Site) {
     # Writing all variables
     $DebugVars = [ordered]@{Site = $SiteName; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; Daily = $Daily; `
             SiteUser = $SiteUser; SitePass = $SitePass; Login = $Login; SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; `
-            SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBaseMatch = $SiteSrcBaseMatch; `
-            SiteHome = $SiteHome; SiteHomeBaseMatch = $SiteHomeBaseMatch; SiteConfig = $SiteConfig; `
+            SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBase = $SiteSrcBase; SiteSrcBaseMatch = $SiteSrcBaseMatch; `
+            SiteHome = $SiteHome; SiteHomeBase = $SiteHomeBase; SiteHomeBaseMatch = $SiteHomeBaseMatch; SiteConfig = $SiteConfig; `
             CookieFile = $CookieFile; Cookies = $Cookies; Archive = $ArchiveFile; UseDownloadArchive = $Archive; `
             Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; `
             SubType = $SubType; VidType = $VidType; SubtitleEdit = $SubtitleEdit; MKVMerge = $MKVMerge; Filebot = $Filebot; `

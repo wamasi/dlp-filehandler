@@ -64,6 +64,72 @@ Function Send-Telegram {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html"
 }
+# Function to process video files through FileBot
+function Set-Filebot {
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$FBPath
+    )
+    Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
+    ForEach ($FBfolder in $FBPath ) {
+        if ((Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count -gt 0) {
+            Get-ChildItem $FBfolder -Recurse -File -Include "$VidType" | Sort-Object LastWriteTime | ForEach-Object {
+                $FBVidInput = $_.FullName
+                $FBVidBaseName = $_.BaseName
+                # Filebot command
+                if ($PlexLibPath) {
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder"
+                    filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
+                }
+                else {
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place"
+                    filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
+                }
+                if (!(Test-Path $FBVidInput)) {
+                    Set-VideoStatus -SVSEpisodeRaw $FBVidBaseName -SVSFP $true
+                }
+            }
+        }
+        else {
+            Write-Output "[Filebot] $(Get-Timestamp) - No files to process"
+        }
+    }
+    $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count
+    if ($VSVFBCount -eq $VSVTotCount) {
+        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total Videos. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
+        $VSCompletedFilesList | Out-String
+        filebot -script fn:cleaner "$SiteHome" --log all
+    }
+    else {
+        write-output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and Total Video($VSVTotCount) count mismatch. Manual check required."
+    }
+    # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
+    if ($VSVFBCount -gt 0) {
+        Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - File needs processing."
+        if ($Daily) {
+            Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - Daily run - Script completed with ERRORS"
+        }
+        else {
+            Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - Manual run - Script completed"
+        }
+    }
+    else {
+        if ($VSVFBCount -gt 0) {
+            # If plex values not null then run api call else skip
+            if ($PlexHost -and $PlexToken -and $PlexLibId) {
+                Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
+                $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
+                Invoke-RestMethod -UseBasicParsing $PlexUrl
+            }
+            else {
+                Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
+            }
+        }
+        else {
+            Write-Output "[PLEX] $(Get-Timestamp) - No files processed. Skipping PLEX API call."
+        }
+    }
+}
 # Function to check if file is locked by process before moving forward
 function Test-Lock {
     Param(
@@ -126,6 +192,7 @@ Invoke-Expression $dlpParams
 Write-Output "[VideoList] $(Get-Timestamp) - Fetching raw files for arraylist."
 if ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
     Get-ChildItem $SiteSrc -Recurse -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
+        $VSSite = $SiteNameRaw
         $VSSeries = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
         $VSEpisode = $_.BaseName.Replace("_", " ")
         $VSEpisodeRaw = $_.BaseName
@@ -339,132 +406,14 @@ $VSVTotCount = ($VSCompletedFilesList | Measure-Object).Count
 $VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true } | Measure-Object).Count
 # If Filebot = True then run Filebot aginst SiteHome folder
 if (($Filebot) -and ($VSVMKVCount -eq $VSVTotCount)) {
-    Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
-    ForEach ($FBfolder in $SiteHome ) {
-        if ((Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-            Get-ChildItem $FBfolder -Recurse -File -Include "$VidType" | Sort-Object LastWriteTime | ForEach-Object {
-                $FBVidInput = $_.FullName
-                $FBVidBaseName = $_.BaseName
-                # Filebot command
-                if ($PlexLibPath) {
-                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder"
-                    filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
-                }
-                else {
-                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place"
-                    filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
-                }
-                if (!(Test-Path $FBVidInput)) {
-                    Set-VideoStatus -SVSEpisodeRaw $FBVidBaseName -SVSFP $true
-                }
-            }
-        }
-        else {
-            Write-Output "[Filebot] $(Get-Timestamp) - No files to process"
-        }
-    }
-    $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count 
-    if ($VSVFBCount -eq $VSVTotCount) {
-        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total Videos. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
-        $VSCompletedFilesList | Out-String
-        filebot -script fn:cleaner "$SiteHome" --log all
-    }
-    else {
-        write-output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and Total Video($VSVTotCount) count mismatch. Manual check required."
-    }
-    filebot -script fn:cleaner "$SiteHome" --log all
-    # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
-    if ((Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-        Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - File needs processing."
-        if ($Daily) {
-            Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - Daily run - Script completed with ERRORS"
-        }
-        else {
-            Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - Manual run - Script completed"
-        }
-    }
-    else {
-        if ($VSVFBCount -gt 0) {
-            # If plex values not null then run api call else skip
-            if ($PlexHost -and $PlexToken -and $PlexLibId) {
-                Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
-                $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
-                Invoke-RestMethod -UseBasicParsing $PlexUrl
-            }
-            else {
-                Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
-            }
-        }
-        else {
-            Write-Output "[PLEX] $(Get-Timestamp) - No files processed. Skipping PLEX API call."
-        }
-    }
+    Set-Filebot -FBPath $SiteHome
 }
 elseif (($Filebot -and $MKVMerge) -and ($VSVTotCount -gt $VSVMKVCount)) {
     Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc\:"
     $VSCompletedFilesList | Out-String
 }
 elseif ($Filebot -and !($MKVMerge)) {
-    Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
-    ForEach ($FBfolder in $SiteHome ) {
-        if ((Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-            Get-ChildItem $FBfolder -Recurse -File -Include "$VidType" | Sort-Object LastWriteTime | ForEach-Object {
-                $FBVidInput = $_.FullName
-                $FBVidBaseName = $_.BaseName
-                # Filebot command
-                if ($PlexLibPath) {
-                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder"
-                    filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
-                }
-                else {
-                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place"
-                    filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
-                }
-                if (!(Test-Path $FBVidInput)) {
-                    Set-VideoStatus -SVSEpisodeRaw $FBVidBaseName -SVSFP $true
-                }
-            }
-        }
-        else {
-            Write-Output "[Filebot] $(Get-Timestamp) - No files to process"
-        }
-    }
-    $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count 
-    if ($VSVFBCount -eq $VSVTotCount) {
-        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total Videos. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
-        $VSCompletedFilesList | Out-String
-        filebot -script fn:cleaner "$SiteHome" --log all
-    }
-    else {
-        write-output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and Total Video($VSVTotCount) count mismatch. Manual check required."
-    }
-    filebot -script fn:cleaner "$SiteHome" --log all
-    # Check if folder is empty. If contains a video file file then exit, if not then completed successfully and continues
-    if ((Get-ChildItem $FBfolder -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-        Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - File needs processing."
-        if ($Daily) {
-            Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - Daily run - Script completed with ERRORS"
-        }
-        else {
-            Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - Manual run - Script completed"
-        }
-    }
-    else {
-        if ($VSVFBCount -gt 0) {
-            # If plex valok ues not null then run api call else skip
-            if ($PlexHost -and $PlexToken -and $PlexLibId) {
-                Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
-                $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
-                Invoke-RestMethod -UseBasicParsing $PlexUrl
-            }
-            else {
-                Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
-            }
-        }
-        else {
-            Write-Output "[PLEX] $(Get-Timestamp) - No files processed. Skipping PLEX API call."
-        }
-    }
+    Set-Filebot -FBPath $SiteHome
 }
 else {
     Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
@@ -508,7 +457,7 @@ else {
 }
 if ($VSVTotCount -gt 0) {
     Write-Output "[VideoList] $(Get-Timestamp) - Final file status:"
-    $VSCompletedFilesList | Out-String
+    $VSCompletedFilesList
 }
 else {
     Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded."
