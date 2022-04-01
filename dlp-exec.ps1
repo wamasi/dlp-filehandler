@@ -81,8 +81,106 @@ Function Send-Telegram {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html"
 }
+# Function to process video files through MKVMerge
+function Start-MKVMerge {
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$MKVVidInput,
+        [parameter(Mandatory = $true)]
+        [string]$MKVVidBaseName,
+        [parameter(Mandatory = $true)]
+        [string]$MKVVidSubtitle,
+        [parameter(Mandatory = $true)]
+        [string]$MKVVidTempOutput
+    )
+    Write-Output "[MKVMerge] $(Get-Timestamp) - Replacing Styling in $MKVVidSubtitle."
+    While ($True) {
+        if ((Test-Lock $MKVVidSubtitle) -eq $True) {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - $MKVVidSubtitle File locked.  Waiting..."
+            continue
+        }
+        else {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - File not locked. Formatting $MKVVidSubtitle file."
+            if ($SF -ne "None") {
+                Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - Python - Regex through $MKVVidSubtitle file with $SF."
+                python $SubtitleRegex $MKVVidSubtitle $SF
+                break
+            }
+            else {
+                Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - No Font specified for $MKVVidSubtitle file."
+            }
+        }
+        Start-Sleep -Seconds 1
+    }
+    Write-Output "[MKVMerge] $(Get-Timestamp) - Found matching  $MKVVidSubtitle and $MKVVidInput files to process."
+    #mkmerge command to combine video and subtitle file and set subtitle default
+    While ($True) {
+        if ((Test-Lock $MKVVidInput) -eq $True -and (Test-Lock $MKVVidSubtitle) -eq $True) {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - $MKVVidSubtitle and $MKVVidInput File locked.  Waiting..."
+            continue
+        }
+        else {
+            if ($SubFontDir -ne "None") {
+                Write-Output "[MKVMerge] $(Get-Timestamp) - [MKVMERGE] - File not locked.  Combining $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
+                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font
+                break
+            }
+            else {
+                Write-Output "[MKVMerge] $(Get-Timestamp) - [MKVMERGE] - Merging as-is. No Font specified for $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
+                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle
+            }
+        }
+        Start-Sleep -Seconds 1
+    }
+    # If file doesn't exist yet then wait
+    While (!(Test-Path $MKVVidTempOutput -ErrorAction SilentlyContinue)) {
+        Start-Sleep 1.5
+    }
+    # Wait for files to input, subtitle, and MKVVidTempOutput to be ready
+    While ($True) {
+        if (((Test-Lock $MKVVidInput) -eq $True) -and ((Test-Lock $MKVVidSubtitle) -eq $True ) -and ((Test-Lock $MKVVidTempOutput) -eq $True)) {
+            Write-Output "[MKVMerge] $(Get-Timestamp)- File locked.  Waiting..."
+            continue
+        }
+        else {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - File not locked. Removing $MKVVidInput and $MKVVidSubtitle file."
+            # Remove original video/subtitle file
+            Remove-Item -Path $MKVVidInput -Confirm:$false -Verbose
+            Remove-Item -Path $MKVVidSubtitle -Confirm:$false -Verbose
+            break
+        }
+        Start-Sleep -Seconds 1
+    }
+    # Rename temp to original MKVVidBaseName
+    While ($True) {
+        if ((Test-Lock $MKVVidTempOutput) -eq $True) {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - $MKVVidTempOutput File locked.  Waiting..."
+            continue
+        }
+        else {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - File not locked. Renaming $MKVVidTempOutput to $MKVVidInput file."
+            # Remove original video/subtitle file
+            Rename-Item -Path $MKVVidTempOutput -NewName $MKVVidInput -Confirm:$false -Verbose
+            break
+        }
+        Start-Sleep -Seconds 1
+    }
+    While ($True) {
+        if ((Test-Lock $MKVVidInput) -eq $True) {
+            Write-Output "[MKVMerge] $(Get-Timestamp) -  $MKVVidInput File locked.  Waiting..."
+            continue
+        }
+        else {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - $MKVVidInput File not locked. Setting default subtitle."
+            mkvpropedit $MKVVidInput --edit track:s1 --set flag-default=1
+            break
+        }
+        Start-Sleep -Seconds 1
+    }
+    Set-VideoStatus -SVSEpisodeRaw $MKVVidBaseName -SVSMKV $true
+}
 # Function to process video files through FileBot
-function Set-Filebot {
+function Start-Filebot {
     param (
         [parameter(Mandatory = $true)]
         [string]$FBPath
@@ -263,7 +361,7 @@ if ($SubtitleEdit -and $VSVTotCount -gt 0) {
 else {
     Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running."
 }
-# If MKVMerge = True then run MKVMerge against SiteSrc folder.
+# MKVMerge logic. Runs MKVMerge against SiteSrc folder then moves files.
 if ($MKVMerge -and $VSVTotCount -gt 0) {
     $VSCompletedFilesList | Select-Object _VSEpisodeRaw, _VSEpisode, _VSEpisodeTemp, _VSEpisodePath, _VSEpisodeSubtitle, _VSErrored | `
         Where-Object { $_._VSErrored -eq $false } | ForEach-Object {
@@ -272,91 +370,7 @@ if ($MKVMerge -and $VSVTotCount -gt 0) {
         $MKVVidSubtitle = $_._VSEpisodeSubtitle
         $MKVVidTempOutput = $_._VSEpisodeTemp
         # Adding custom styling to ASS subtitle
-        Write-Output "[MKVMerge] $(Get-Timestamp) - Replacing Styling in $MKVVidSubtitle."
-        While ($True) {
-            if ((Test-Lock $MKVVidSubtitle) -eq $True) {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - $MKVVidSubtitle File locked.  Waiting..."
-                continue
-            }
-            else {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - File not locked. Formatting $MKVVidSubtitle file."
-                if ($SF -ne "None") {
-                    Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - Python - Regex through $MKVVidSubtitle file with $SF."
-                    python $SubtitleRegex $MKVVidSubtitle $SF
-                    break
-                }
-                else {
-                    Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - No Font specified for $MKVVidSubtitle file."
-                }
-            }
-            Start-Sleep -Seconds 1
-        }
-        Write-Output "[MKVMerge] $(Get-Timestamp) - Found matching  $MKVVidSubtitle and $MKVVidInput files to process."
-        #mkmerge command to combine video and subtitle file and set subtitle default
-        While ($True) {
-            if ((Test-Lock $MKVVidInput) -eq $True -and (Test-Lock $MKVVidSubtitle) -eq $True) {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - $MKVVidSubtitle and $MKVVidInput File locked.  Waiting..."
-                continue
-            }
-            else {
-                if ($SubFontDir -ne "None") {
-                    Write-Output "[MKVMerge] $(Get-Timestamp) - [MKVMERGE] - File not locked.  Combining $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                    mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font
-                    break
-                }
-                else {
-                    Write-Output "[MKVMerge] $(Get-Timestamp) - [MKVMERGE] - Merging as-is. No Font specified for $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                    mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle
-                }
-            }
-            Start-Sleep -Seconds 1
-        }
-        # If file doesn't exist yet then wait
-        While (!(Test-Path $MKVVidTempOutput -ErrorAction SilentlyContinue)) {
-            Start-Sleep 1.5
-        }
-        # Wait for files to input, subtitle, and MKVVidTempOutput to be ready
-        While ($True) {
-            if (((Test-Lock $MKVVidInput) -eq $True) -and ((Test-Lock $MKVVidSubtitle) -eq $True ) -and ((Test-Lock $MKVVidTempOutput) -eq $True)) {
-                Write-Output "[MKVMerge] $(Get-Timestamp)- File locked.  Waiting..."
-                continue
-            }
-            else {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - File not locked. Removing $MKVVidInput and $MKVVidSubtitle file."
-                # Remove original video/subtitle file
-                Remove-Item -Path $MKVVidInput -Confirm:$false -Verbose
-                Remove-Item -Path $MKVVidSubtitle -Confirm:$false -Verbose
-                break
-            }
-            Start-Sleep -Seconds 1
-        }
-        # Rename temp to original MKVVidBaseName
-        While ($True) {
-            if ((Test-Lock $MKVVidTempOutput) -eq $True) {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - $MKVVidTempOutput File locked.  Waiting..."
-                continue
-            }
-            else {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - File not locked. Renaming $MKVVidTempOutput to $MKVVidInput file."
-                # Remove original video/subtitle file
-                Rename-Item -Path $MKVVidTempOutput -NewName $MKVVidInput -Confirm:$false -Verbose
-                break
-            }
-            Start-Sleep -Seconds 1
-        }
-        While ($True) {
-            if ((Test-Lock $MKVVidInput) -eq $True) {
-                Write-Output "[MKVMerge] $(Get-Timestamp) -  $MKVVidInput File locked.  Waiting..."
-                continue
-            }
-            else {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - $MKVVidInput File not locked. Setting default subtitle."
-                mkvpropedit $MKVVidInput --edit track:s1 --set flag-default=1
-                break
-            }
-            Start-Sleep -Seconds 1
-        }
-        Set-VideoStatus -SVSEpisodeRaw $MKVVidBaseName -SVSMKV $true
+        Start-MKVMerge $MKVVidInput $MKVVidBaseName $MKVVidSubtitle $MKVVidTempOutput
     }
 }
 elseif ($VSVTotCount -eq 0) {
@@ -386,7 +400,7 @@ else {
 }
 # If Filebot = True then run Filebot aginst SiteHome folder
 if ((($Filebot) -and ($VSVMKVCount -eq $VSVTotCount)) -or ($Filebot -and !($MKVMerge))) {
-    Set-Filebot -FBPath $SiteHome
+    Start-Filebot -FBPath $SiteHome
 }
 elseif (($Filebot -and $MKVMerge) -and ($VSVTotCount -ne $VSVMKVCount)) {
     Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc\:"
