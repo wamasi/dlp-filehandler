@@ -97,6 +97,7 @@ Telegram (optional)
          - Each run puts files in folder based on timestamp of execution.
          - Temp files store in `tmp` location defined in  `config.xml`.
            - Then moved into `src` location defined in `config.xml`
+           - Will grab associated video and subtitle file in `src` and use this list to run files against later steps.
          - If `SubtitleEdit = True`
             - Will run to fix common issues in subtitle files using SubtitleEdit.
             - If font value is set and file exists:
