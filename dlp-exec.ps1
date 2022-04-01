@@ -248,6 +248,37 @@ function Start-Filebot {
         }
     }
 }
+# Delete Tmp/Src/Home folder logic
+function Remove-Folders {
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$RFFolder,
+        [parameter(Mandatory = $false)]
+        [string]$RFMatch,
+        [parameter(Mandatory = $true)]
+        [string]$RFBaseMatch
+    )
+    if ($RFFolder -eq $SiteTemp) {
+        # Regardless of failures still force delete tmp for clean runs
+        if (($RFFolder -match "\\tmp\\") -and ($RFFolder -match $RFFolderBaseMatch) -and (Test-Path $RFFolder)) {
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $RFFolder folders/files"
+            Remove-Item $RFFolder -Recurse -Force -Confirm:$false -Verbose
+        }
+        else {
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteTemp($RFFolder) folder already deleted. Nothing to remove."
+        }
+    }
+    else {
+        # Clean up SiteSrc/SiteHome folder if empty
+        if (($RFFolder -match "$RFMatch") -and ($RFFolder -match $RFFolderBaseMatch) -and (Test-Path $RFFolder) -and (Get-ChildItem $RFFolder -Recurse -File | Measure-Object).Count -eq 0) {
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) is empty. Deleting folder."
+            & $DeleteRecursion -DRPath $RFFolder
+        }
+        else {
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) contains files. Manual attention needed."
+        }
+    }
+}
 # Function to check if file is locked by process before moving forward
 function Test-Lock {
     Param(
@@ -285,8 +316,6 @@ $CreateFolders = $TempDrive, $SrcDrive, $SrcDriveShared, $SrcDriveSharedFonts, $
 foreach ($c in $CreateFolders) {
     Set-Folders $c
 }
-# Setting default value if site source folder was deleted
-[bool] $SiteSrcDeleted = $false
 # Deleting logs older than 1 days
 Write-Output "[LogCleanup] $(Get-Timestamp) - Deleting old logfiles"
 $limit = (Get-Date).AddDays(-1)
@@ -393,7 +422,6 @@ if (($VSVTotCount -gt 0 -and $VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -
     }
     Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
     Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
-    $SiteSrcDeleted = $true
 }
 else {
     Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - No files downloaded. Moving to next step."
@@ -423,29 +451,9 @@ foreach ($sb in $SharedBackups) {
         }
     }
 }
-# Regardless of failures still force delete tmp for clean runs
-if (($SiteTemp -match "\\tmp\\") -and ($SiteTemp -match $SiteTempBaseMatch) -and (Test-Path $SiteTemp)) {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $SiteTemp folders/files"
-    Remove-Item $SiteTemp -Recurse -Force -Confirm:$false -Verbose
-}
-else {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteTemp($SiteTemp) folder already deleted. Nothing to remove."
-}
-# Clean up SiteSrc folder if empty
-if ($SiteSrcDeleted) {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteSrc($SiteSrc) folder already deleted. Nothing to remove."
-}
-elseif (!($SiteSrcDeleted) -and ($SiteSrc -match "\\src\\") -and ($SiteSrc -match $SiteSrcBaseMatch) -and (Test-Path $SiteSrc) -and (Get-ChildItem $SiteSrc -Recurse -File | Measure-Object).Count -gt 0) {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteSrc($SiteSrc) contains files."
-}
-# Clean up SiteHome folder if empty
-if (($SiteHome -match "\\tmp\\") -and ($SiteHome -match $SiteHomeBaseMatch) -and (Test-Path $SiteHome) -and (Get-ChildItem $SiteHome -Recurse -File | Measure-Object).Count -eq 0) {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting SiteHome($SiteHome) if still present."
-    & $DeleteRecursion -DRPath $SiteHome
-}
-else {
-    Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteHome folder already deleted. Nothing to remove."
-}
+Remove-Folders -RFFolder $SiteTemp -RFMatch "\\src\\" -RFBaseMatch $SiteTempBaseMatch
+Remove-Folders -RFFolder $SiteSrc -RFMatch "\\src\\" -RFBaseMatch $SiteSrcBaseMatch
+Remove-Folders -RFFolder $SiteHome -RFMatch "\\tmp\\" -RFBaseMatch $SiteHomeBaseMatch
 if ($VSVTotCount -gt 0) {
     Write-Output "[VideoList] $(Get-Timestamp) - Final file status:"
     $VSCompletedFilesList
