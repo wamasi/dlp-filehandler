@@ -650,39 +650,37 @@ if ($Site) {
     else {
         Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
     }
-    # If SubetitleEdit or Filebot true then check config for subtitle/video outputs and store in variables
-    if ($SubtitleEdit -or $MKVMerge) {
-        Select-String -Path $SiteConfig -Pattern "--convert-subs.*" | ForEach-Object {
-            $SubType = "*." + ($_ -split " ")[1]
-            $SubType = $SubType.Replace("'", "").Replace('"', "")
-            if ($SubType -ne "\*.ass") {
-                Write-Output "$(Get-Timestamp) - Using $SubType"
-            }
-            else {
-                Write-Output "$(Get-Timestamp) - Subtype(ass) is missing"
-                exit
-            }
+    # Always check config for subtitle/video outputs and store in variables
+    Select-String -Path $SiteConfig -Pattern "--convert-subs.*" | ForEach-Object {
+        $SubType = "*." + ($_ -split " ")[1]
+        $SubType = $SubType.Replace("'", "").Replace('"', "")
+        if ($SubType -ne "\*.ass") {
+            Write-Output "$(Get-Timestamp) - Using $SubType"
         }
-        Select-String -Path $SiteConfig -Pattern "--remux-video.*" | ForEach-Object {
-            $VidType = "*." + ($_ -split " ")[1]
-            $VidType = $VidType.Replace("'", "").Replace('"', "")
-            if ($SubType -ne "\*.mkv") {
-                Write-Output "$(Get-Timestamp) - Using $VidType"
-            }
-            else {
-                Write-Output "$(Get-Timestamp) - VidType(mkv) is missing..."
-                exit
-            }
+        else {
+            Write-Output "$(Get-Timestamp) - Subtype(ass) is missing"
+            exit
         }
-        Select-String -Path $SiteConfig -Pattern "--write-subs.*" | ForEach-Object {
-            $SubWrite = ($_)
-            if ($SubWrite -ne "") {
-                Write-Output "$(Get-Timestamp) - SubWrite($SubWrite) is in config."
-            }
-            else {
-                Write-Output "$(Get-Timestamp) - SubSubWrite is missing..."
-                exit
-            }
+    }
+    Select-String -Path $SiteConfig -Pattern "--remux-video.*" | ForEach-Object {
+        $VidType = "*." + ($_ -split " ")[1]
+        $VidType = $VidType.Replace("'", "").Replace('"', "")
+        if ($SubType -ne "\*.mkv") {
+            Write-Output "$(Get-Timestamp) - Using $VidType"
+        }
+        else {
+            Write-Output "$(Get-Timestamp) - VidType(mkv) is missing..."
+            exit
+        }
+    }
+    Select-String -Path $SiteConfig -Pattern "--write-subs.*" | ForEach-Object {
+        $SubWrite = ($_)
+        if ($SubWrite -ne "") {
+            Write-Output "$(Get-Timestamp) - SubWrite($SubWrite) is in config."
+        }
+        else {
+            Write-Output "$(Get-Timestamp) - SubSubWrite is missing..."
+            exit
         }
     }
     # Writing all variables
