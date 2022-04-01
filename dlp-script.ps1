@@ -59,7 +59,7 @@ function Set-Folders {
         [string] $Fullpath
     )
     if (!(Test-Path -Path $Fullpath)) {
-        New-Item -ItemType Directory -Path $Fullpath -Force
+        New-Item -ItemType Directory -Path $Fullpath -Force | Out-Null
         Write-Output "$(Get-Timestamp) - $Fullpath has been created."
     }
     else {

@@ -87,12 +87,11 @@ function Set-Filebot {
         [parameter(Mandatory = $true)]
         [string]$FBPath
     )
-    Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to renaming and move to final folder"
+    Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to rename and move to final folder"
     if ($VSVTotCount -gt 0) {
         $VSCompletedFilesList | Select-Object _VSEpisodeFBPath, _VSEpisodeRaw, _VSEpisodeSubFBPath | ForEach-Object {
             $FBVidInput = $_._VSEpisodeFBPath
             $FBSubInput = $_._VSEpisodeSubFBPath
-            Write-Host $FBSubInput
             $FBVidBaseName = $_._VSEpisodeRaw
             # Filebot command
             if ($PlexLibPath) {
@@ -115,10 +114,13 @@ function Set-Filebot {
         }
     }
     else {
-        Write-Output "[Filebot] $(Get-Timestamp) - No files to process"
+        Write-Output "[Filebot] $(Get-Timestamp) - No files to process. Total Files: $VSVTotCount"
     }
     $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count
-    if ($VSVFBCount -eq $VSVTotCount) {
+    if ($VSVTotCount -eq 0) {
+        Write-Output "[Filebot]$(Get-Timestamp) - No folders to clean up."
+    }
+    elseif ($VSVFBCount -eq $VSVTotCount ) {
         Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total Videos. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
         $VSCompletedFilesList | Out-String
         filebot -script fn:cleaner "$SiteHome" --log all
@@ -234,9 +236,10 @@ else {
     Write-Output "[VideoList] $(Get-Timestamp) - No files to process"
 }
 $VSVTotCount = ($VSCompletedFilesList | Measure-Object).Count
+Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $VSVTotCount"
 $VSCompletedFilesList
 # If SubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
-if ($SubtitleEdit) {
+if ($SubtitleEdit -and $VSVTotCount -gt 0) {
     # Fixing subs - SubtitleEdit
     $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | Where-Object { $_._VSErrored -ne $true } | ForEach-Object {
         Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $_ subtitle"
@@ -256,12 +259,9 @@ if ($SubtitleEdit) {
             Start-Sleep -Seconds 1
         }
     }
-    else {
-        Write-Output "[SubtitleEdit] $(Get-Timestamp) - No subtitles found"
-    }
 }
 else {
-    Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running"
+    Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running."
 }
 # If MKVMerge = True then run MKVMerge against SiteSrc folder.
 if ($MKVMerge -and $VSVTotCount -gt 0) {
@@ -361,18 +361,15 @@ if ($MKVMerge -and $VSVTotCount -gt 0) {
 }
 elseif ($VSVTotCount -eq 0) {
     # If $incomplete file is not empty/null then write out what files have an issue
-    Write-Output "[MKVMerge] $(Get-Timestamp) - No files to move moving files"
-    break
+    Write-Output "[MKVMerge] $(Get-Timestamp) - No files to move. Total Files: $VSVTotCount"
 }
 else {
     Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMerge not running. Moving to next step."
 }
 $VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Measure-Object).Count
 $VSVErrorCount = ($VSCompletedFilesList | Where-Object { $_._VSErrored -eq $true } | Measure-Object).Count
-write-output $VSVMKVCount
-write-output $VSVErrorCount
 # Moving files from Src to Dest
-if (($VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or ($VSVTotCount -gt 0 -and $VSVErrorCount -eq 0)) {
+if (($VSVTotCount -gt 0 -and $VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or ($VSVTotCount -gt 0 -and $VSVErrorCount -eq 0)) {
     Write-Output "[MKVMerge] $(Get-Timestamp)- All files had matching subtitle file"
     Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
     if ($SendTelegram) {
@@ -394,7 +391,6 @@ if ((($Filebot) -and ($VSVMKVCount -eq $VSVTotCount)) -or ($Filebot -and !($MKVM
 elseif (($Filebot -and $MKVMerge) -and ($VSVTotCount -ne $VSVMKVCount)) {
     Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc\:"
     $VSCompletedFilesList | Out-String
-    break
 }
 else {
     Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
@@ -403,13 +399,13 @@ else {
 $SharedBackups = $ArchiveFile, $CookieFile, $BatFile, $ConfigPath, $SubFontDir
 foreach ($sb in $SharedBackups) {
     if (($sb -ne "None") -and ($sb.trim() -ne "")) {
-        if ($SubFontDir) {
-            Copy-Item -Path $sb -Destination $SrcDriveSharedFonts -PassThru
+        if ($sb -eq $SubFontDir) {
+            Copy-Item -Path $sb -Destination $SrcDriveSharedFonts -PassThru | Out-Null
             Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveSharedFonts."
         }
         else {
             Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveShared."
-            Copy-Item -Path $sb -Destination $SrcDriveShared -PassThru
+            Copy-Item -Path $sb -Destination $SrcDriveShared -PassThru | Out-Null
         }
     }
 }
