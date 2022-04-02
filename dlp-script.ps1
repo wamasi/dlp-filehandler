@@ -1,4 +1,3 @@
-# Switch params for script
 param(
     [Parameter(Mandatory = $false)]
     [Alias("H")]
@@ -40,9 +39,7 @@ param(
     [Alias("ST")]
     [switch]$SendTelegram
 )
-# Removes erroring characters from output logs
 $PSStyle.OutputRendering = 'Host'
-# Getting date and datetime
 function Get-Day {
     return (Get-Date -Format "yy-MM-dd")
 }
@@ -52,7 +49,6 @@ function Get-TimeStamp {
 function Get-Time {
     return (Get-Date -Format "MMddHHmmss")
 }
-# Creating folders
 function Set-Folders {
     param (
         [Parameter(Mandatory = $true)]
@@ -66,7 +62,6 @@ function Set-Folders {
         Write-Output "$(Get-Timestamp) - $Fullpath already exists."
     }
 }
-# Creating empty support files
 function Set-SuppFiles {
     param (
         [Parameter(Mandatory = $true)]
@@ -80,7 +75,6 @@ function Set-SuppFiles {
         Write-Output "$SuppFiles file exists"
     }
 }
-# Create Base Site
 function Resolve-Configs {
     param (
         [Parameter(Mandatory = $true)]
@@ -113,7 +107,6 @@ function Resolve-Configs {
         Write-Output "$Configs created with default values."
     }
 }
-# Removing Empty whitespace
 function Remove-Spaces {
     param (
         [Parameter(Mandatory = $true)]
@@ -124,12 +117,11 @@ function Remove-Spaces {
     $content = $content.Trim()
     [System.IO.File]::WriteAllText($File, $content)
 }
-# Setting Script Directory
 $ScriptDirectory = $PSScriptRoot
 $ConfigPath = "$ScriptDirectory\config.xml"
 $SharedF = "$ScriptDirectory\shared"
 $FontFolder = "$ScriptDirectory\fonts"
-# Base XML config
+
 $xmlconfig = @"
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -190,7 +182,6 @@ $xmlconfig = @"
     </credentials>
 </configuration>
 "@
-# Base site config parameters if file is not present
 $defaultconfig = @"
 -v
 -F
@@ -338,19 +329,16 @@ $paramountplusconfig = @"
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 "@
-# Create empty config if not exists
 if (!(Test-Path "$ScriptDirectory\config.xml" -PathType Leaf)) {
     New-Item "$ScriptDirectory\config.xml" -ItemType File -Force
 }
-# Help text to remind me what I did/it does when set to true or all parameters false
 if ($help) {
     Show-Markdown -Path "$ScriptDirectory\README.md" -UseBrowser
     exit
 }
-# Create config if NewConfig = True
 if ($NewConfig) {
     if (!(Test-Path $ConfigPath -PathType Leaf) -or [String]::IsNullOrWhiteSpace((Get-content $ConfigPath))) {
-        #PowerShell Create directory if not exists
+        
         New-Item $ConfigPath -ItemType File -Force
         Write-Output "$ConfigPath File Created successfully"
             
@@ -358,10 +346,9 @@ if ($NewConfig) {
     }
     else {
         Write-Output "$ConfigPath File Exists"
-        # Perform Delete file from folder operation
+        
     }
 }
-# Create supporting files if SupportFiles = True
 if ($SupportFiles) {
     Set-Folders $FontFolder
     $ConfigPath = "$ScriptDirectory\config.xml"
@@ -371,50 +358,35 @@ if ($SupportFiles) {
         $SN = New-Object -Type PSObject -Property @{
             SN = $_.id
         }
-        # if site support files (Config, archive, bat, cookie) are missing it will attempt to create an Daily and non-Daily set
-        # Creating Shared directory
         $SharedF = "$ScriptDirectory\shared"
         Set-Folders $SharedF
-        #Creating Site directory
         $SCC = "$ScriptDirectory\sites"
         Set-Folders $SCC
-        # Base/Manual Site root directory variable
         $SCF = "$SCC\" + $SN.SN
         Set-Folders $SCF
-        # Daily Site directories
         $SCDF = "$SCF" + "_D"
         Set-Folders $SCDF
-        # Daily Archive
         $SADF = "$SharedF\" + $SN.SN + "_D_A"
         Set-SuppFiles $SADF
-        # Daily Bat
         $SBDF = "$SharedF\" + $SN.SN + "_D_B"
         Set-SuppFiles $SBDF
-        # Daily Cookie
         $SBDC = "$SharedF\" + $SN.SN + "_D_C"
         Set-SuppFiles $SBDC
-        # Manual Archive
         $SAF = "$SharedF\" + $SN.SN + "_A"
         Set-SuppFiles $SAF
-        # Manual Bat
         $SBF = "$SharedF\" + $SN.SN + "_B"
         Set-SuppFiles $SBF
-        # Manual Cookie
         $SBC = "$SharedF\" + $SN.SN + "_C"
         Set-SuppFiles $SBC
-        # Daily Site configs
         $SCFDC = "$SCF" + "_D\yt-dlp.conf"
         Resolve-Configs $SCFDC
         Remove-Spaces $SCFDC
-        # Manual Congfig
         $SCFC = "$SCF\yt-dlp.conf"
         Resolve-Configs $SCFC
         Remove-Spaces $SCFC
     }
 }
-# Begin if site parameter is true
 if ($Site) {
-    # Checking if scripts exist/found
     $DLPScript = "$ScriptDirectory\dlp-script.ps1"
     $DLPExecScript = "$ScriptDirectory\dlp-exec.ps1"
     $SubtitleRegex = "$ScriptDirectory\subtitle_regex.py"
@@ -425,15 +397,12 @@ if ($Site) {
     else {
         Write-Output "$(Get-Timestamp) - $DLPScript, $DLPExecScript, $subtitle_regex do exist $ScriptDirectory folder. Exiting..."
     }
-    # Setting Date and Datetime variable for Log
     $Date = Get-Day
     $DateTime = Get-TimeStamp
     $Time = Get-Time
-    # Start of parsing config xml
     $site = $site.ToLower()
     $ConfigPath = "$ScriptDirectory\config.xml"
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
-    # Fetching site variables
     $SNfile = $ConfigFile.getElementsByTagName("site") | Select-Object "id", "username", "password", "libraryid", "font" | Where-Object { $_.id.ToLower() -eq "$site" }
     foreach ($object in $SNfile) {
         $SN = New-Object -TypeName PSObject -Property @{
@@ -458,23 +427,17 @@ if ($Site) {
     else { 
         Write-Output "$site = $SiteName. Continuing..."
     }
-    # Setting Temp, Src, home and FFMPEG variables
     $TempDrive = $ConfigFile.configuration.Directory.temp.location
     $SrcDrive = $ConfigFile.configuration.Directory.src.location
     $DestDrive = $ConfigFile.configuration.Directory.dest.location
     $Ffmpeg = $ConfigFile.configuration.Directory.ffmpeg.location
-    # Setting Plex variables
     $PlexHost = $ConfigFile.configuration.Plex.hosturl.url
     $PlexToken = $ConfigFile.configuration.Plex.plextoken.token
     $PlexLibrary = $ConfigFile.SelectNodes(("//library[@folder]")) | Where-Object { $_.libraryid -eq $SiteLib }
-    # Plex Library folder name
     $PlexLibPath = $PlexLibrary.Attributes[1].'#text'
-    # Plex Library ID
     $PlexLibId = $PlexLibrary.Attributes[0].'#text'
-    # Telegram Bot credentials
     $Telegramtoken = $ConfigFile.configuration.Telegram.token
     $Telegramchatid = $ConfigFile.configuration.Telegram.chatid
-    # Setting fonts per site. These are manually tested to work with embedding and displayin in video files
     if ($SubFont.Trim() -ne "") {
         $SubFontDir = "$FontFolder\$Subfont"
         if (Test-Path $SubFontDir) {
@@ -492,31 +455,23 @@ if ($Site) {
         $SF = "None"
         Write-Output "$SubFont - No font set for $SiteName"
     }
-    # Setting Site/Shared folder
     $SiteFolder = "$ScriptDirectory\sites\"
     $SiteShared = "$ScriptDirectory\shared\"
     $SrcDriveShared = "$SrcDrive\_shared\"
     $SrcDriveSharedFonts = "$SrcDriveShared\fonts\"
-    # Base command for yt-dlp
     $dlpParams = 'yt-dlp'
-
     if ($Daily) {
-        # Site folder
         $SiteType = $SiteName + "_D"
         $SiteFolder = "$SiteFolder" + $SiteType
-        # Site Temp folder
         $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1)
         $SiteTempBaseMatch = $SiteTempBase.Replace("\", "\\")
         $SiteTemp = "$SiteTempBase\$Time"
-        # Site Source folder
         $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1)
         $SiteSrcBaseMatch = $SiteSrcBase.Replace("\", "\\")
         $SiteSrc = "$SiteSrcBase\$Time"
-        # Site Destination folder
         $SiteHomeBase = "$DestDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
         $SiteHomeBaseMatch = $SiteHomeBase.Replace("\", "\\")
         $SiteHome = "$SiteHomeBase\$Time"
-        # Setting Site config
         $SiteConfig = $SiteFolder + "\yt-dlp.conf"
         if ((Test-Path -Path $SiteConfig)) {
             Write-Output "$(Get-Timestamp) - $SiteConfig exists."
@@ -527,24 +482,19 @@ if ($Site) {
             Exit
         }
     }
-    # Manual
     else {
-        # Site folder
+        
         $SiteType = $SiteName
         $SiteFolder = "$SiteFolder" + $SiteType
-        # Site Temp folder
         $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1) + "M"
         $SiteTempBaseMatch = $SiteTempBase.Replace("\", "\\")
         $SiteTemp = "$SiteTempBase\$Time"
-        # Site Source folder
         $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1) + "M"
         $SiteSrcBaseMatch = $SiteSrcBase.Replace("\", "\\")
         $SiteSrc = "$SiteSrcBase\$Time"
-        # Site Destination folder
         $SiteHomeBase = "$DestDrive\_M\" + $SiteName.Substring(0, 1)
         $SiteHomeBaseMatch = $SiteHomeBase.Replace("\", "\\")
         $SiteHome = "$SiteHomeBase\$Time"
-        # Site Config
         $SiteConfig = $SiteFolder + "\yt-dlp.conf"
         if ((Test-Path -Path $SiteConfig)) {
             Write-Output "$(Get-Timestamp) - $SiteConfig exists."
@@ -555,11 +505,8 @@ if ($Site) {
             Exit
         }
     }
-    # if Login is true then grabs associated login info if true and checks if empty. If not, then grabs cookie file.
     $CookieFile = "$SiteShared" + $SiteType + "_C"
     if ($Login) {
-        # Setting cookie variable to none
-        # Setting User and Password command
         if ($SiteUser -and $SitePass) {
             Write-Output "$(Get-Timestamp) - Login is true and SiteUser/Password is filled. Continuing..."
             $dlpParams = $dlpParams + " -u $SiteUser -p $SitePass"
@@ -593,7 +540,6 @@ if ($Site) {
             Exit
         }
     }
-    # FFMPEG - Always used to handle processing and file moving
     if ($Ffmpeg) {
         Write-Output "$(Get-Timestamp) - $Ffmpeg file found. Continuing..."
         $dlpParams = $dlpParams + " --ffmpeg-location $Ffmpeg "
@@ -602,7 +548,6 @@ if ($Site) {
         Write-Output "$(Get-Timestamp) - FFMPEG: $Ffmpeg missing. Exiting..."
         Exit
     }
-    # BAT - Always used for calling URLS
     $BatFile = "$SiteShared" + $SiteType + "_B"
     if ((Test-Path -Path $BatFile)) {
         Write-Output "$(Get-Timestamp) - $BatFile file found. Continuing..."
@@ -619,7 +564,6 @@ if ($Site) {
         Write-Output "$(Get-Timestamp) - BAT: $Batfile missing. Exiting..."
         Exit
     }
-    # Whether archive file is used and which one
     if ($Archive) {
         $ArchiveFile = "$SiteShared" + $SiteType + "_A"
         if ((Test-Path -Path $ArchiveFile)) {
@@ -636,7 +580,7 @@ if ($Site) {
         $ArchiveFile = "None"
         $dlpParams = $dlpParams + " --no-download-archive"
     }
-    # If SubtitleEdit in use checks if --write-subs is in config otherwise it exits
+    
     if ($SubtitleEdit) {
         Write-Output $SiteConfig
         if (Select-String -Path $SiteConfig "--write-subs" -SimpleMatch -Quiet) {
@@ -650,7 +594,6 @@ if ($Site) {
     else {
         Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
     }
-    # Always check config for subtitle/video outputs and store in variables
     Select-String -Path $SiteConfig -Pattern "--convert-subs.*" | ForEach-Object {
         $SubType = "*." + ($_ -split " ")[1]
         $SubType = $SubType.Replace("'", "").Replace('"', "")
@@ -683,7 +626,6 @@ if ($Site) {
             exit
         }
     }
-    # Writing all variables
     $DebugVars = [ordered]@{Site = $SiteName; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; Daily = $Daily; `
             SiteUser = $SiteUser; SitePass = $SitePass; Login = $Login; SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; `
             SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBase = $SiteSrcBase; SiteSrcBaseMatch = $SiteSrcBaseMatch; `
@@ -695,18 +637,15 @@ if ($Site) {
             TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; `
             ScriptDirectory = $ScriptDirectory; dlpParams = $dlpParams
     }
-    # Creating associated log folder and file
     $LFolderBase = "$SiteFolder\log\"
     $LFile = "$SiteFolder\log\$Date\$DateTime.log"
     New-Item -Path $LFile -ItemType File -Force
-    # Will generate log file for site run will all variables for debugging setup
     if ($TestScript) {
         Write-Output "[START] $DateTime - $SiteName - DEBUG Run" *>&1 | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
         Write-Output "[End] - Debugging enabled. Exiting..." *>&1 | Tee-Object -FilePath $LFile -Append
         exit
     }
-    # Will generate log file for site run most variables
     $DebugVarRemove = "SitePass", "PlexToken", "TelegramToken", "TelegramChatId"
     foreach ($dbv in $DebugVarRemove) {
         $DebugVars.Remove($dbv)
@@ -719,7 +658,6 @@ if ($Site) {
         Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
     }
-    # Runs dlp-exec.ps1 execution
     & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -Filebot $Filebot -SubtitleEdit $SubtitleEdit -MKVMerge $MKVMerge `
         -SiteName $SiteName -SiteNameRaw $SiteNameRaw -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
         -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath -SiteTempBaseMatch $SiteTempBaseMatch `
