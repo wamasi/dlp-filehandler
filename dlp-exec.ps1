@@ -195,39 +195,31 @@ function Start-Filebot {
         [string]$FBPath
     )
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to rename and move to final folder"
-    if ($VSVTotCount -gt 0) {
-        $VSCompletedFilesList | Select-Object _VSEpisodeFBPath, _VSEpisodeRaw, _VSEpisodeSubFBPath | ForEach-Object {
-            $FBVidInput = $_._VSEpisodeFBPath
-            $FBSubInput = $_._VSEpisodeSubFBPath
-            $FBVidBaseName = $_._VSEpisodeRaw
-            # Filebot command
-            if ($PlexLibPath) {
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder"
-                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
-                if (!($MKVMerge)) {
-                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
-                }
-            }
-            else {
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place"
-                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
-                if (!($MKVMerge)) {
-                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
-                }
-            }
-            if (!(Test-Path $FBVidInput)) {
-                Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $FBVidBaseName -SVSFP $true
+    $VSCompletedFilesList | Select-Object _VSEpisodeFBPath, _VSEpisodeRaw, _VSEpisodeSubFBPath | ForEach-Object {
+        $FBVidInput = $_._VSEpisodeFBPath
+        $FBSubInput = $_._VSEpisodeSubFBPath
+        $FBVidBaseName = $_._VSEpisodeRaw
+        # Filebot command
+        if ($PlexLibPath) {
+            Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder"
+            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
+            if (!($MKVMerge)) {
+                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
             }
         }
-    }
-    else {
-        Write-Output "[Filebot] $(Get-Timestamp) - No files to process. Total Files: $VSVTotCount"
+        else {
+            Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place"
+            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
+            if (!($MKVMerge)) {
+                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
+            }
+        }
+        if (!(Test-Path $FBVidInput)) {
+            Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $FBVidBaseName -SVSFP $true
+        }
     }
     $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count
-    if ($VSVTotCount -eq 0) {
-        Write-Output "[Filebot]$(Get-Timestamp) - No folders to clean up."
-    }
-    elseif ($VSVFBCount -eq $VSVTotCount ) {
+    if ($VSVFBCount -eq $VSVTotCount ) {
         Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total Videos. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
         $VSCompletedFilesList | Out-String
         filebot -script fn:cleaner "$SiteHome" --log all
@@ -241,19 +233,14 @@ function Start-Filebot {
         break
     }
     else {
-        if ($VSVFBCount -gt 0) {
-            # If plex values not null then run api call else skip
-            if ($PlexHost -and $PlexToken -and $PlexLibId) {
-                Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
-                $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
-                Invoke-RestMethod -UseBasicParsing $PlexUrl
-            }
-            else {
-                Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
-            }
+        # If plex values not null then run api call else skip
+        if ($PlexHost -and $PlexToken -and $PlexLibId) {
+            Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
+            $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
+            Invoke-RestMethod -UseBasicParsing $PlexUrl
         }
         else {
-            Write-Output "[PLEX] $(Get-Timestamp) - No files processed. Skipping PLEX API call."
+            Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
         }
     }
 }
@@ -372,80 +359,82 @@ else {
     Write-Output "[VideoList] $(Get-Timestamp) - No files to process"
 }
 $VSVTotCount = ($VSCompletedFilesList | Measure-Object).Count
+$VSVErrorCount = ($VSCompletedFilesList | Where-Object { $_._VSErrored -eq $true } | Measure-Object).Count
 Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $VSVTotCount"
+Write-Output "[VideoList] $(Get-Timestamp) - Errored Files: $VSVErrorCount"
 $VSCompletedFilesList
-# If SubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
-if ($SubtitleEdit -and $VSVTotCount -gt 0) {
-    # Fixing subs - SubtitleEdit
-    $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | Where-Object { $_._VSErrored -ne $true } | ForEach-Object {
-        Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $_ subtitle"
-        $SESubtitle = $_._VSEpisodeSubtitle
-        # SubtitleEdit does not play well being called within a script
-        While ($True) {
-            if ((Test-Lock $SESubtitle) -eq $True) {
-                Write-Output "[SubtitleEdit] $(Get-Timestamp) - File locked. Waiting..."
-                continue
+if ($VSVTotCount -gt 0) {
+    # If SubtitleEdit = True then run SubtitleEdit against SiteSrc folder.
+    if ($SubtitleEdit) {
+        # Fixing subs - SubtitleEdit
+        $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | Where-Object { $_._VSErrored -ne $true } | ForEach-Object {
+            Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $_ subtitle"
+            $SESubtitle = $_._VSEpisodeSubtitle
+            # SubtitleEdit does not play well being called within a script
+            While ($True) {
+                if ((Test-Lock $SESubtitle) -eq $True) {
+                    Write-Output "[SubtitleEdit] $(Get-Timestamp) - File locked. Waiting..."
+                    continue
+                }
+                else {
+                    Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Editing $SESubtitle file."
+                    # Remove original video/subtitle file
+                    powershell "SubtitleEdit /convert '$SESubtitle' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes"
+                    Set-VideoStatus -SVSKey '_VSEpisodeSubtitle' -SVSValue $SESubtitle -SVSSE $true
+                    break
+                }
+                Start-Sleep -Seconds 1
             }
-            else {
-                Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Editing $SESubtitle file."
-                # Remove original video/subtitle file
-                powershell "SubtitleEdit /convert '$SESubtitle' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes"
-                Set-VideoStatus -SVSKey '_VSEpisodeSubtitle' -SVSValue $SESubtitle -SVSSE $true
-                break
-            }
-            Start-Sleep -Seconds 1
         }
     }
-}
-else {
-    Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running."
-}
-# MKVMerge logic. Runs MKVMerge against SiteSrc folder then moves files.
-if ($MKVMerge -and $VSVTotCount -gt 0) {
-    $VSCompletedFilesList | Select-Object _VSEpisodeRaw, _VSEpisode, _VSEpisodeTemp, _VSEpisodePath, _VSEpisodeSubtitle, _VSErrored | `
-        Where-Object { $_._VSErrored -eq $false } | ForEach-Object {
-        $MKVVidInput = $_._VSEpisodePath
-        $MKVVidBaseName = $_._VSEpisodeRaw
-        $MKVVidSubtitle = $_._VSEpisodeSubtitle
-        $MKVVidTempOutput = $_._VSEpisodeTemp
-        # Adding custom styling to ASS subtitle
-        Start-MKVMerge $MKVVidInput $MKVVidBaseName $MKVVidSubtitle $MKVVidTempOutput
+    else {
+        Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running."
+    }
+    # MKVMerge logic. Runs MKVMerge against SiteSrc folder then moves files.
+    if ($MKVMerge) {
+        $VSCompletedFilesList | Select-Object _VSEpisodeRaw, _VSEpisode, _VSEpisodeTemp, _VSEpisodePath, _VSEpisodeSubtitle, _VSErrored | `
+            Where-Object { $_._VSErrored -eq $false } | ForEach-Object {
+            $MKVVidInput = $_._VSEpisodePath
+            $MKVVidBaseName = $_._VSEpisodeRaw
+            $MKVVidSubtitle = $_._VSEpisodeSubtitle
+            $MKVVidTempOutput = $_._VSEpisodeTemp
+            # Adding custom styling to ASS subtitle
+            Start-MKVMerge $MKVVidInput $MKVVidBaseName $MKVVidSubtitle $MKVVidTempOutput
+        }
+    }
+    else {
+        Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMerge not running. Moving to next step."
+    }
+    $VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Measure-Object).Count
+    # Moving files from Src to Dest
+    if (($VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or ($VSVErrorCount -eq 0)) {
+        Write-Output "[MKVMerge] $(Get-Timestamp)- All files had matching subtitle file"
+        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
+        if ($SendTelegram) {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
+            $TM = Get-SiteSeriesEpisode
+            Send-Telegram -STMessage $TM | Out-Null
+        }
+        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
+        Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
+    }
+    else {
+        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - No files downloaded. Moving to next step."
+    }
+    # If Filebot = True then run Filebot aginst SiteHome folder
+    if ((($Filebot) -and ($VSVMKVCount -eq $VSVTotCount)) -or ($Filebot -and !($MKVMerge))) {
+        Start-Filebot -FBPath $SiteHome
+    }
+    elseif (($Filebot -and $MKVMerge) -and ($VSVTotCount -ne $VSVMKVCount)) {
+        Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc`:"
+        $VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $false } | Out-String
+    }
+    else {
+        Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
     }
 }
-elseif ($VSVTotCount -eq 0) {
-    # If $incomplete file is not empty/null then write out what files have an issue
-    Write-Output "[MKVMerge] $(Get-Timestamp) - No files to move. Total Files: $VSVTotCount"
-}
 else {
-    Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMerge not running. Moving to next step."
-}
-$VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Measure-Object).Count
-$VSVErrorCount = ($VSCompletedFilesList | Where-Object { $_._VSErrored -eq $true } | Measure-Object).Count
-# Moving files from Src to Dest
-if (($VSVTotCount -gt 0 -and $VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or ($VSVTotCount -gt 0 -and $VSVErrorCount -eq 0)) {
-    Write-Output "[MKVMerge] $(Get-Timestamp)- All files had matching subtitle file"
-    Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
-    if ($SendTelegram) {
-        Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
-        $TM = Get-SiteSeriesEpisode
-        Send-Telegram -STMessage $TM | Out-Null
-    }
-    Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
-    Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
-}
-else {
-    Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - No files downloaded. Moving to next step."
-}
-# If Filebot = True then run Filebot aginst SiteHome folder
-if ((($Filebot) -and ($VSVMKVCount -eq $VSVTotCount)) -or ($Filebot -and !($MKVMerge))) {
-    Start-Filebot -FBPath $SiteHome
-}
-elseif (($Filebot -and $MKVMerge) -and ($VSVTotCount -ne $VSVMKVCount)) {
-    Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc\:"
-    $VSCompletedFilesList | Out-String
-}
-else {
-    Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
+    Write-Output "[VideoList] $(Get-Timestamp) - [End] - No files downloading. Skipping other defined steps."
 }
 # Backup of Archive, cookie, bat, config.xml, and font files
 $SharedBackups = $ArchiveFile, $CookieFile, $BatFile, $ConfigPath, $SubFontDir
