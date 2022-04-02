@@ -10,11 +10,12 @@ class VideoStatus {
     [string]$_VSEpisodeSubtitle
     [string]$_VSEpisodeFBPath
     [string]$_VSEpisodeSubFBPath
+    [bool]$_VSSECompleted
     [bool]$_VSMKVCompleted
     [bool]$_VSFBCompleted
     [bool]$_VSErrored
 
-    VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSEpisodeRaw, [string]$VSEpisodeTemp, [string]$VSEpisodePath, [string]$VSEpisodeSubtitle, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [bool]$VSMKVCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
+    VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSEpisodeRaw, [string]$VSEpisodeTemp, [string]$VSEpisodePath, [string]$VSEpisodeSubtitle, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
         $this._VSSite = $VSSite
         $this._VSSeries = $VSSeries
         $this._VSEpisode = $VSEpisode
@@ -24,6 +25,7 @@ class VideoStatus {
         $this._VSEpisodeSubtitle = $VSEpisodeSubtitle
         $this._VSEpisodeFBPath = $VSEpisodeFBPath
         $this._VSEpisodeSubFBPath = $VSEpisodeSubFBPath
+        $this._VSSECompleted = $VSSECompleted
         $this._VSMKVCompleted = $VSMKVCompleted
         $this._VSFBCompleted = $VSFBCompleted
         $this._VSErrored = $VSErrored
@@ -34,7 +36,11 @@ class VideoStatus {
 function Set-VideoStatus {
     param (
         [parameter(Mandatory = $true)]
-        [string]$SVSEpisodeRaw,
+        [string]$SVSKey,
+        [parameter(Mandatory = $true)]
+        [string]$SVSValue,
+        [parameter(Mandatory = $false)]
+        [bool]$SVSSE,
         [parameter(Mandatory = $false)]
         [bool]$SVSMKV,
         [parameter(Mandatory = $false)]
@@ -42,7 +48,10 @@ function Set-VideoStatus {
         [parameter(Mandatory = $false)]
         [bool]$SVSER
     )
-    $VSCompletedFilesList | Where-Object { $_._VSEpisodeRaw -eq $SVSEpisodeRaw } | ForEach-Object {
+    $VSCompletedFilesList | Where-Object { $_.$SVSKey -eq $SVSValue } | ForEach-Object {
+        if ($SVSSE) {
+            $_._VSSECompleted = $SVSSE
+        }
         if ($SVSMKV) {
             $_._VSMKVCompleted = $SVSMKV
         }
@@ -177,7 +186,7 @@ function Start-MKVMerge {
         }
         Start-Sleep -Seconds 1
     }
-    Set-VideoStatus -SVSEpisodeRaw $MKVVidBaseName -SVSMKV $true
+    Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $MKVVidBaseName -SVSMKV $true
 }
 # Function to process video files through FileBot
 function Start-Filebot {
@@ -207,7 +216,7 @@ function Start-Filebot {
                 }
             }
             if (!(Test-Path $FBVidInput)) {
-                Set-VideoStatus -SVSEpisodeRaw $FBVidBaseName -SVSFP $true
+                Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $FBVidBaseName -SVSFP $true
             }
         }
     }
@@ -349,13 +358,13 @@ if ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$VidType" | Select-O
         $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $SiteHome)
         $VSEpisodeSubFBPath = $VSEpisodeSubtitle.Replace($SiteSrc, $SiteHome)
         foreach ($i in $_) {
-            $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSEpisodeRaw, $VSEpisodeTemp, $VSEpisodePath, $VSEpisodeSubtitle, $VSEpisodeFBPath, $VSEpisodeSubFBPath, $VSMKVCompleted, $VSFBCompleted, $VSErrored)
+            $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSEpisodeRaw, $VSEpisodeTemp, $VSEpisodePath, $VSEpisodeSubtitle, $VSEpisodeFBPath, $VSEpisodeSubFBPath, $VSSECompleted, $VSMKVCompleted, $VSFBCompleted, $VSErrored)
             [void]$VSCompletedFilesList.Add($VideoStatus)
         }
     }
     $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | ForEach-Object {
         if (($_._VSEpisodeSubtitle -eq "") -or ($null -eq $_._VSEpisodeSubtitle)) {
-            Set-VideoStatus -SVSEpisodeRaw $_._VSEpisodeRaw -SVSER $true
+            Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $VSEpisodeRaw -SVSER $true
         }
     }
 }
@@ -381,6 +390,7 @@ if ($SubtitleEdit -and $VSVTotCount -gt 0) {
                 Write-Output "[SubtitleEdit] $(Get-Timestamp) - File not locked. Editing $SESubtitle file."
                 # Remove original video/subtitle file
                 powershell "SubtitleEdit /convert '$SESubtitle' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes"
+                Set-VideoStatus -SVSKey '_VSEpisodeSubtitle' -SVSValue $SESubtitle -SVSSE $true
                 break
             }
             Start-Sleep -Seconds 1
