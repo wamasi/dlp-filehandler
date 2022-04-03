@@ -90,6 +90,7 @@ Function Send-Telegram {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html"
 }
+# Run MKVMerge process
 function Start-MKVMerge {
     param (
         [parameter(Mandatory = $true)]
@@ -202,18 +203,14 @@ function Start-Filebot {
     }
     $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count
     if ($VSVFBCount -eq $VSVTotCount ) {
-        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total Videos. No other files need to be processed. Attempting Filebot cleanup. Completed files:"
-        $VSCompletedFilesList | Format-Table @{L = ’Series’; E = { $_._VSSeries } }, @{L = '_VSEpisode'; E = { $_._VSEpisode } } , @{L = 'FBCompleted'; E = { $_._VSFBCompleted } } -A -Wrap
+        Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total Videos. No other files need to be processed. Attempting Filebot cleanup."
         filebot -script fn:cleaner "$SiteHome" --log all
     }
     else {
         Write-Output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and Total Video($VSVTotCount) count mismatch. Manual check required."
     }
     if ($VSVFBCount -ne $VSVTotCount) {
-        Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - File needs processing:"
-        $VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $false } | Format-Table @{L = ’Series’; E = { $_._VSSeries } }, @{L = '_VSEpisode'; E = { $_._VSEpisode } } , `
-        @{L = 'FBCompleted'; E = { $_._VSFBCompleted } } -A -Wrap
-        break
+        Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - File needs processing."
     }
     else {
         if ($PlexHost -and $PlexToken -and $PlexLibId) {
@@ -258,6 +255,7 @@ function Remove-Folders {
         }
     }
 }
+# Test if file is available to interact with
 function Test-Lock {
     Param(
         [parameter(Mandatory = $true)]
@@ -294,11 +292,9 @@ $CreateFolders = $TempDrive, $SrcDrive, $SrcDriveShared, $SrcDriveSharedFonts, $
 foreach ($c in $CreateFolders) {
     Set-Folders $c
 }
-Write-Output "[LogCleanup] $(Get-Timestamp) - Deleting old logfiles"
 $limit = (Get-Date).AddDays(-1)
 if (!(Test-Path $LFolderBase)) {
     Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup..."
-    break
 }
 else {
     Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting log cleanup..."
@@ -308,7 +304,6 @@ else {
     & $DeleteRecursion -DRPath $LFolderBase
 }
 Invoke-Expression $dlpParams
-Write-Output "[VideoList] $(Get-Timestamp) - Fetching raw files for arraylist."
 if ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
     Get-ChildItem $SiteSrc -Recurse -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
         $VSSite = $SiteNameRaw
@@ -339,9 +334,6 @@ $VSVErrorCount = ($VSCompletedFilesList | Where-Object { $_._VSErrored -eq $true
 Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $VSVTotCount"
 Write-Output "[VideoList] $(Get-Timestamp) - Errored Files: $VSVErrorCount"
 if ($VSVTotCount -gt 0) {
-    $VSCompletedFilesList | Format-Table @{L = ’Series’; E = { $_._VSSeries } }, @{L = '_VSEpisode'; E = { $_._VSEpisode } } , `
-    @{L = 'SECompleted'; E = { $_._VSSECompleted } }, @{L = 'MKVCompleted'; E = { $_._VSMKVCompleted } }, @{L = 'FBCompleted'; E = { $_._VSFBCompleted } }, `
-    @{L = 'Errored'; E = { $_._VSErrored } } -A -Wrap
     if ($SubtitleEdit) {
         $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | Where-Object { $_._VSErrored -ne $true } | ForEach-Object {
             $SESubtitle = $_._VSEpisodeSubtitle
@@ -378,33 +370,30 @@ if ($VSVTotCount -gt 0) {
     $VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Measure-Object).Count
     if (($VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or (!($MKVMerge) -and $VSVErrorCount -eq 0)) {
         Write-Output "[MKVMerge] $(Get-Timestamp)- All files had matching subtitle file"
-        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files."
         if ($SendTelegram) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
             $TM = Get-SiteSeriesEpisode
             Send-Telegram -STMessage $TM | Out-Null
         }
-        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
+        Write-Output "[FolderCleanup] $(Get-Timestamp) - $SiteSrc contains files. Moving to $SiteHomeBase..."
         Move-Item -Path $SiteSrc -Destination $SiteHomeBase -Force -Verbose
     }
     else {
-        Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - No files downloaded. Moving to next step."
+        Write-Output "[FolderCleanup] $(Get-Timestamp) - $SiteSrc contains file(s) with error(s). Not moving files."
     }
     if (($Filebot -and $VSVMKVCount -eq $VSVTotCount) -or ($Filebot -and !($MKVMerge))) {
         Start-Filebot -FBPath $SiteHome
     }
     elseif (($Filebot -and $MKVMerge -and $VSVMKVCount -ne $VSVTotCount)) {
-        Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc`:"
-        $VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $false } | Format-Table @{L = ’Series’; E = { $_._VSSeries } }, @{L = '_VSEpisode'; E = { $_._VSEpisode } } , `
-        @{L = 'MKVCompleted'; E = { $_._VSMKVCompleted } } -A -Wrap
+        Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc."
     }
     else {
         Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
     }
     Write-Output "[VideoList] $(Get-Timestamp) - Final file status:"
-    $VSCompletedFilesList | Format-Table @{L = ’Series’; E = { $_._VSSeries } }, @{L = '_VSEpisode'; E = { $_._VSEpisode } } , `
-    @{L = 'SECompleted'; E = { $_._VSSECompleted } }, @{L = 'MKVCompleted'; E = { $_._VSMKVCompleted } }, @{L = 'FBCompleted'; E = { $_._VSFBCompleted } }, `
-    @{L = 'Errored'; E = { $_._VSErrored } } -A -Wrap
+    $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } } , `
+    @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, `
+    @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
 }
 else {
     Write-Output "[VideoList] $(Get-Timestamp) - [End] - No files downloaded. Skipping other defined steps."

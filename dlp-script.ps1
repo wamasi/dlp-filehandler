@@ -121,7 +121,6 @@ $ScriptDirectory = $PSScriptRoot
 $ConfigPath = "$ScriptDirectory\config.xml"
 $SharedF = "$ScriptDirectory\shared"
 $FontFolder = "$ScriptDirectory\fonts"
-
 $xmlconfig = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -661,5 +660,5 @@ if ($Site) {
         -SiteName $SiteName -SiteNameRaw $SiteNameRaw -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
         -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath -SiteTempBaseMatch $SiteTempBaseMatch `
         -SiteSrcBaseMatch $SiteSrcBaseMatch -SiteHomeBaseMatch $SiteHomeBaseMatch -SrcDriveShared $SrcDriveShared `
-        -SrcDriveSharedFonts $SrcDriveSharedFonts *>&1 | Tee-Object -FilePath $LFile -Append
+        -SrcDriveSharedFonts $SrcDriveSharedFonts *>&1 | Out-File -FilePath $LFile -Append -Width 9999
 }
