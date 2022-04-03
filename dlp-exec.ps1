@@ -69,14 +69,14 @@ function Get-SiteSeriesEpisode {
     Select-Object @{n = 'Site'; e = { $_.Values[0] } }, `
     @{ n = 'Series'; e = { $_.Values[1] } }, `
     @{n = 'Episode'; e = { $_.Group | Select-Object _VSEpisode } }
-    $Telegrammessage = "<b>Site:</b> " + $SiteNameRaw + "`n"
-    $SeriesMessage = ""
+    $Telegrammessage = '<b>Site:</b> ' + $SiteNameRaw + "`n"
+    $SeriesMessage = ''
     $SEL | ForEach-Object {
-        $EpList = ""
+        $EpList = ''
         foreach ($i in $_) {
             $EpList = $_.Episode._VSEpisode | Out-String
         }
-        $SeriesMessage = "<b>Series:</b> " + $_.Series + "`n<b>Episode:</b>`n" + $EpList
+        $SeriesMessage = '<b>Series:</b> ' + $_.Series + "`n<b>Episode:</b>`n" + $EpList
         $Telegrammessage += $SeriesMessage + "`n"
     }
     Write-Host $Telegrammessage
@@ -107,7 +107,7 @@ function Start-MKVMerge {
             continue
         }
         else {
-            if ($SF -ne "None") {
+            if ($SF -ne 'None') {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - Python - Regex through $MKVVidSubtitle file with $SF."
                 python $SubtitleRegex $MKVVidSubtitle $SF
                 break
@@ -123,7 +123,7 @@ function Start-MKVMerge {
             continue
         }
         else {
-            if ($SubFontDir -ne "None") {
+            if ($SubFontDir -ne 'None') {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - Combining $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
                 mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font
                 break
@@ -191,9 +191,9 @@ function Start-Filebot {
         }
         else {
             Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place"
-            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
+            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format '{ plex.tail }' --log info
             if (!($MKVMerge)) {
-                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "{ plex.tail }" --log info
+                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format '{ plex.tail }' --log info
             }
         }
         if (!(Test-Path $FBVidInput)) {
@@ -207,7 +207,7 @@ function Start-Filebot {
         filebot -script fn:cleaner "$SiteHome" --log all
     }
     else {
-        write-output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and Total Video($VSVTotCount) count mismatch. Manual check required."
+        Write-Output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and Total Video($VSVTotCount) count mismatch. Manual check required."
     }
     if ($VSVFBCount -ne $VSVTotCount) {
         Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - File needs processing:"
@@ -237,7 +237,7 @@ function Remove-Folders {
         [string]$RFBaseMatch
     )
     if ($RFFolder -eq $SiteTemp) {
-        if (($RFFolder -match "\\tmp\\") -and ($RFFolder -match $RFBaseMatch) -and (Test-Path $RFFolder)) {
+        if (($RFFolder -match '\\tmp\\') -and ($RFFolder -match $RFBaseMatch) -and (Test-Path $RFFolder)) {
             Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $RFFolder folders/files"
             Remove-Item $RFFolder -Recurse -Force -Confirm:$false -Verbose
         }
@@ -312,8 +312,8 @@ Write-Output "[VideoList] $(Get-Timestamp) - Fetching raw files for arraylist."
 if ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
     Get-ChildItem $SiteSrc -Recurse -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
         $VSSite = $SiteNameRaw
-        $VSSeries = ("$(split-path (split-path $_ -parent) -leaf)").Replace("_", " ")
-        $VSEpisode = $_.BaseName.Replace("_", " ")
+        $VSSeries = ("$(Split-Path (Split-Path $_ -Parent) -Leaf)").Replace('_', ' ')
+        $VSEpisode = $_.BaseName.Replace('_', ' ')
         $VSEpisodeRaw = $_.BaseName
         $VSEpisodeTemp = $_.DirectoryName + "\$VSEpisodeRaw.temp" + $_.Extension
         $VSEpisodePath = $_.FullName
@@ -326,7 +326,7 @@ if ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$VidType" | Select-O
         }
     }
     $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | ForEach-Object {
-        if (($_._VSEpisodeSubtitle.Trim() -eq "") -or ($null -eq $_._VSEpisodeSubtitle)) {
+        if (($_._VSEpisodeSubtitle.Trim() -eq '') -or ($null -eq $_._VSEpisodeSubtitle)) {
             Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $VSEpisodeRaw -SVSER $true
         }
     }
@@ -385,7 +385,7 @@ if ($VSVTotCount -gt 0) {
             Send-Telegram -STMessage $TM | Out-Null
         }
         Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - $SiteSrc contains files. Moving to $SiteHomeBase..."
-        Move-Item -Path $SiteSrc -Destination $SiteHomeBase -force -Verbose
+        Move-Item -Path $SiteSrc -Destination $SiteHomeBase -Force -Verbose
     }
     else {
         Write-Output "[MKVMerge] $(Get-Timestamp) - [FolderCleanup] - No files downloaded. Moving to next step."
@@ -411,7 +411,7 @@ else {
 }
 $SharedBackups = $ArchiveFile, $CookieFile, $BatFile, $ConfigPath, $SubFontDir
 foreach ($sb in $SharedBackups) {
-    if (($sb -ne "None") -and ($sb.trim() -ne "")) {
+    if (($sb -ne 'None') -and ($sb.trim() -ne '')) {
         if ($sb -eq $SubFontDir) {
             Copy-Item -Path $sb -Destination $SrcDriveSharedFonts -PassThru | Out-Null
             Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveSharedFonts."
@@ -422,7 +422,7 @@ foreach ($sb in $SharedBackups) {
         }
     }
 }
-Remove-Folders -RFFolder $SiteTemp -RFMatch "\\tmp\\" -RFBaseMatch $SiteTempBaseMatch
-Remove-Folders -RFFolder $SiteSrc -RFMatch "\\src\\" -RFBaseMatch $SiteSrcBaseMatch
-Remove-Folders -RFFolder $SiteHome -RFMatch "\\tmp\\" -RFBaseMatch $SiteHomeBaseMatch
+Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch
+Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
+Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
 Write-Output "[END] $(Get-Timestamp) - Script completed"

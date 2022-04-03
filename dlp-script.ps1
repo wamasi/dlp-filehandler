@@ -1,53 +1,53 @@
 param(
     [Parameter(Mandatory = $false)]
-    [Alias("H")]
+    [Alias('H')]
     [switch]$Help,
     [Parameter(Mandatory = $false)]
-    [Alias("NC")]
+    [Alias('NC')]
     [switch]$NewConfig,
     [Parameter(Mandatory = $false)]
-    [Alias("SU")]
+    [Alias('SU')]
     [switch]$SupportFiles,
     [Parameter(Mandatory = $false)]
-    [Alias("T")]
+    [Alias('T')]
     [switch]$TestScript,
     [Parameter(Mandatory = $false)]
-    [Alias("SN")]
+    [Alias('SN')]
     [string]$Site,
     [Parameter(Mandatory = $false)]
-    [Alias("D")]
+    [Alias('D')]
     [switch]$Daily,
     [Parameter(Mandatory = $false)]
-    [Alias("A")]
+    [Alias('A')]
     [switch]$Archive,
     [Parameter(Mandatory = $false)]
-    [Alias("L")]
+    [Alias('L')]
     [switch]$Login,
     [Parameter(Mandatory = $false)]
-    [Alias("C")]
+    [Alias('C')]
     [switch]$Cookies,
     [Parameter(Mandatory = $false)]
-    [Alias("F")]
+    [Alias('F')]
     [switch]$Filebot,
     [Parameter(Mandatory = $false)]
-    [Alias("MK")]
+    [Alias('MK')]
     [switch]$MKVMerge,
     [Parameter(Mandatory = $false)]
-    [Alias("SE")]
+    [Alias('SE')]
     [switch]$SubtitleEdit,
     [Parameter(Mandatory = $false)]
-    [Alias("ST")]
+    [Alias('ST')]
     [switch]$SendTelegram
 )
 $PSStyle.OutputRendering = 'Host'
 function Get-Day {
-    return (Get-Date -Format "yy-MM-dd")
+    return (Get-Date -Format 'yy-MM-dd')
 }
 function Get-TimeStamp {
-    return (Get-Date -Format "yy-MM-dd HH-mm-ss")
+    return (Get-Date -Format 'yy-MM-dd HH-mm-ss')
 }
 function Get-Time {
-    return (Get-Date -Format "MMddHHmmss")
+    return (Get-Date -Format 'MMddHHmmss')
 }
 function Set-Folders {
     param (
@@ -82,23 +82,23 @@ function Resolve-Configs {
     )
     New-Item $Configs -ItemType File -Force
     Write-Output "Creating $Configs"
-    if ($Configs -match "vrv") {
+    if ($Configs -match 'vrv') {
         $vrvconfig | Set-Content $Configs
         Write-Output "$Configs created with VRV values."
     }
-    elseif ($Configs -match "crunchyroll") {
+    elseif ($Configs -match 'crunchyroll') {
         $crunchyrollconfig | Set-Content $Configs
         Write-Output "$Configs created with Crunchyroll values."
     }
-    elseif ($Configs -match "funimation") {
+    elseif ($Configs -match 'funimation') {
         $funimationconfig | Set-Content $Configs
         Write-Output "$Configs created with Funimation values."
     }
-    elseif ($Configs -match "hidive") {
+    elseif ($Configs -match 'hidive') {
         $hidiveconfig | Set-Content $Configs
         Write-Output "$Configs created with Hidive values."
     }
-    elseif ($Configs -match "paramountplus") {
+    elseif ($Configs -match 'paramountplus') {
         $paramountplusconfig | Set-Content $Configs
         Write-Output "$Configs created with ParamountPlus values."
     }
@@ -112,7 +112,7 @@ function Remove-Spaces {
         [Parameter(Mandatory = $true)]
         [string] $File
     )
-    (Get-Content $File) | Where-Object { -not [String]::IsNullOrWhiteSpace($_) } | set-content $File
+    (Get-Content $File) | Where-Object { -not [String]::IsNullOrWhiteSpace($_) } | Set-Content $File
     $content = [System.IO.File]::ReadAllText($File)
     $content = $content.Trim()
     [System.IO.File]::WriteAllText($File, $content)
@@ -122,7 +122,7 @@ $ConfigPath = "$ScriptDirectory\config.xml"
 $SharedF = "$ScriptDirectory\shared"
 $FontFolder = "$ScriptDirectory\fonts"
 
-$xmlconfig = @"
+$xmlconfig = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
     <Directory>
@@ -181,8 +181,8 @@ $xmlconfig = @"
         </site>
     </credentials>
 </configuration>
-"@
-$defaultconfig = @"
+'@
+$defaultconfig = @'
 -v
 -F
 --list-subs
@@ -206,8 +206,8 @@ $defaultconfig = @"
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
-$vrvconfig = @"
+'@
+$vrvconfig = @'
 -v
 -F
 --list-subs
@@ -230,8 +230,8 @@ $vrvconfig = @"
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv[format_id*=-ja-JP][format_id!*=hardsub][height>=1080]+ba[format_id*=-ja-JP][format_id!*=hardsub] / b[format_id*=-ja-JP][format_id!*=hardsub][height>=1080] / b*[format_id*=-ja-JP][format_id!*=hardsub]'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
-$crunchyrollconfig = @"
+'@
+$crunchyrollconfig = @'
 -v
 -F
 --list-subs
@@ -255,8 +255,8 @@ $crunchyrollconfig = @"
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv[height>=1080]+ba[height>=1080] / bv+ba / b*'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
-$funimationconfig = @"
+'@
+$funimationconfig = @'
 -v
 -F
 --list-subs
@@ -280,8 +280,8 @@ $funimationconfig = @"
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
-$hidiveconfig = @"
+'@
+$hidiveconfig = @'
 -v
 -F
 --list-subs
@@ -304,8 +304,8 @@ $hidiveconfig = @"
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
-$paramountplusconfig = @"
+'@
+$paramountplusconfig = @'
 -v
 -F
 --list-subs
@@ -328,7 +328,7 @@ $paramountplusconfig = @"
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
-"@
+'@
 if (!(Test-Path "$ScriptDirectory\config.xml" -PathType Leaf)) {
     New-Item "$ScriptDirectory\config.xml" -ItemType File -Force
 }
@@ -337,7 +337,7 @@ if ($help) {
     exit
 }
 if ($NewConfig) {
-    if (!(Test-Path $ConfigPath -PathType Leaf) -or [String]::IsNullOrWhiteSpace((Get-content $ConfigPath))) {
+    if (!(Test-Path $ConfigPath -PathType Leaf) -or [String]::IsNullOrWhiteSpace((Get-Content $ConfigPath))) {
         
         New-Item $ConfigPath -ItemType File -Force
         Write-Output "$ConfigPath File Created successfully"
@@ -353,7 +353,7 @@ if ($SupportFiles) {
     Set-Folders $FontFolder
     $ConfigPath = "$ScriptDirectory\config.xml"
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
-    $SNfile = $ConfigFile.getElementsByTagName("site") | Where-Object { $_.id.trim() -ne "" } | Select-Object "id" -ExpandProperty id
+    $SNfile = $ConfigFile.getElementsByTagName('site') | Where-Object { $_.id.trim() -ne '' } | Select-Object 'id' -ExpandProperty id
     $SNfile | ForEach-Object {
         $SN = New-Object -Type PSObject -Property @{
             SN = $_.id
@@ -364,21 +364,21 @@ if ($SupportFiles) {
         Set-Folders $SCC
         $SCF = "$SCC\" + $SN.SN
         Set-Folders $SCF
-        $SCDF = "$SCF" + "_D"
+        $SCDF = "$SCF" + '_D'
         Set-Folders $SCDF
-        $SADF = "$SharedF\" + $SN.SN + "_D_A"
+        $SADF = "$SharedF\" + $SN.SN + '_D_A'
         Set-SuppFiles $SADF
-        $SBDF = "$SharedF\" + $SN.SN + "_D_B"
+        $SBDF = "$SharedF\" + $SN.SN + '_D_B'
         Set-SuppFiles $SBDF
-        $SBDC = "$SharedF\" + $SN.SN + "_D_C"
+        $SBDC = "$SharedF\" + $SN.SN + '_D_C'
         Set-SuppFiles $SBDC
-        $SAF = "$SharedF\" + $SN.SN + "_A"
+        $SAF = "$SharedF\" + $SN.SN + '_A'
         Set-SuppFiles $SAF
-        $SBF = "$SharedF\" + $SN.SN + "_B"
+        $SBF = "$SharedF\" + $SN.SN + '_B'
         Set-SuppFiles $SBF
-        $SBC = "$SharedF\" + $SN.SN + "_C"
+        $SBC = "$SharedF\" + $SN.SN + '_C'
         Set-SuppFiles $SBC
-        $SCFDC = "$SCF" + "_D\yt-dlp.conf"
+        $SCFDC = "$SCF" + '_D\yt-dlp.conf'
         Resolve-Configs $SCFDC
         Remove-Spaces $SCFDC
         $SCFC = "$SCF\yt-dlp.conf"
@@ -403,7 +403,7 @@ if ($Site) {
     $site = $site.ToLower()
     $ConfigPath = "$ScriptDirectory\config.xml"
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
-    $SNfile = $ConfigFile.getElementsByTagName("site") | Select-Object "id", "username", "password", "libraryid", "font" | Where-Object { $_.id.ToLower() -eq "$site" }
+    $SNfile = $ConfigFile.getElementsByTagName('site') | Select-Object 'id', 'username', 'password', 'libraryid', 'font' | Where-Object { $_.id.ToLower() -eq "$site" }
     foreach ($object in $SNfile) {
         $SN = New-Object -TypeName PSObject -Property @{
             SN  = $object.id.ToLower()
@@ -433,26 +433,26 @@ if ($Site) {
     $Ffmpeg = $ConfigFile.configuration.Directory.ffmpeg.location
     $PlexHost = $ConfigFile.configuration.Plex.hosturl.url
     $PlexToken = $ConfigFile.configuration.Plex.plextoken.token
-    $PlexLibrary = $ConfigFile.SelectNodes(("//library[@folder]")) | Where-Object { $_.libraryid -eq $SiteLib }
+    $PlexLibrary = $ConfigFile.SelectNodes(('//library[@folder]')) | Where-Object { $_.libraryid -eq $SiteLib }
     $PlexLibPath = $PlexLibrary.Attributes[1].'#text'
     $PlexLibId = $PlexLibrary.Attributes[0].'#text'
     $Telegramtoken = $ConfigFile.configuration.Telegram.token
     $Telegramchatid = $ConfigFile.configuration.Telegram.chatid
-    if ($SubFont.Trim() -ne "") {
+    if ($SubFont.Trim() -ne '') {
         $SubFontDir = "$FontFolder\$Subfont"
         if (Test-Path $SubFontDir) {
             $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
             Write-Output "$SubFont set for $SiteName"
         }
         else {
-            Write-Output "$SubFont is specified in $ConfigFile and is missing from $FontFolder. Exiting..."
+            Write-Output "$SubFont specified in $ConfigFile is missing from $FontFolder. Exiting..."
             Exit
         }
     }
     else {
-        $SubFont = "None"
-        $SubFontDir = "None"
-        $SF = "None"
+        $SubFont = 'None'
+        $SubFontDir = 'None'
+        $SF = 'None'
         Write-Output "$SubFont - No font set for $SiteName"
     }
     $SiteFolder = "$ScriptDirectory\sites\"
@@ -461,18 +461,18 @@ if ($Site) {
     $SrcDriveSharedFonts = "$SrcDriveShared\fonts\"
     $dlpParams = 'yt-dlp'
     if ($Daily) {
-        $SiteType = $SiteName + "_D"
+        $SiteType = $SiteName + '_D'
         $SiteFolder = "$SiteFolder" + $SiteType
         $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1)
-        $SiteTempBaseMatch = $SiteTempBase.Replace("\", "\\")
+        $SiteTempBaseMatch = $SiteTempBase.Replace('\', '\\')
         $SiteTemp = "$SiteTempBase\$Time"
         $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1)
-        $SiteSrcBaseMatch = $SiteSrcBase.Replace("\", "\\")
+        $SiteSrcBaseMatch = $SiteSrcBase.Replace('\', '\\')
         $SiteSrc = "$SiteSrcBase\$Time"
-        $SiteHomeBase = "$DestDrive\_" + $PlexLibPath + "\" + ($SiteName).Substring(0, 1)
-        $SiteHomeBaseMatch = $SiteHomeBase.Replace("\", "\\")
+        $SiteHomeBase = "$DestDrive\_" + $PlexLibPath + '\' + ($SiteName).Substring(0, 1)
+        $SiteHomeBaseMatch = $SiteHomeBase.Replace('\', '\\')
         $SiteHome = "$SiteHomeBase\$Time"
-        $SiteConfig = $SiteFolder + "\yt-dlp.conf"
+        $SiteConfig = $SiteFolder + '\yt-dlp.conf'
         if ((Test-Path -Path $SiteConfig)) {
             Write-Output "$(Get-Timestamp) - $SiteConfig exists."
             $dlpParams = $dlpParams + " --config-location $SiteConfig -P temp:$SiteTemp -P home:$SiteSrc"
@@ -483,19 +483,18 @@ if ($Site) {
         }
     }
     else {
-        
         $SiteType = $SiteName
         $SiteFolder = "$SiteFolder" + $SiteType
-        $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1) + "M"
-        $SiteTempBaseMatch = $SiteTempBase.Replace("\", "\\")
+        $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1) + 'M'
+        $SiteTempBaseMatch = $SiteTempBase.Replace('\', '\\')
         $SiteTemp = "$SiteTempBase\$Time"
-        $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1) + "M"
-        $SiteSrcBaseMatch = $SiteSrcBase.Replace("\", "\\")
+        $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1) + 'M'
+        $SiteSrcBaseMatch = $SiteSrcBase.Replace('\', '\\')
         $SiteSrc = "$SiteSrcBase\$Time"
         $SiteHomeBase = "$DestDrive\_M\" + $SiteName.Substring(0, 1)
-        $SiteHomeBaseMatch = $SiteHomeBase.Replace("\", "\\")
+        $SiteHomeBaseMatch = $SiteHomeBase.Replace('\', '\\')
         $SiteHome = "$SiteHomeBase\$Time"
-        $SiteConfig = $SiteFolder + "\yt-dlp.conf"
+        $SiteConfig = $SiteFolder + '\yt-dlp.conf'
         if ((Test-Path -Path $SiteConfig)) {
             Write-Output "$(Get-Timestamp) - $SiteConfig exists."
             $dlpParams = $dlpParams + " --config-location $SiteConfig -P temp:$SiteTemp -P home:$SiteSrc"
@@ -505,7 +504,7 @@ if ($Site) {
             Exit
         }
     }
-    $CookieFile = "$SiteShared" + $SiteType + "_C"
+    $CookieFile = "$SiteShared" + $SiteType + '_C'
     if ($Login) {
         if ($SiteUser -and $SitePass) {
             Write-Output "$(Get-Timestamp) - Login is true and SiteUser/Password is filled. Continuing..."
@@ -521,7 +520,7 @@ if ($Site) {
                 }
             }
             else {
-                $CookieFile = "None"
+                $CookieFile = 'None'
                 Write-Output "$(Get-Timestamp) - Login is true and Cookies is false. Continuing..."
             }
         }
@@ -548,7 +547,7 @@ if ($Site) {
         Write-Output "$(Get-Timestamp) - FFMPEG: $Ffmpeg missing. Exiting..."
         Exit
     }
-    $BatFile = "$SiteShared" + $SiteType + "_B"
+    $BatFile = "$SiteShared" + $SiteType + '_B'
     if ((Test-Path -Path $BatFile)) {
         Write-Output "$(Get-Timestamp) - $BatFile file found. Continuing..."
         if (![String]::IsNullOrWhiteSpace((Get-Content $BatFile))) {
@@ -565,7 +564,7 @@ if ($Site) {
         Exit
     }
     if ($Archive) {
-        $ArchiveFile = "$SiteShared" + $SiteType + "_A"
+        $ArchiveFile = "$SiteShared" + $SiteType + '_A'
         if ((Test-Path -Path $ArchiveFile)) {
             Write-Output "$(Get-Timestamp) - $ArchiveFile file found. Continuing..."
             $dlpParams = $dlpParams + " --download-archive $ArchiveFile"
@@ -577,13 +576,13 @@ if ($Site) {
     }
     else {
         Write-Output "$(Get-Timestamp) - Using --no-download-archive"
-        $ArchiveFile = "None"
-        $dlpParams = $dlpParams + " --no-download-archive"
+        $ArchiveFile = 'None'
+        $dlpParams = $dlpParams + ' --no-download-archive'
     }
     
     if ($SubtitleEdit) {
         Write-Output $SiteConfig
-        if (Select-String -Path $SiteConfig "--write-subs" -SimpleMatch -Quiet) {
+        if (Select-String -Path $SiteConfig '--write-subs' -SimpleMatch -Quiet) {
             Write-Output "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is in config. Continuing..."
         }
         else {
@@ -594,10 +593,10 @@ if ($Site) {
     else {
         Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
     }
-    Select-String -Path $SiteConfig -Pattern "--convert-subs.*" | ForEach-Object {
-        $SubType = "*." + ($_ -split " ")[1]
-        $SubType = $SubType.Replace("'", "").Replace('"', "")
-        if ($SubType -ne "\*.ass") {
+    Select-String -Path $SiteConfig -Pattern '--convert-subs.*' | ForEach-Object {
+        $SubType = '*.' + ($_ -split ' ')[1]
+        $SubType = $SubType.Replace("'", '').Replace('"', '')
+        if ($SubType -eq '*.ass') {
             Write-Output "$(Get-Timestamp) - Using $SubType"
         }
         else {
@@ -605,10 +604,10 @@ if ($Site) {
             exit
         }
     }
-    Select-String -Path $SiteConfig -Pattern "--remux-video.*" | ForEach-Object {
-        $VidType = "*." + ($_ -split " ")[1]
-        $VidType = $VidType.Replace("'", "").Replace('"', "")
-        if ($SubType -ne "\*.mkv") {
+    Select-String -Path $SiteConfig -Pattern '--remux-video.*' | ForEach-Object {
+        $VidType = '*.' + ($_ -split ' ')[1]
+        $VidType = $VidType.Replace("'", '').Replace('"', '')
+        if ($VidType -eq '*.mkv') {
             Write-Output "$(Get-Timestamp) - Using $VidType"
         }
         else {
@@ -616,9 +615,9 @@ if ($Site) {
             exit
         }
     }
-    Select-String -Path $SiteConfig -Pattern "--write-subs.*" | ForEach-Object {
+    Select-String -Path $SiteConfig -Pattern '--write-subs.*' | ForEach-Object {
         $SubWrite = ($_)
-        if ($SubWrite -ne "") {
+        if ($SubWrite -ne '') {
             Write-Output "$(Get-Timestamp) - SubWrite($SubWrite) is in config."
         }
         else {
@@ -643,10 +642,10 @@ if ($Site) {
     if ($TestScript) {
         Write-Output "[START] $DateTime - $SiteName - DEBUG Run" *>&1 | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
-        Write-Output "[End] - Debugging enabled. Exiting..." *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[End] $DateTime - Debugging enabled. Exiting..." *>&1 | Tee-Object -FilePath $LFile -Append
         exit
     }
-    $DebugVarRemove = "SitePass", "PlexToken", "TelegramToken", "TelegramChatId"
+    $DebugVarRemove = 'SitePass', 'PlexToken', 'TelegramToken', 'TelegramChatId'
     foreach ($dbv in $DebugVarRemove) {
         $DebugVars.Remove($dbv)
     }
