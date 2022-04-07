@@ -18,23 +18,23 @@ param(
     [Alias('D')]
     [switch]$Daily,
     [Parameter(Mandatory = $false)]
-    [Alias('A')]
-    [switch]$Archive,
-    [Parameter(Mandatory = $false)]
     [Alias('L')]
     [switch]$Login,
     [Parameter(Mandatory = $false)]
     [Alias('C')]
     [switch]$Cookies,
     [Parameter(Mandatory = $false)]
-    [Alias('F')]
-    [switch]$Filebot,
+    [Alias('A')]
+    [switch]$Archive,
+    [Parameter(Mandatory = $false)]
+    [Alias('SE')]
+    [switch]$SubtitleEdit,
     [Parameter(Mandatory = $false)]
     [Alias('MK')]
     [switch]$MKVMerge,
     [Parameter(Mandatory = $false)]
-    [Alias('SE')]
-    [switch]$SubtitleEdit,
+    [Alias('F')]
+    [switch]$Filebot,
     [Parameter(Mandatory = $false)]
     [Alias('ST')]
     [switch]$SendTelegram
@@ -118,6 +118,9 @@ function Remove-Spaces {
     [System.IO.File]::WriteAllText($File, $content)
 }
 $ScriptDirectory = $PSScriptRoot
+$DLPScript = "$ScriptDirectory\dlp-script.ps1"
+$DLPExecScript = "$ScriptDirectory\dlp-exec.ps1"
+$SubtitleRegex = "$ScriptDirectory\subtitle_regex.py"
 $ConfigPath = "$ScriptDirectory\config.xml"
 $SharedF = "$ScriptDirectory\shared"
 $FontFolder = "$ScriptDirectory\fonts"
@@ -386,10 +389,7 @@ if ($SupportFiles) {
     }
 }
 if ($Site) {
-    $DLPScript = "$ScriptDirectory\dlp-script.ps1"
-    $DLPExecScript = "$ScriptDirectory\dlp-exec.ps1"
-    $SubtitleRegex = "$ScriptDirectory\subtitle_regex.py"
-    if (!(Test-Path -Path $DLPScript) -or !(Test-Path -Path $DLPExecScript) -or (!(Test-Path -Path $SubtitleRegex) -and $SubtitleEdit)) {
+    if (!(Test-Path -Path $DLPExecScript) -or !(Test-Path -Path $SubtitleRegex)) {
         Write-Output "$(Get-Timestamp) - dlp-script.ps1, dlp-exec.ps1, subtitle_regex.py does not exist or was not found in $ScriptDirectory folder. Exiting..."
         Exit
     }
@@ -420,11 +420,11 @@ if ($Site) {
     $SiteLib = $SN.SLI
     $SubFont = $SN.SFT
     if ($site -ne $SiteName) {
-        Write-Output "$site != $SiteName. Exiting..."
+        Write-Output "$(Get-Timestamp) - $site != $SiteName. Exiting..."
         exit
     }
     else { 
-        Write-Output "$site = $SiteName. Continuing..."
+        Write-Output "$(Get-Timestamp) - $site = $SiteName. Continuing..."
     }
     $TempDrive = $ConfigFile.configuration.Directory.temp.location
     $SrcDrive = $ConfigFile.configuration.Directory.src.location
@@ -441,10 +441,10 @@ if ($Site) {
         $SubFontDir = "$FontFolder\$Subfont"
         if (Test-Path $SubFontDir) {
             $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
-            Write-Output "$SubFont set for $SiteName"
+            Write-Output "$(Get-Timestamp) - $SubFont set for $SiteName"
         }
         else {
-            Write-Output "$SubFont specified in $ConfigFile is missing from $FontFolder. Exiting..."
+            Write-Output "$(Get-Timestamp) - $SubFont specified in $ConfigFile is missing from $FontFolder. Exiting..."
             Exit
         }
     }
@@ -452,7 +452,7 @@ if ($Site) {
         $SubFont = 'None'
         $SubFontDir = 'None'
         $SF = 'None'
-        Write-Output "$SubFont - No font set for $SiteName"
+        Write-Output "$(Get-Timestamp) - $SubFont - No font set for $SiteName"
     }
     $SiteFolder = "$ScriptDirectory\sites\"
     $SiteShared = "$ScriptDirectory\shared\"
@@ -624,24 +624,22 @@ if ($Site) {
             exit
         }
     }
-    $DebugVars = [ordered]@{Site = $SiteName; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; Daily = $Daily; `
-            SiteUser = $SiteUser; SitePass = $SitePass; Login = $Login; SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; `
-            SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBase = $SiteSrcBase; SiteSrcBaseMatch = $SiteSrcBaseMatch; `
-            SiteHome = $SiteHome; SiteHomeBase = $SiteHomeBase; SiteHomeBaseMatch = $SiteHomeBaseMatch; SiteConfig = $SiteConfig; `
-            CookieFile = $CookieFile; Cookies = $Cookies; Archive = $ArchiveFile; UseDownloadArchive = $Archive; `
-            Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; `
-            SubType = $SubType; VidType = $VidType; SubtitleEdit = $SubtitleEdit; MKVMerge = $MKVMerge; Filebot = $Filebot; `
-            PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; `
-            TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; `
-            ScriptDirectory = $ScriptDirectory; dlpParams = $dlpParams
+    $DebugVars = [ordered]@{Site = $SiteName; isDaily = $Daily; UseLogin = $Login; UseCookies = $Cookies; UseArchive = $Archive; SubtitleEdit = $SubtitleEdit; `
+            MKVMerge = $MKVMerge; Filebot = $Filebot; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; `
+            SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBase = $SiteSrcBase; `
+            SiteSrcBaseMatch = $SiteSrcBaseMatch; SiteHome = $SiteHome; SiteHomeBase = $SiteHomeBase; SiteHomeBaseMatch = $SiteHomeBaseMatch; `
+            SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; `
+            SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; `
+            PlexLibId = $PlexLibId; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; `
+            dlpParams = $dlpParams
     }
     $LFolderBase = "$SiteFolder\log\"
     $LFile = "$SiteFolder\log\$Date\$DateTime.log"
-    New-Item -Path $LFile -ItemType File -Force
+    New-Item -Path $LFile -ItemType File -Force | Out-Null
     if ($TestScript) {
-        Write-Output "[START] $DateTime - $SiteName - DEBUG Run" *>&1 | Tee-Object -FilePath $LFile -Append
-        $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
-        Write-Output "[End] $DateTime - Debugging enabled. Exiting..." *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[START] $DateTime - $SiteName - DEBUG Run" *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
+        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
+        Write-Output "[End] $DateTime - Debugging enabled. Exiting..." *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
         exit
     }
     $DebugVarRemove = 'SitePass', 'PlexToken', 'TelegramToken', 'TelegramChatId'
@@ -649,14 +647,14 @@ if ($Site) {
         $DebugVars.Remove($dbv)
     }
     if (($Daily) -and (!($TestScript))) {
-        Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
-        $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
+        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
     }
     elseif (!($Daily) -and (!($TestScript))) {
-        Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
-        $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
+        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
     }
-    & "$ScriptDirectory\dlp-exec.ps1" -dlpParams $dlpParams -Filebot $Filebot -SubtitleEdit $SubtitleEdit -MKVMerge $MKVMerge `
+    & $DLPExecScript -dlpParams $dlpParams -Filebot $Filebot -SubtitleEdit $SubtitleEdit -MKVMerge $MKVMerge `
         -SiteName $SiteName -SiteNameRaw $SiteNameRaw -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
         -LFolderBase $LFolderBase -SiteSrc $SiteSrc -SiteHome $SiteHome -ConfigPath $ConfigPath -SiteTempBaseMatch $SiteTempBaseMatch `
         -SiteSrcBaseMatch $SiteSrcBaseMatch -SiteHomeBaseMatch $SiteHomeBaseMatch -SrcDriveShared $SrcDriveShared `

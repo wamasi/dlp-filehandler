@@ -307,8 +307,8 @@ Invoke-Expression $dlpParams
 if ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
     Get-ChildItem $SiteSrc -Recurse -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
         $VSSite = $SiteNameRaw
-        $VSSeries = ("$(Split-Path (Split-Path $_ -Parent) -Leaf)").Replace('_', ' ')
-        $VSEpisode = $_.BaseName.Replace('_', ' ')
+        $VSSeries = (Get-Culture).TextInfo.ToTitleCase(("$(Split-Path (Split-Path $_ -Parent) -Leaf)").Replace('_', ' ').Replace('-', ' ')) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
+        $VSEpisode = (Get-Culture).TextInfo.ToTitleCase( ($_.BaseName.Replace('_', ' ').Replace('-', ' '))) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
         $VSEpisodeRaw = $_.BaseName
         $VSEpisodeTemp = $_.DirectoryName + "\$VSEpisodeRaw.temp" + $_.Extension
         $VSEpisodePath = $_.FullName
@@ -388,7 +388,7 @@ if ($VSVTotCount -gt 0) {
         Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc."
     }
     else {
-        Write-Output "[Filebot] $(Get-Timestamp) - [End] - Not running Filebot"
+        Write-Output "[Filebot] $(Get-Timestamp) - Not running Filebot"
     }
     Write-Output "[VideoList] $(Get-Timestamp) - Final file status:"
     $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } } , `
@@ -396,7 +396,7 @@ if ($VSVTotCount -gt 0) {
     @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
 }
 else {
-    Write-Output "[VideoList] $(Get-Timestamp) - [End] - No files downloaded. Skipping other defined steps."
+    Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded. Skipping other defined steps."
 }
 $SharedBackups = $ArchiveFile, $CookieFile, $BatFile, $ConfigPath, $SubFontDir
 foreach ($sb in $SharedBackups) {
