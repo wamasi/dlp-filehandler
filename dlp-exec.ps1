@@ -244,7 +244,7 @@ function Remove-Folders {
     }
     else {
         if (!(Test-Path $RFFolder)) {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) already deleted files."
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) already deleted."
         }
         elseif ((Test-Path $RFFolder) -and (Get-ChildItem $RFFolder -Recurse -File | Measure-Object).Count -eq 0) {
             Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) is empty. Deleting folder."
@@ -288,7 +288,7 @@ $DeleteRecursion = {
         Remove-Item -Force -LiteralPath $DRPath -Verbose
     }
 }
-$CreateFolders = $TempDrive, $SrcDrive, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
+$CreateFolders = $TempDrive, $SrcDrive, $BackupDrive, $SrcBackup, $SiteConfigBackup, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
 foreach ($c in $CreateFolders) {
     Set-Folders $c
 }
@@ -398,12 +398,21 @@ if ($VSVTotCount -gt 0) {
 else {
     Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded. Skipping other defined steps."
 }
-$SharedBackups = $ArchiveFile, $CookieFile, $BatFile, $ConfigPath, $SubFontDir
+$SharedBackups = $ArchiveFile, $CookieFile, $BatFile, $ConfigPath, $SubFontDir,$SiteConfig
 foreach ($sb in $SharedBackups) {
     if (($sb -ne 'None') -and ($sb.trim() -ne '')) {
         if ($sb -eq $SubFontDir) {
             Copy-Item -Path $sb -Destination $SrcDriveSharedFonts -PassThru | Out-Null
             Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveSharedFonts."
+        }
+        elseif ($sb -eq $ConfigPath) {
+            Copy-Item -Path $sb -Destination $SrcBackup -PassThru | Out-Null
+            Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcBackup."
+        }
+        elseif ($sb -eq $SiteConfig) {
+            Copy-Item -Path $sb -Destination $SiteConfigBackup -PassThru | Out-Null
+            Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SiteConfigBackup."
+            <# $SiteConfigAction when this condition is true #>
         }
         else {
             Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveShared."

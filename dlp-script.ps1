@@ -128,24 +128,31 @@ $xmlconfig = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
     <Directory>
+        <backup location="" />
         <temp location="" />
         <src location="" />
-        <home location="" />
+        <dest location="" />
         <ffmpeg location="" />
     </Directory>
     <Plex>
         <hosturl url="" />
         <plextoken token="" />
-        <library libraryid="" />
-        <library libraryid="" />
-        <library libraryid="" />
+        <library libraryid="" folder="" />
+        <library libraryid="" folder="" />
+        <library libraryid="" folder="" />
     </Plex>
     <Telegram>
         <token></token>
         <chatid></chatid>
     </Telegram>
     <credentials>
-        <site id="dummy">
+        <site id="">
+            <username></username>
+            <password></password>
+            <libraryid></libraryid>
+            <font></font>
+        </site>
+        <site id="">
             <username></username>
             <password></password>
             <libraryid></libraryid>
@@ -426,6 +433,7 @@ if ($Site) {
     else { 
         Write-Output "$(Get-Timestamp) - $site = $SiteName. Continuing..."
     }
+    $BackupDrive = $ConfigFile.configuration.Directory.backup.location
     $TempDrive = $ConfigFile.configuration.Directory.temp.location
     $SrcDrive = $ConfigFile.configuration.Directory.src.location
     $DestDrive = $ConfigFile.configuration.Directory.dest.location
@@ -456,8 +464,9 @@ if ($Site) {
     }
     $SiteFolder = "$ScriptDirectory\sites\"
     $SiteShared = "$ScriptDirectory\shared\"
-    $SrcDriveShared = "$SrcDrive\_shared\"
-    $SrcDriveSharedFonts = "$SrcDriveShared\fonts\"
+    $SrcBackup = "$BackupDrive\_Backup\"
+    $SrcDriveShared = "$SrcBackup" + 'shared\'
+    $SrcDriveSharedFonts = "$SrcBackup" + 'fonts\'
     $dlpParams = 'yt-dlp'
     if ($Daily) {
         $SiteType = $SiteName + '_D'
@@ -483,7 +492,7 @@ if ($Site) {
     }
     else {
         $SiteType = $SiteName
-        $SiteFolder = "$SiteFolder" + $SiteType
+        $SiteFolder = $SiteFolder + $SiteType
         $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1) + 'M'
         $SiteTempBaseMatch = $SiteTempBase.Replace('\', '\\')
         $SiteTemp = "$SiteTempBase\$Time"
@@ -503,7 +512,8 @@ if ($Site) {
             Exit
         }
     }
-    $CookieFile = "$SiteShared" + $SiteType + '_C'
+    $SiteConfigBackup = $SrcBackup + "sites\$SiteType"
+    $CookieFile = $SiteShared + $SiteType + '_C'
     if ($Login) {
         if ($SiteUser -and $SitePass) {
             Write-Output "$(Get-Timestamp) - Login is true and SiteUser/Password is filled. Continuing..."
@@ -578,7 +588,6 @@ if ($Site) {
         $ArchiveFile = 'None'
         $dlpParams = $dlpParams + ' --no-download-archive'
     }
-    
     if ($SubtitleEdit) {
         Write-Output $SiteConfig
         if (Select-String -Path $SiteConfig '--write-subs' -SimpleMatch -Quiet) {
@@ -629,9 +638,9 @@ if ($Site) {
             SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBase = $SiteSrcBase; `
             SiteSrcBaseMatch = $SiteSrcBaseMatch; SiteHome = $SiteHome; SiteHomeBase = $SiteHomeBase; SiteHomeBaseMatch = $SiteHomeBaseMatch; `
             SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; `
-            SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; `
-            PlexLibId = $PlexLibId; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; `
-            dlpParams = $dlpParams
+            SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; Backup = $SrcBackup; SiteConfigBackup = $SiteConfigBackup; PlexHost = $PlexHost; `
+            PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; `
+            ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; dlpParams = $dlpParams
     }
     $LFolderBase = "$SiteFolder\log\"
     $LFile = "$SiteFolder\log\$Date\$DateTime.log"
