@@ -1093,17 +1093,16 @@ if ($Site) {
             elseif ($sb -eq $SiteConfig) {
                 Copy-Item -Path $sb -Destination $SiteConfigBackup -PassThru
                 Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SiteConfigBackup." *>&1 | Tee-Object -FilePath $LFile -Append
-                <# $SiteConfigAction when this condition is true #>
-            }
-            else {
-                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveShared." *>&1 | Tee-Object -FilePath $LFile -Append
-                Copy-Item -Path $sb -Destination $SrcDriveShared -PassThru
+                else {
+                    Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveShared." *>&1 | Tee-Object -FilePath $LFile -Append
+                    Copy-Item -Path $sb -Destination $SrcDriveShared -PassThru
+                }
             }
         }
-    }
-    Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch 
-    Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
-    Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
-    Write-Output "[END] $(Get-Timestamp) - Script completed" *>&1 | Tee-Object -FilePath $LFile -Append
+        Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch 
+        Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
+        Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
+        Write-Output "[END] $(Get-Timestamp) - Script completed" *>&1 | Tee-Object -FilePath $LFile -Append
     (Get-Content $LFile) | Where-Object { $_.trim() -ne '' } | Set-Content $LFile
+    }
 }
