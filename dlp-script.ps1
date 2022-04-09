@@ -1017,7 +1017,7 @@ if ($Site) {
         if ($SubtitleEdit) {
             $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | Where-Object { $_._VSErrored -ne $true } | ForEach-Object {
                 $SESubtitle = $_._VSEpisodeSubtitle
-                Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $SESubtitle subtitle"
+                Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $SESubtitle subtitle" *>&1 | Tee-Object -FilePath $LFile -Append
                 While ($True) {
                     if ((Test-Lock $SESubtitle) -eq $True) {
                         continue
