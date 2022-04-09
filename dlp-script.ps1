@@ -54,7 +54,7 @@ param(
 )
 $PSStyle.OutputRendering = 'Host'
 $Width = $host.UI.RawUI.MaxPhysicalWindowSize.Width
-$host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.size($Width, 9000)
+$host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.size($Width, 9999)
 mode con cols=9999
 function Get-Day {
     return (Get-Date -Format 'yy-MM-dd')
@@ -369,23 +369,23 @@ function Remove-Folders {
     )
     if ($RFFolder -eq $SiteTemp) {
         if (($RFFolder -match '\\tmp\\') -and ($RFFolder -match $RFBaseMatch) -and (Test-Path $RFFolder)) {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $RFFolder folders/files" *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $RFFolder folders/files" | Tee-Object -FilePath $LFile -Append
             Remove-Item $RFFolder -Recurse -Force -Confirm:$false -Verbose | Out-Null
         }
         else {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteTemp($RFFolder) folder already deleted. Nothing to remove." *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteTemp($RFFolder) folder already deleted. Nothing to remove." | Tee-Object -FilePath $LFile -Append
         }
     }
     else {
         if (!(Test-Path $RFFolder)) {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) already deleted." *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) already deleted." | Tee-Object -FilePath $LFile -Append
         }
         elseif ((Test-Path $RFFolder) -and (Get-ChildItem $RFFolder -Recurse -File | Measure-Object).Count -eq 0) {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) is empty. Deleting folder." *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) is empty. Deleting folder." | Tee-Object -FilePath $LFile -Append
             & $DeleteRecursion -DRPath $RFFolder *>&1 | Tee-Object -FilePath $LFile -Append
         }
         else {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) contains files. Manual attention needed." *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) contains files. Manual attention needed." | Tee-Object -FilePath $LFile -Append
         }
     }
 }
@@ -951,9 +951,9 @@ if ($Site) {
     $LFile = "$SiteFolder\log\$Date\$DateTime.log"
     New-Item -Path $LFile -ItemType File -Force | Out-Null
     if ($TestScript) {
-        Write-Output "[START] $DateTime - $SiteName - DEBUG Run" *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[START] $DateTime - $SiteName - DEBUG Run" | Tee-Object -FilePath $LFile -Append
         $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
-        Write-Output "[End] $DateTime - Debugging enabled. Exiting..." *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[End] $DateTime - Debugging enabled. Exiting..." | Tee-Object -FilePath $LFile -Append
         exit
     }
     $DebugVarRemove = 'SitePass', 'PlexToken', 'TelegramToken', 'TelegramChatId'
@@ -961,12 +961,12 @@ if ($Site) {
         $DebugVars.Remove($dbv)
     }
     if (($Daily) -and (!($TestScript))) {
-        Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Tee-Object -FilePath $LFile -Append
-        $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[START] $DateTime - $SiteName - Daily Run" | Tee-Object -FilePath $LFile -Append
+        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999
     }
     elseif (!($Daily) -and (!($TestScript))) {
-        Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Tee-Object -FilePath $LFile -Append
-        $DebugVars *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[START] $DateTime - $SiteName - Manual Run" | Tee-Object -FilePath $LFile -Append
+        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999
     }
     $CreateFolders = $TempDrive, $SrcDrive, $BackupDrive, $SrcBackup, $SiteConfigBackup, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
     foreach ($c in $CreateFolders) {
@@ -974,10 +974,10 @@ if ($Site) {
     }
     $limit = (Get-Date).AddDays(-1)
     if (!(Test-Path $LFolderBase)) {
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup..." *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup..." | Tee-Object -FilePath $LFile -Append
     }
     else {
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting log cleanup..." *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting log cleanup..." | Tee-Object -FilePath $LFile -Append
         Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | ForEach-Object {
             $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose *>&1 | Tee-Object -FilePath $LFile -Append
         }
@@ -1007,12 +1007,12 @@ if ($Site) {
         }
     }
     else {
-        Write-Output "[VideoList] $(Get-Timestamp) - No files to process" *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[VideoList] $(Get-Timestamp) - No files to process" | Tee-Object -FilePath $LFile -Append
     }
     $VSVTotCount = ($VSCompletedFilesList | Measure-Object).Count
     $VSVErrorCount = ($VSCompletedFilesList | Where-Object { $_._VSErrored -eq $true } | Measure-Object).Count
-    Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $VSVTotCount" *>&1 | Tee-Object -FilePath $LFile -Append
-    Write-Output "[VideoList] $(Get-Timestamp) - Errored Files: $VSVErrorCount" *>&1 | Tee-Object -FilePath $LFile -Append
+    Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $VSVTotCount" | Tee-Object -FilePath $LFile -Append
+    Write-Output "[VideoList] $(Get-Timestamp) - Errored Files: $VSVErrorCount" | Tee-Object -FilePath $LFile -Append
     if ($VSVTotCount -gt 0) {
         if ($SubtitleEdit) {
             $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | Where-Object { $_._VSErrored -ne $true } | ForEach-Object {
@@ -1033,7 +1033,7 @@ if ($Site) {
             }
         }
         else {
-            Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running." *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running." | Tee-Object -FilePath $LFile -Append
         }
         if ($MKVMerge) {
             $VSCompletedFilesList | Select-Object _VSEpisodeRaw, _VSEpisode, _VSEpisodeTemp, _VSEpisodePath, _VSEpisodeSubtitle, _VSErrored | `
@@ -1046,55 +1046,55 @@ if ($Site) {
             }
         }
         else {
-            Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMerge not running. Moving to next step." *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMerge not running. Moving to next step." | Tee-Object -FilePath $LFile -Append
         }
         $VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Measure-Object).Count
         if (($VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or (!($MKVMerge) -and $VSVErrorCount -eq 0)) {
-            Write-Output "[MKVMerge] $(Get-Timestamp)- All files had matching subtitle file" *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[MKVMerge] $(Get-Timestamp)- All files had matching subtitle file" | Tee-Object -FilePath $LFile -Append
             if ($SendTelegram) {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc." *>&1 | Tee-Object -FilePath $LFile -Append
+                Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc." | Tee-Object -FilePath $LFile -Append
                 $TM = Get-SiteSeriesEpisode
                 Send-Telegram -STMessage $TM *>&1 | Tee-Object -FilePath $LFile -Append
             }
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - $SiteSrc contains files. Moving to $SiteHomeBase..." *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - $SiteSrc contains files. Moving to $SiteHomeBase..." | Tee-Object -FilePath $LFile -Append
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -Force -Verbose *>&1 | Tee-Object -FilePath $LFile -Append
         }
         else {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - $SiteSrc contains file(s) with error(s). Not moving files." *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - $SiteSrc contains file(s) with error(s). Not moving files." | Tee-Object -FilePath $LFile -Append
         }
         if (($Filebot -and $VSVMKVCount -eq $VSVTotCount) -or ($Filebot -and !($MKVMerge))) {
             Start-Filebot -FBPath $SiteHome *>&1 | Tee-Object -FilePath $LFile -Append
         }
         elseif (($Filebot -and $MKVMerge -and $VSVMKVCount -ne $VSVTotCount)) {
-            Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc." *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc." | Tee-Object -FilePath $LFile -Append
         }
         else {
-            Write-Output "[Filebot] $(Get-Timestamp) - Not running Filebot" *>&1 | Tee-Object -FilePath $LFile -Append
+            Write-Output "[Filebot] $(Get-Timestamp) - Not running Filebot" | Tee-Object -FilePath $LFile -Append
         }
-        Write-Output "[VideoList] $(Get-Timestamp) - Final file status:" *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[VideoList] $(Get-Timestamp) - Final file status:" | Tee-Object -FilePath $LFile -Append
         $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } } , `
         @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, `
         @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap *>&1 | Out-File -FilePath $LFile -Append -Width 9999
     }
     else {
-        Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded. Skipping other defined steps." *>&1 | Tee-Object -FilePath $LFile -Append
+        Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded. Skipping other defined steps." | Tee-Object -FilePath $LFile -Append
     }
     $SharedBackups = $ArchiveFile, $CookieFile, $BatFile, $ConfigPath, $SubFontDir, $SiteConfig
     foreach ($sb in $SharedBackups) {
         if (($sb -ne 'None') -and ($sb.trim() -ne '')) {
             if ($sb -eq $SubFontDir) {
                 Copy-Item -Path $sb -Destination $SrcDriveSharedFonts -PassThru
-                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveSharedFonts." *>&1 | Tee-Object -FilePath $LFile -Append
+                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveSharedFonts." | Tee-Object -FilePath $LFile -Append
             }
             elseif ($sb -eq $ConfigPath) {
                 Copy-Item -Path $sb -Destination $SrcBackup -PassThru
-                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcBackup." *>&1 | Tee-Object -FilePath $LFile -Append
+                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcBackup." | Tee-Object -FilePath $LFile -Append
             }
             elseif ($sb -eq $SiteConfig) {
                 Copy-Item -Path $sb -Destination $SiteConfigBackup -PassThru
-                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SiteConfigBackup." *>&1 | Tee-Object -FilePath $LFile -Append
+                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SiteConfigBackup." | Tee-Object -FilePath $LFile -Append
                 else {
-                    Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveShared." *>&1 | Tee-Object -FilePath $LFile -Append
+                    Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveShared." | Tee-Object -FilePath $LFile -Append
                     Copy-Item -Path $sb -Destination $SrcDriveShared -PassThru
                 }
             }
@@ -1103,6 +1103,6 @@ if ($Site) {
     Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch 
     Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
     Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
-    Write-Output "[END] $(Get-Timestamp) - Script completed" *>&1 | Tee-Object -FilePath $LFile -Append
+    Write-Output "[END] $(Get-Timestamp) - Script completed" | Tee-Object -FilePath $LFile -Append
     (Get-Content $LFile) | Where-Object { $_.trim() -ne '' } | Set-Content $LFile
 }
