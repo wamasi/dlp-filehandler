@@ -1074,7 +1074,7 @@ if ($Site) {
         Write-Output "[VideoList] $(Get-Timestamp) - Final file status:" *>&1 | Tee-Object -FilePath $LFile -Append
         $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } } , `
         @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, `
-        @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap *>&1 | Tee-Object -FilePath $LFile -Append
+        @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap *>&1 | Out-File -FilePath $LFile -Append -Width 9999
     }
     else {
         Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded. Skipping other defined steps." *>&1 | Tee-Object -FilePath $LFile -Append
@@ -1099,10 +1099,10 @@ if ($Site) {
                 }
             }
         }
-        Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch 
-        Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
-        Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
-        Write-Output "[END] $(Get-Timestamp) - Script completed" *>&1 | Tee-Object -FilePath $LFile -Append
-    (Get-Content $LFile) | Where-Object { $_.trim() -ne '' } | Set-Content $LFile
     }
+    Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch 
+    Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
+    Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
+    Write-Output "[END] $(Get-Timestamp) - Script completed" *>&1 | Tee-Object -FilePath $LFile -Append
+    (Get-Content $LFile) | Where-Object { $_.trim() -ne '' } | Set-Content $LFile
 }
