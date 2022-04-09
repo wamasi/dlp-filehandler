@@ -1,3 +1,16 @@
+<#
+.Synopsis
+   Script to run yt-dlp, mkvmerge, subtitle edit, filebot and a python script for downloading and processing videos
+.EXAMPLE
+   Runs the script using the crunchyroll as a manual run with the defined config using login, cookies, archive file, mkvmerge, and sends out a telegram message
+   D:\_DL\dlp-script.ps1 -sn crunchyroll -l -c -mk -a -st
+.EXAMPLE
+   Runs the script  using the crunchyroll as a daily run with the defined config using login, cookies, no archive file, and filebot/plex
+   D:\_DL\dlp-script.ps1 -sn crunchyroll -d -l -c -f
+.NOTES
+   See https://github.com/wamasi/dlp-filehandler for full details
+   Script was designed to be ran via powershell console on a cronjob. copying and pasting into powershell console will not work.
+#>
 param(
     [Parameter(Mandatory = $false)]
     [Alias('H')]
@@ -56,10 +69,10 @@ function Set-Folders {
     )
     if (!(Test-Path -Path $Fullpath)) {
         New-Item -ItemType Directory -Path $Fullpath -Force | Out-Null
-        Write-Output "$(Get-Timestamp) - $Fullpath has been created."
+        Write-Output "[SetFolder] - $(Get-Timestamp) - $Fullpath has been created."
     }
     else {
-        Write-Output "$(Get-Timestamp) - $Fullpath already exists."
+        Write-Output "[SetFolder] - $(Get-Timestamp) - $Fullpath already exists."
     }
 }
 function Set-SuppFiles {
@@ -512,7 +525,7 @@ if ($Site) {
             Exit
         }
     }
-    $SiteConfigBackup = $SrcBackup + "sites\$SiteType"
+    $SiteConfigBackup = $SrcBackup + "sites\$SiteType\"
     $CookieFile = $SiteShared + $SiteType + '_C'
     if ($Login) {
         if ($SiteUser -and $SitePass) {
@@ -638,17 +651,18 @@ if ($Site) {
             SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBase = $SiteSrcBase; `
             SiteSrcBaseMatch = $SiteSrcBaseMatch; SiteHome = $SiteHome; SiteHomeBase = $SiteHomeBase; SiteHomeBaseMatch = $SiteHomeBaseMatch; `
             SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; `
-            SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; Backup = $SrcBackup; SiteConfigBackup = $SiteConfigBackup; PlexHost = $PlexHost; `
-            PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; `
-            ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; dlpParams = $dlpParams
+            SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; Backup = $SrcBackup; BackupShared = $SrcDriveShared; BackupFont = $SrcDriveSharedFonts; `
+            SiteConfigBackup = $SiteConfigBackup; PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; `
+            TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; dlpParams = $dlpParams
     }
+    $DebugVars
     $LFolderBase = "$SiteFolder\log\"
     $LFile = "$SiteFolder\log\$Date\$DateTime.log"
     New-Item -Path $LFile -ItemType File -Force | Out-Null
     if ($TestScript) {
-        Write-Output "[START] $DateTime - $SiteName - DEBUG Run" *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
-        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
-        Write-Output "[End] $DateTime - Debugging enabled. Exiting..." *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
+        Write-Output "[START] $DateTime - $SiteName - DEBUG Run" *>&1 | Out-File -FilePath $LFile -Append -Width 9999
+        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999
+        Write-Output "[End] $DateTime - Debugging enabled. Exiting..." *>&1 | Out-File -FilePath $LFile -Append -Width 9999
         exit
     }
     $DebugVarRemove = 'SitePass', 'PlexToken', 'TelegramToken', 'TelegramChatId'
@@ -656,12 +670,12 @@ if ($Site) {
         $DebugVars.Remove($dbv)
     }
     if (($Daily) -and (!($TestScript))) {
-        Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
-        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
+        Write-Output "[START] $DateTime - $SiteName - Daily Run" *>&1 | Out-File -FilePath $LFile -Append -Width 9999
+        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999
     }
     elseif (!($Daily) -and (!($TestScript))) {
-        Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
-        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999 
+        Write-Output "[START] $DateTime - $SiteName - Manual Run" *>&1 | Out-File -FilePath $LFile -Append -Width 9999
+        $DebugVars *>&1 | Out-File -FilePath $LFile -Append -Width 9999
     }
     & $DLPExecScript -dlpParams $dlpParams -Filebot $Filebot -SubtitleEdit $SubtitleEdit -MKVMerge $MKVMerge `
         -SiteName $SiteName -SiteNameRaw $SiteNameRaw -SF $SF -SubFontDir $SubFontDir -PlexHost $PlexHost -PlexToken $PlexToken -PlexLibId $PlexLibId `
