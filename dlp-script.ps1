@@ -1121,5 +1121,5 @@ if ($Site) {
     Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
     Write-Output "[END] $(Get-Timestamp) - Script completed"
     Stop-Transcript
-    (Get-Content $LFile) | Where-Object { $_.trim() -ne '' } | Set-Content $LFile
+    Remove-Spaces $LFile
 }
