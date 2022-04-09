@@ -84,7 +84,7 @@ function Set-SuppFiles {
         [string] $SuppFiles
     )
     if (!(Test-Path $SuppFiles -PathType Leaf)) {
-        New-Item $SuppFiles -ItemType File  | Out-Null
+        New-Item $SuppFiles -ItemType File | Out-Null
         Write-Output "$SuppFiles file missing. Creating..."
     }
     else {
