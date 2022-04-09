@@ -84,7 +84,7 @@ function Set-SuppFiles {
         [string] $SuppFiles
     )
     if (!(Test-Path $SuppFiles -PathType Leaf)) {
-        New-Item $SuppFiles -ItemType File
+        New-Item $SuppFiles -ItemType File  | Out-Null
         Write-Output "$SuppFiles file missing. Creating..."
     }
     else {
@@ -96,7 +96,7 @@ function Resolve-Configs {
         [Parameter(Mandatory = $true)]
         [string] $Configs
     )
-    New-Item $Configs -ItemType File -Force
+    New-Item $Configs -ItemType File -Force | Out-Null
     Write-Output "Creating $Configs"
     if ($Configs -match 'vrv') {
         $vrvconfig | Set-Content $Configs
@@ -1099,20 +1099,20 @@ if ($Site) {
     foreach ($sb in $SharedBackups) {
         if (($sb -ne 'None') -and ($sb.trim() -ne '')) {
             if ($sb -eq $SubFontDir) {
-                Copy-Item -Path $sb -Destination $SrcDriveSharedFonts -PassThru
+                Copy-Item -Path $sb -Destination $SrcDriveSharedFonts -PassThru | Out-Null
                 Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveSharedFonts."
             }
             elseif ($sb -eq $ConfigPath) {
-                Copy-Item -Path $sb -Destination $SrcBackup -PassThru
+                Copy-Item -Path $sb -Destination $SrcBackup -PassThru | Out-Null
                 Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcBackup."
             }
             elseif ($sb -eq $SiteConfig) {
-                Copy-Item -Path $sb -Destination $SiteConfigBackup -PassThru
+                Copy-Item -Path $sb -Destination $SiteConfigBackup -PassThru | Out-Null
                 Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SiteConfigBackup."
             }
             else {
                 Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveShared."
-                Copy-Item -Path $sb -Destination $SrcDriveShared -PassThru
+                Copy-Item -Path $sb -Destination $SrcDriveShared -PassThru | Out-Null
             }
         }
     }
