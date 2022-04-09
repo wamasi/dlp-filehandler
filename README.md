@@ -93,7 +93,7 @@ Telegram (optional)
       - `dlp-script.ps1` gathers initial variables based on parameters passed into script.
          - Log file is generated and located in `site` folder based on date/datetime
          - Creates base folder structure for `tmp`, `src`, `dest`.
-      - `dlp-exec.ps1` runs `YT-DLP`, `SubtitleEdit`, `subtitle_regex.py`, `mkvmerge`, `Telegram` command based on parameters
+         - Runs `YT-DLP`, `SubtitleEdit`, `subtitle_regex.py`, `mkvmerge`, `Telegram` command based on parameters
          - Each run puts files in folder based on timestamp of execution.
          - Temp files store in `tmp` location defined in  `config.xml`.
            - Then moved into `src` location defined in `config.xml`
