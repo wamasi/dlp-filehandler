@@ -222,7 +222,7 @@ function Send-Telegram {
     $Telegramtoken
     $Telegramchatid
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html"
+    Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html" | Out-Null
 }
 # Run MKVMerge process
 function Start-MKVMerge {
@@ -345,16 +345,6 @@ function Start-Filebot {
     }
     if ($VSVFBCount -ne $VSVTotCount) {
         Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - File needs processing."
-    }
-    else {
-        if ($PlexHost -and $PlexToken -and $PlexLibId) {
-            Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
-            $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
-            Invoke-WebRequest -Uri $PlexUrl
-        }
-        else {
-            Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
-        }
     }
 }
 # Delete Tmp/Src/Home folder logic
@@ -1034,7 +1024,7 @@ if ($Site) {
     $VSVErrorCount = ($VSCompletedFilesList | Where-Object { $_._VSErrored -eq $true } | Measure-Object).Count
     Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $VSVTotCount"
     Write-Output "[VideoList] $(Get-Timestamp) - Errored Files: $VSVErrorCount"
-    # MKVMerge
+    # SubtitleEdit, MKVMerge, Filebot
     if ($VSVTotCount -gt 0) {
         if ($SubtitleEdit) {
             $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | Where-Object { $_._VSErrored -ne $true } | ForEach-Object {
@@ -1071,19 +1061,14 @@ if ($Site) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMerge not running. Moving to next step."
         }
         $VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Measure-Object).Count
-        # Telegram
+        # FileMoving
         if (($VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or (!($MKVMerge) -and $VSVErrorCount -eq 0)) {
-            Write-Output "[MKVMerge] $(Get-Timestamp)- All files had matching subtitle file"
-            if ($SendTelegram) {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - [Telegram] - Sending message for files in $SiteSrc."
-                $TM = Get-SiteSeriesEpisode
-                Send-Telegram -STMessage $TM
-            }
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - $SiteSrc contains files. Moving to $SiteHomeBase..."
+            Write-Output "[FileMoving] $(Get-Timestamp)- All files had matching subtitle file"
+            Write-Output "[FileMoving] $(Get-Timestamp) - $SiteSrc contains files. Moving to $SiteHomeBase..."
             Move-Item -Path $SiteSrc -Destination $SiteHomeBase -Force -Verbose
         }
         else {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - $SiteSrc contains file(s) with error(s). Not moving files."
+            Write-Output "[FileMoving] $(Get-Timestamp) - $SiteSrc contains file(s) with error(s). Not moving files."
         }
         # Filebot
         if (($Filebot -and $VSVMKVCount -eq $VSVTotCount) -or ($Filebot -and !($MKVMerge))) {
@@ -1095,10 +1080,46 @@ if ($Site) {
         else {
             Write-Output "[Filebot] $(Get-Timestamp) - Not running Filebot."
         }
+        # Plex
+        if ($PlexHost -and $PlexToken -and $PlexLibId) {
+            Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
+            $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
+            Invoke-WebRequest -Uri $PlexUrl | Out-Null
+        }
+        else {
+            Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
+        }
+        $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count
+        $TM = Get-SiteSeriesEpisode
+        # Telegram
+        if ($SendTelegram) {
+            Write-Output "[Telegram] $(Get-Timestamp) - Preparing Telegram message."
+            if ($PlexHost -and $PlexToken -and $PlexLibId) {
+                if ($Filebot -or !($Filebot) -and $MKVMerge) {
+                    if ( $VSVFBCount -eq $VSVMKVCount -or !($Filebot) -and $MKVMerge) {
+                        Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome. Success."
+                        $TM += 'All files added to PLEX.'
+                        Write-Output $TM
+                        Send-Telegram -STMessage $TM
+                    }
+                    else {
+                        Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome. Failure."
+                        $TM += 'Not all files added to PLEX.'
+                        Write-Output $TM
+                        Send-Telegram -STMessage $TM
+                    }
+                }
+            }
+            else {
+                Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome."
+                Write-Output $TM
+                Send-Telegram -STMessage $TM
+            }
+        }
         Write-Output "[VideoList] $(Get-Timestamp) - Final file status:"
         $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } } , `
         @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, `
-        @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap 
+        @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
     }
     else {
         Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded. Skipping other defined steps."
@@ -1126,7 +1147,7 @@ if ($Site) {
         }
     }
     # Cleanup
-    Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch 
+    Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch
     Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
     Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
     Write-Output "[END] $(Get-Timestamp) - Script completed"
