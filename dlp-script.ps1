@@ -1095,7 +1095,6 @@ if ($Site) {
         if ($SendTelegram) {
             Write-Output "[Telegram] $(Get-Timestamp) - Preparing Telegram message."
             if ($PlexHost -and $PlexToken -and $PlexLibId) {
-                if ($Filebot -or !($Filebot) -and $MKVMerge) {
                     if ( $VSVFBCount -eq $VSVMKVCount -or !($Filebot) -and $MKVMerge) {
                         Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome. Success."
                         $TM += 'All files added to PLEX.'
@@ -1108,7 +1107,6 @@ if ($Site) {
                         Write-Output $TM
                         Send-Telegram -STMessage $TM
                     }
-                }
             }
             else {
                 Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome."
