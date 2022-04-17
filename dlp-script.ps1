@@ -142,6 +142,7 @@ class VideoStatus {
     [string]$_VSEpisodeTemp
     [string]$_VSEpisodePath
     [string]$_VSEpisodeSubtitle
+    [string]$_VSEpisodeSubtitleBase
     [string]$_VSEpisodeFBPath
     [string]$_VSEpisodeSubFBPath
     [bool]$_VSSECompleted
@@ -149,7 +150,8 @@ class VideoStatus {
     [bool]$_VSFBCompleted
     [bool]$_VSErrored
     
-    VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSEpisodeRaw, [string]$VSEpisodeTemp, [string]$VSEpisodePath, [string]$VSEpisodeSubtitle, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
+    VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSEpisodeRaw, [string]$VSEpisodeTemp, [string]$VSEpisodePath, [string]$VSEpisodeSubtitle, `
+            [string]$VSEpisodeSubtitleBase, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
         $this._VSSite = $VSSite
         $this._VSSeries = $VSSeries
         $this._VSEpisode = $VSEpisode
@@ -157,6 +159,7 @@ class VideoStatus {
         $this._VSEpisodeTemp = $VSEpisodeTemp
         $this._VSEpisodePath = $VSEpisodePath
         $this._VSEpisodeSubtitle = $VSEpisodeSubtitle
+        $this._VSEpisodeSubtitleBase = $VSEpisodeSubtitleBase
         $this._VSEpisodeFBPath = $VSEpisodeFBPath
         $this._VSEpisodeSubFBPath = $VSEpisodeSubFBPath
         $this._VSSECompleted = $VSSECompleted
@@ -778,6 +781,10 @@ if ($Site) {
         $SiteConfig = $SiteFolder + '\yt-dlp.conf'
         $LFolderBase = "$SiteFolder\log\"
         $LFile = "$SiteFolder\log\$Date\$DateTime.log"
+        if ($SrcDrive -eq $TempDrive) {
+            Write-Output "[Setup] $(Get-Timestamp) - Src($SrcDrive) and Temp($TempDrive) Directories cannot be the same"
+            Exit
+        }
         Start-Transcript -Path $LFile -UseMinimalHeader
         if ((Test-Path -Path $SiteConfig)) {
             Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
@@ -1003,11 +1010,22 @@ if ($Site) {
             $VSEpisodeRaw = $_.BaseName
             $VSEpisodeTemp = $_.DirectoryName + "\$VSEpisodeRaw.temp" + $_.Extension
             $VSEpisodePath = $_.FullName
-            $VSEpisodeSubtitle = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1).FullName
+            Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 | ForEach-Object {
+                if ($_ -ne '') {
+                    $VSEpisodeSubtitle = $_.FullName
+                    $VSEpisodeSubtitleBase = $_.Name
+                    $VSEpisodeSubFBPath = $VSEpisodeSubtitle.Replace($SiteSrc, $SiteHome)
+                }
+                else {
+                    $VSEpisodeSubtitle = ''
+                    $VSEpisodeSubtitleBase = ''
+                    $VSEpisodeSubFBPath = ''
+                }
+            }
             $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $SiteHome)
-            $VSEpisodeSubFBPath = $VSEpisodeSubtitle.Replace($SiteSrc, $SiteHome)
             foreach ($i in $_) {
-                $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSEpisodeRaw, $VSEpisodeTemp, $VSEpisodePath, $VSEpisodeSubtitle, $VSEpisodeFBPath, $VSEpisodeSubFBPath, $VSSECompleted, $VSMKVCompleted, $VSFBCompleted, $VSErrored)
+                $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSEpisodeRaw, $VSEpisodeTemp, $VSEpisodePath, $VSEpisodeSubtitle, $VSEpisodeSubtitleBase, $VSEpisodeFBPath, `
+                        $VSEpisodeSubFBPath, $VSSECompleted, $VSMKVCompleted, $VSFBCompleted, $VSErrored)
                 [void]$VSCompletedFilesList.Add($VideoStatus)
             }
         }
@@ -1095,7 +1113,8 @@ if ($Site) {
         if ($SendTelegram) {
             Write-Output "[Telegram] $(Get-Timestamp) - Preparing Telegram message."
             if ($PlexHost -and $PlexToken -and $PlexLibId) {
-                    if ( $VSVFBCount -eq $VSVMKVCount -or !($Filebot) -and $MKVMerge) {
+                if ($Filebot -or !($Filebot) -and $MKVMerge) {
+                    if (($VSVFBCount -gt 0 -and $VSVMKVCount -gt 0 -and $VSVFBCount -eq $VSVMKVCount) -or (!($Filebot) -and $MKVMerge -and $VSVMKVCount -gt 0)) {
                         Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome. Success."
                         $TM += 'All files added to PLEX.'
                         Write-Output $TM
@@ -1107,6 +1126,7 @@ if ($Site) {
                         Write-Output $TM
                         Send-Telegram -STMessage $TM
                     }
+                }
             }
             else {
                 Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome."
@@ -1115,8 +1135,9 @@ if ($Site) {
             }
         }
         Write-Output "[VideoList] $(Get-Timestamp) - Final file status:"
-        $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } } , `
-        @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, `
+        $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, `
+        @{Label = 'EpisodeSubtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, `
+        @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, `
         @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
     }
     else {
@@ -1150,5 +1171,9 @@ if ($Site) {
     Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
     Write-Output "[END] $(Get-Timestamp) - Script completed"
     Stop-Transcript
+    ((Get-Content $LFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content $LFile
     Remove-Spaces $LFile
+    if ($VSVTotCount -gt 0) {
+        Rename-Item -Path $LFile -NewName "$DateTime-Total-$VSVTotCount.log"
+    }
 }
