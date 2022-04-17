@@ -431,6 +431,10 @@ $xmlconfig = @'
         <dest location="" />
         <ffmpeg location="" />
     </Directory>
+    <Logs>
+        <emptylogs keepdays=""/>
+        <filledlogs keepdays=""/>
+    </Logs>
     <Plex>
         <hosturl url="" />
         <plextoken token="" />
@@ -556,7 +560,7 @@ $crunchyrollconfig = @'
 --convert-thumbnails 'png'
 --remux-video 'mkv'
 -N 32
---match-filter "season!~='\(.*\)'"
+--match-filter "season!~='\(.* Dub\)'"
 --downloader aria2c
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv[height>=1080]+ba[height>=1080] / bv+ba / b*'
@@ -735,6 +739,8 @@ if ($Site) {
     $SrcDrive = $ConfigFile.configuration.Directory.src.location
     $DestDrive = $ConfigFile.configuration.Directory.dest.location
     $Ffmpeg = $ConfigFile.configuration.Directory.ffmpeg.location
+    [int]$EmptyLogs = $ConfigFile.configuration.Logs.emptylogs.keepdays
+    [int]$FilledLogs = $ConfigFile.configuration.Logs.filledlogs.keepdays
     $PlexHost = $ConfigFile.configuration.Plex.hosturl.url
     $PlexToken = $ConfigFile.configuration.Plex.plextoken.token
     $PlexLibrary = $ConfigFile.SelectNodes(('//library[@folder]')) | Where-Object { $_.libraryid -eq $SiteLib }
@@ -987,13 +993,21 @@ if ($Site) {
         foreach ($c in $CreateFolders) {
             Set-Folders $c
         }
-        $limit = (Get-Date).AddDays(-1)
+        # Log cleanup
+        $FilledLogslimit = (Get-Date).AddDays(-$FilledLogs)
+        $EmptyLogslimit = (Get-Date).AddDays(-$EmptyLogs)
         if (!(Test-Path $LFolderBase)) {
             Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup..."
         }
         else {
-            Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting log cleanup..."
-            Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.CreationTime -lt $limit } | ForEach-Object {
+            Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting Filledlog($FilledLogs) cleanup..."
+            Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.CreationTime -lt $FilledLogslimit } | `
+                ForEach-Object {
+                $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+            }
+            Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting emptylog($EmptyLogs) cleanup..."
+            Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $EmptyLogslimit } | `
+                ForEach-Object {
                 $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
             }
             & $DeleteRecursion -DRPath $LFolderBase
