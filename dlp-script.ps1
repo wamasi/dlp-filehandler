@@ -913,7 +913,7 @@ if ($Site) {
         $dlpParams = $dlpParams + ' --no-download-archive'
         $dlpArray += "`"--no-download-archive`""
     }
-    if ($SubtitleEdit) {
+    if ($SubtitleEdit -or $MKVMerge) {
         Write-Output $SiteConfig
         if (Select-String -Path $SiteConfig '--write-subs' -SimpleMatch -Quiet) {
             Write-Output "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is in config. Continuing..."
@@ -922,12 +922,9 @@ if ($Site) {
             Write-Output "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting..."
             Exit
         }
-    }
-    else {
-        Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
-    }
-    Select-String -Path $SiteConfig -Pattern '--convert-subs.*' | ForEach-Object {
-        $SubType = '*.' + ($_ -split ' ')[1]
+        $SType = Select-String -Path $SiteConfig -Pattern '--convert-subs.*' | Select-Object -First 1
+    if ($null -ne $SType) {
+        $SubType = '*.' + ($SType -split ' ')[1]
         $SubType = $SubType.Replace("'", '').Replace('"', '')
         if ($SubType -eq '*.ass') {
             Write-Output "$(Get-Timestamp) - Using $SubType. Continuing..."
@@ -937,8 +934,13 @@ if ($Site) {
             exit
         }
     }
-    Select-String -Path $SiteConfig -Pattern '--remux-video.*' | ForEach-Object {
-        $VidType = '*.' + ($_ -split ' ')[1]
+    else {
+        Write-Output "$(Get-Timestamp) - --convert-subs parameter is missing. Exiting..."
+        exit
+    }
+    $Vtype = Select-String -Path $SiteConfig -Pattern '--remux-video.*' | Select-Object -First 1
+    if ($null -ne $Vtype) {
+        $VidType = '*.' + ($Vtype -split ' ')[1]
         $VidType = $VidType.Replace("'", '').Replace('"', '')
         if ($VidType -eq '*.mkv') {
             Write-Output "$(Get-Timestamp) - Using $VidType. Continuing..."
@@ -948,16 +950,23 @@ if ($Site) {
             exit
         }
     }
-    Select-String -Path $SiteConfig -Pattern '--write-subs.*' | ForEach-Object {
-        $SubWrite = ($_)
-        if ($SubWrite -ne '') {
-            Write-Output "$(Get-Timestamp) - SubWrite($SubWrite) is in config. Continuing..."
+    else {
+        Write-Output "$(Get-Timestamp) - --remux-video parameter is missing. Exiting..."
+        exit
+    }
+    $Wsub = Select-String -Path $SiteConfig -Pattern '--write-subs.*' | Select-Object -First 1
+    if ($null -ne $Wsub) {
+            Write-Output "$(Get-Timestamp) - --write-subs is in config. Continuing..."
         }
         else {
             Write-Output "$(Get-Timestamp) - SubSubWrite is missing. Exiting..."
             exit
         }
     }
+    else {
+        Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
+    }
+    
     $DebugVars = [ordered]@{Site = $SiteName; isDaily = $Daily; UseLogin = $Login; UseCookies = $Cookies; UseArchive = $Archive; SubtitleEdit = $SubtitleEdit; `
             MKVMerge = $MKVMerge; Filebot = $Filebot; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; `
             SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBase = $SiteSrcBase; `
@@ -1001,7 +1010,7 @@ if ($Site) {
         }
         else {
             Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting Filledlog($FilledLogs) cleanup..."
-            Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.CreationTime -lt $FilledLogslimit } | `
+            Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $FilledLogslimit } | `
                 ForEach-Object {
                 $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
             }
@@ -1024,18 +1033,16 @@ if ($Site) {
             $VSEpisodeRaw = $_.BaseName
             $VSEpisodeTemp = $_.DirectoryName + "\$VSEpisodeRaw.temp" + $_.Extension
             $VSEpisodePath = $_.FullName
-            Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 | ForEach-Object {
-                if ($_ -ne '') {
-                    $VSEpisodeSubtitle = $_.FullName
-                    $VSEpisodeSubtitleBase = $_.Name
-                    $VSEpisodeSubFBPath = $VSEpisodeSubtitle.Replace($SiteSrc, $SiteHome)
-                }
-                else {
-                    $VSEpisodeSubtitle = ''
-                    $VSEpisodeSubtitleBase = ''
-                    $VSEpisodeSubFBPath = ''
-                }
+            $VSEpisodeSubtitle = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).FullName
+            if ($VSEpisodeSubtitle -ne '') {
+                $VSEpisodeSubtitleBase = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).Name
+                $VSEpisodeSubFBPath = $VSEpisodeSubtitle.Replace($SiteSrc, $SiteHome)
             }
+            else {
+                $VSEpisodeSubtitleBase = ''
+                $VSEpisodeSubFBPath = ''
+            }
+            
             $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $SiteHome)
             foreach ($i in $_) {
                 $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSEpisodeRaw, $VSEpisodeTemp, $VSEpisodePath, $VSEpisodeSubtitle, $VSEpisodeSubtitleBase, $VSEpisodeFBPath, `
