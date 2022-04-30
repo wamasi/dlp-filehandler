@@ -145,13 +145,14 @@ class VideoStatus {
     [string]$_VSEpisodeSubtitleBase
     [string]$_VSEpisodeFBPath
     [string]$_VSEpisodeSubFBPath
+    [string]$_VSOverridePath
     [bool]$_VSSECompleted
     [bool]$_VSMKVCompleted
     [bool]$_VSFBCompleted
     [bool]$_VSErrored
     
     VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSEpisodeRaw, [string]$VSEpisodeTemp, [string]$VSEpisodePath, [string]$VSEpisodeSubtitle, `
-            [string]$VSEpisodeSubtitleBase, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
+            [string]$VSEpisodeSubtitleBase, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [string]$VSOverridePath, [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
         $this._VSSite = $VSSite
         $this._VSSeries = $VSSeries
         $this._VSEpisode = $VSEpisode
@@ -162,6 +163,7 @@ class VideoStatus {
         $this._VSEpisodeSubtitleBase = $VSEpisodeSubtitleBase
         $this._VSEpisodeFBPath = $VSEpisodeFBPath
         $this._VSEpisodeSubFBPath = $VSEpisodeSubFBPath
+        $this._VSOverridePath = $VSOverridePath
         $this._VSSECompleted = $VSSECompleted
         $this._VSMKVCompleted = $VSMKVCompleted
         $this._VSFBCompleted = $VSFBCompleted
@@ -169,6 +171,18 @@ class VideoStatus {
     }
 }
 [System.Collections.ArrayList]$VSCompletedFilesList = @()
+
+class OverrideSeriesPath {
+    [string]$_OR_Series
+    [string]$_OR_Drive
+    
+    OverrideSeriesPath([string]$OverrideSeries, [string]$OverrideDrive) {
+        $this._OR_Series = $OverrideSeries
+        $this._OR_Drive = $OverrideDrive
+    }
+}
+[System.Collections.ArrayList]$OverrideSeriesList = @()
+
 # Update SE/MKV/FB true false
 function Set-VideoStatus {
     param (
@@ -316,15 +330,25 @@ function Start-Filebot {
         [string]$FBPath
     )
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to rename and move to final folder."
-    $VSCompletedFilesList | Select-Object _VSEpisodeFBPath, _VSEpisodeRaw, _VSEpisodeSubFBPath | ForEach-Object {
+    $VSCompletedFilesList | Select-Object _VSEpisodeFBPath, _VSEpisodeRaw, _VSEpisodeSubFBPath, _VSOverridePath | ForEach-Object {
         $FBVidInput = $_._VSEpisodeFBPath
         $FBSubInput = $_._VSEpisodeSubFBPath
         $FBVidBaseName = $_._VSEpisodeRaw
+        $FBOverrideDrive = $_._VSOverridePath
         if ($PlexLibPath) {
-            Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder."
-            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
-            if (!($MKVMerge)) {
-                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
+            if ($FBOverrideDrive -eq '') {
+                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder. No Overide path."
+                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
+                if (!($MKVMerge)) {
+                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
+                }
+            }
+            else {
+                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder. Using Override path."
+                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBOverrideDrive\Videos\$PlexLibPath\{ plex.tail }" --log info
+                if (!($MKVMerge)) {
+                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBOverrideDrive\Videos\$PlexLibPath\{ plex.tail }" --log info
+                }
             }
         }
         else {
@@ -442,6 +466,12 @@ $xmlconfig = @'
         <library libraryid="" folder="" />
         <library libraryid="" folder="" />
     </Plex>
+    <override id="">
+        <orSrcdrive></orSrcdrive>
+    </override>
+    <override id="">
+        <orSrcdrive></orSrcdrive>
+    </override>
     <Telegram>
         <token></token>
         <chatid></chatid>
@@ -746,6 +776,13 @@ if ($Site) {
     $PlexLibrary = $ConfigFile.SelectNodes(('//library[@folder]')) | Where-Object { $_.libraryid -eq $SiteLib }
     $PlexLibPath = $PlexLibrary.Attributes[1].'#text'
     $PlexLibId = $PlexLibrary.Attributes[0].'#text'
+    $ConfigFile.getElementsByTagName('override') | Select-Object 'id', 'orSrcdrive' | ForEach-Object {
+        $OverrideSeries = $_.id
+        $OverrideDrive = $_.orSrcdrive
+        $OverrideSeriesPath = [OverrideSeriesPath]::new($OverrideSeries, $OverrideDrive)
+        [void]$OverrideSeriesList.Add($OverrideSeriesPath)
+    }
+    
     $Telegramtoken = $ConfigFile.configuration.Telegram.token
     $Telegramchatid = $ConfigFile.configuration.Telegram.chatid
     if ($SubFont.Trim() -ne '') {
@@ -923,39 +960,39 @@ if ($Site) {
             Exit
         }
         $SType = Select-String -Path $SiteConfig -Pattern '--convert-subs.*' | Select-Object -First 1
-    if ($null -ne $SType) {
-        $SubType = '*.' + ($SType -split ' ')[1]
-        $SubType = $SubType.Replace("'", '').Replace('"', '')
-        if ($SubType -eq '*.ass') {
-            Write-Output "$(Get-Timestamp) - Using $SubType. Continuing..."
+        if ($null -ne $SType) {
+            $SubType = '*.' + ($SType -split ' ')[1]
+            $SubType = $SubType.Replace("'", '').Replace('"', '')
+            if ($SubType -eq '*.ass') {
+                Write-Output "$(Get-Timestamp) - Using $SubType. Continuing..."
+            }
+            else {
+                Write-Output "$(Get-Timestamp) - Subtype(ass) is missing. Exiting..."
+                exit
+            }
         }
         else {
-            Write-Output "$(Get-Timestamp) - Subtype(ass) is missing. Exiting..."
+            Write-Output "$(Get-Timestamp) - --convert-subs parameter is missing. Exiting..."
             exit
         }
-    }
-    else {
-        Write-Output "$(Get-Timestamp) - --convert-subs parameter is missing. Exiting..."
-        exit
-    }
-    $Vtype = Select-String -Path $SiteConfig -Pattern '--remux-video.*' | Select-Object -First 1
-    if ($null -ne $Vtype) {
-        $VidType = '*.' + ($Vtype -split ' ')[1]
-        $VidType = $VidType.Replace("'", '').Replace('"', '')
-        if ($VidType -eq '*.mkv') {
-            Write-Output "$(Get-Timestamp) - Using $VidType. Continuing..."
+        $Vtype = Select-String -Path $SiteConfig -Pattern '--remux-video.*' | Select-Object -First 1
+        if ($null -ne $Vtype) {
+            $VidType = '*.' + ($Vtype -split ' ')[1]
+            $VidType = $VidType.Replace("'", '').Replace('"', '')
+            if ($VidType -eq '*.mkv') {
+                Write-Output "$(Get-Timestamp) - Using $VidType. Continuing..."
+            }
+            else {
+                Write-Output "$(Get-Timestamp) - VidType(mkv) is missing. Exiting..."
+                exit
+            }
         }
         else {
-            Write-Output "$(Get-Timestamp) - VidType(mkv) is missing. Exiting..."
+            Write-Output "$(Get-Timestamp) - --remux-video parameter is missing. Exiting..."
             exit
         }
-    }
-    else {
-        Write-Output "$(Get-Timestamp) - --remux-video parameter is missing. Exiting..."
-        exit
-    }
-    $Wsub = Select-String -Path $SiteConfig -Pattern '--write-subs.*' | Select-Object -First 1
-    if ($null -ne $Wsub) {
+        $Wsub = Select-String -Path $SiteConfig -Pattern '--write-subs.*' | Select-Object -First 1
+        if ($null -ne $Wsub) {
             Write-Output "$(Get-Timestamp) - --write-subs is in config. Continuing..."
         }
         else {
@@ -979,6 +1016,7 @@ if ($Site) {
     if ($TestScript) {
         Write-Output "[START] $DateTime - $SiteNameRaw - DEBUG Run"
         $DebugVars
+        $OverrideSeriesList
         Write-Output 'dlpArray:'
         $dlpArray
         Write-Output "[End] $DateTime - Debugging enabled. Exiting..."
@@ -996,6 +1034,7 @@ if ($Site) {
             Write-Output "[START] $DateTime - $SiteNameRaw - Manual Run"
         }
         $DebugVars
+        $OverrideSeriesList
         Write-Output 'dlpArray:'
         $dlpArray
         $CreateFolders = $TempDrive, $SrcDrive, $BackupDrive, $SrcBackup, $SiteConfigBackup, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
@@ -1042,11 +1081,11 @@ if ($Site) {
                 $VSEpisodeSubtitleBase = ''
                 $VSEpisodeSubFBPath = ''
             }
-            
             $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $SiteHome)
+            $VSOverridePath = $OverrideSeriesList | Where-Object { $_._OR_Series.ToLower() -eq $VSSeries.ToLower() } | Select-Object -ExpandProperty _OR_Drive
             foreach ($i in $_) {
                 $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSEpisodeRaw, $VSEpisodeTemp, $VSEpisodePath, $VSEpisodeSubtitle, $VSEpisodeSubtitleBase, $VSEpisodeFBPath, `
-                        $VSEpisodeSubFBPath, $VSSECompleted, $VSMKVCompleted, $VSFBCompleted, $VSErrored)
+                        $VSEpisodeSubFBPath, $VSOverridePath, $VSSECompleted, $VSMKVCompleted, $VSFBCompleted, $VSErrored)
                 [void]$VSCompletedFilesList.Add($VideoStatus)
             }
         }
@@ -1157,7 +1196,7 @@ if ($Site) {
         }
         Write-Output "[VideoList] $(Get-Timestamp) - Final file status:"
         $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, `
-        @{Label = 'EpisodeSubtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, `
+        @{Label = 'EpisodeSubtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, @{Label = 'EpisodeOverrideDrive'; Expression = { $_._VSOverridePath } }, @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, `
         @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, `
         @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
     }
