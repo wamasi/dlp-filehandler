@@ -337,16 +337,18 @@ function Start-Filebot {
         $FBOverrideDrive = $_._VSOverridePath
         if ($PlexLibPath) {
             if ($FBOverrideDrive -eq '') {
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder. No Overide path."
+                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. No Override path."
                 filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
                 if (!($MKVMerge)) {
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming subtitle and moving files to final folder. No Override path."
                     filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
                 }
             }
             else {
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming and moving files to final folder. Using Override path."
+                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. Using Override path($FBOverrideDrive)."
                 filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBOverrideDrive\Videos\$PlexLibPath\{ plex.tail }" --log info
                 if (!($MKVMerge)) {
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming subtitle and moving files to final folder. Using Override path($FBOverrideDrive)."
                     filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBOverrideDrive\Videos\$PlexLibPath\{ plex.tail }" --log info
                 }
             }
@@ -456,8 +458,8 @@ $xmlconfig = @'
         <ffmpeg location="" />
     </Directory>
     <Logs>
-        <emptylogs keepdays=""/>
-        <filledlogs keepdays=""/>
+        <emptylogs keepdays="" />
+        <filledlogs keepdays="" />
     </Logs>
     <Plex>
         <hosturl url="" />
@@ -466,12 +468,14 @@ $xmlconfig = @'
         <library libraryid="" folder="" />
         <library libraryid="" folder="" />
     </Plex>
-    <override id="">
-        <orSrcdrive></orSrcdrive>
-    </override>
-    <override id="">
-        <orSrcdrive></orSrcdrive>
-    </override>
+    <Filebot>
+        <override id="">
+            <orSrcdrive></orSrcdrive>
+        </override>
+        <override id="">
+            <orSrcdrive></orSrcdrive>
+        </override>
+    </Filebot>
     <Telegram>
         <token></token>
         <chatid></chatid>
@@ -782,7 +786,6 @@ if ($Site) {
         $OverrideSeriesPath = [OverrideSeriesPath]::new($OverrideSeries, $OverrideDrive)
         [void]$OverrideSeriesList.Add($OverrideSeriesPath)
     }
-    
     $Telegramtoken = $ConfigFile.configuration.Telegram.token
     $Telegramchatid = $ConfigFile.configuration.Telegram.chatid
     if ($SubFont.Trim() -ne '') {
@@ -1003,7 +1006,6 @@ if ($Site) {
     else {
         Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
     }
-    
     $DebugVars = [ordered]@{Site = $SiteName; isDaily = $Daily; UseLogin = $Login; UseCookies = $Cookies; UseArchive = $Archive; SubtitleEdit = $SubtitleEdit; `
             MKVMerge = $MKVMerge; Filebot = $Filebot; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; `
             SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBase = $SiteSrcBase; `
@@ -1033,10 +1035,13 @@ if ($Site) {
         else {
             Write-Output "[START] $DateTime - $SiteNameRaw - Manual Run"
         }
+        Write-Output 'Debug Vars:'
         $DebugVars
+        Write-Output 'Series Drive Overrides:'
         $OverrideSeriesList
         Write-Output 'dlpArray:'
         $dlpArray
+        # Create folders
         $CreateFolders = $TempDrive, $SrcDrive, $BackupDrive, $SrcBackup, $SiteConfigBackup, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
         foreach ($c in $CreateFolders) {
             Set-Folders $c
