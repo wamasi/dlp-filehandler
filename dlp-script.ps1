@@ -337,19 +337,21 @@ function Start-Filebot {
         $FBOverrideDrive = $_._VSOverridePath
         if ($PlexLibPath) {
             if ($FBOverrideDrive -eq '') {
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. No Override path."
-                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
+                $FBParams = $DestDriveRoot + "$FBBaseFolder\$PlexLibPath\{ plex.tail }"
+                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. No Override path($FBParams)."
+                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format $FBParams --log info
                 if (!($MKVMerge)) {
-                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming subtitle and moving files to final folder. No Override path."
-                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "{drive}\Videos\$PlexLibPath\{ plex.tail }" --log info
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming subtitle and moving files to final folder. No Override path($FBParams)."
+                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format $FBParams --log info
                 }
             }
             else {
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. Using Override path($FBOverrideDrive)."
-                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBOverrideDrive\Videos\$PlexLibPath\{ plex.tail }" --log info
+                $FBParams = $FBOverrideDrive + "$FBBaseFolder\$PlexLibPath\{ plex.tail }"
+                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. Using Override path($FBParams)."
+                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format $FBParams --log info
                 if (!($MKVMerge)) {
-                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming subtitle and moving files to final folder. Using Override path($FBOverrideDrive)."
-                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBOverrideDrive\Videos\$PlexLibPath\{ plex.tail }" --log info
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming subtitle and moving files to final folder. Using Override path($FBParams)."
+                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format $FBParams --log info
                 }
             }
         }
@@ -469,6 +471,7 @@ $xmlconfig = @'
         <library libraryid="" folder="" />
     </Plex>
     <Filebot>
+        <fbfolder name="" />
         <override id="">
             <orSrcdrive></orSrcdrive>
         </override>
@@ -772,6 +775,7 @@ if ($Site) {
     $TempDrive = $ConfigFile.configuration.Directory.temp.location
     $SrcDrive = $ConfigFile.configuration.Directory.src.location
     $DestDrive = $ConfigFile.configuration.Directory.dest.location
+    $DestDriveRoot = [System.IO.path]::GetPathRoot($DestDrive)
     $Ffmpeg = $ConfigFile.configuration.Directory.ffmpeg.location
     [int]$EmptyLogs = $ConfigFile.configuration.Logs.emptylogs.keepdays
     [int]$FilledLogs = $ConfigFile.configuration.Logs.filledlogs.keepdays
@@ -780,9 +784,10 @@ if ($Site) {
     $PlexLibrary = $ConfigFile.SelectNodes(('//library[@folder]')) | Where-Object { $_.libraryid -eq $SiteLib }
     $PlexLibPath = $PlexLibrary.Attributes[1].'#text'
     $PlexLibId = $PlexLibrary.Attributes[0].'#text'
+    $FBBaseFolder = $ConfigFile.configuration.Filebot.fbfolder.name
     $ConfigFile.getElementsByTagName('override') | Select-Object 'id', 'orSrcdrive' | ForEach-Object {
         $OverrideSeries = $_.id
-        $OverrideDrive = $_.orSrcdrive
+        $OverrideDrive = [System.IO.path]::GetPathRoot(($_.orSrcdrive).trim())
         $OverrideSeriesPath = [OverrideSeriesPath]::new($OverrideSeries, $OverrideDrive)
         [void]$OverrideSeriesList.Add($OverrideSeriesPath)
     }
