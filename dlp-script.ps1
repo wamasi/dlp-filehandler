@@ -172,17 +172,6 @@ class VideoStatus {
 }
 [System.Collections.ArrayList]$VSCompletedFilesList = @()
 
-class OverrideSeriesPath {
-    [string]$_OR_Series
-    [string]$_OR_Drive
-    
-    OverrideSeriesPath([string]$OverrideSeries, [string]$OverrideDrive) {
-        $this._OR_Series = $OverrideSeries
-        $this._OR_Drive = $OverrideDrive
-    }
-}
-[System.Collections.ArrayList]$OverrideSeriesList = @()
-
 # Update SE/MKV/FB true false
 function Set-VideoStatus {
     param (
@@ -230,7 +219,6 @@ function Get-SiteSeriesEpisode {
         $SeriesMessage = '<b>Series:</b> ' + $_.Series + "`n<b>Episode:</b>`n" + $EpList
         $Telegrammessage += $SeriesMessage + "`n"
     }
-    Write-Host $Telegrammessage
     return $Telegrammessage
 }
 # Sending To telegram for new file notifications
@@ -337,7 +325,7 @@ function Start-Filebot {
         $FBOverrideDrive = $_._VSOverridePath
         if ($PlexLibPath) {
             if ($FBOverrideDrive -eq '') {
-                $FBParams = $DestDriveRoot + "$FBBaseFolder\$PlexLibPath\{ plex.tail }"
+                $FBParams = $DestDriveRoot + "$FBBaseFolder\$PlexLibPath\$FBArgument"
                 Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. No Override path($FBParams)."
                 filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format $FBParams --log info
                 if (!($MKVMerge)) {
@@ -346,7 +334,7 @@ function Start-Filebot {
                 }
             }
             else {
-                $FBParams = $FBOverrideDrive + "$FBBaseFolder\$PlexLibPath\{ plex.tail }"
+                $FBParams = $FBOverrideDrive + "$FBBaseFolder\$PlexLibPath\$FBArgument"
                 Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. Using Override path($FBParams)."
                 filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format $FBParams --log info
                 if (!($MKVMerge)) {
@@ -357,9 +345,9 @@ function Start-Filebot {
         }
         else {
             Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place."
-            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format '{ plex.tail }' --log info
+            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format $FBArgument --log info
             if (!($MKVMerge)) {
-                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format '{ plex.tail }' --log info
+                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format $FBArgument --log info
             }
         }
         if (!(Test-Path $FBVidInput)) {
@@ -472,10 +460,11 @@ $xmlconfig = @'
     </Plex>
     <Filebot>
         <fbfolder name="" />
-        <override id="">
+        <fbarg arg="" />
+        <override orSeriesName="">
             <orSrcdrive></orSrcdrive>
         </override>
-        <override id="">
+        <override orSeriesName="">
             <orSrcdrive></orSrcdrive>
         </override>
     </Filebot>
@@ -745,32 +734,40 @@ if ($Site) {
     $DateTime = Get-TimeStamp
     $Time = Get-Time
     $site = $site.ToLower()
+    # Reading from XML
     $ConfigPath = "$ScriptDirectory\config.xml"
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
-    $SNfile = $ConfigFile.getElementsByTagName('site') | Select-Object 'id', 'username', 'password', 'libraryid', 'font' | Where-Object { $_.id.ToLower() -eq "$site" }
-    foreach ($object in $SNfile) {
-        $SN = New-Object -TypeName PSObject -Property @{
-            SN  = $object.id.ToLower()
-            SND = $object.id
-            SUN = $object.username
-            SPW = $object.password
-            SLI = $object.libraryid
-            SFT = $object.font
-        }
-    }
-    $SiteName = $SN.SN
-    $SiteNameRaw = $SN.SND
-    $SiteUser = $SN.SUN
-    $SitePass = $SN.SPW
-    $SiteLib = $SN.SLI
-    $SubFont = $SN.SFT
+    $SNfile = $ConfigFile.configuration.credentials.site | Select-Object 'id', 'username', 'password', 'libraryid', 'font' | Where-Object { $_.id.ToLower() -eq "$site" }
+    $SiteName = $SNfile.id.ToLower()
+    $SiteNameRaw = $SNfile.id
     if ($site -eq $SiteName) {
+        $SiteFolder = "$ScriptDirectory\sites\"
+        if ($Daily) {
+            $SiteType = $SiteName + '_D'
+            $SiteFolder = "$SiteFolder" + $SiteType
+            $LFolderBase = "$SiteFolder\log\"
+            $LFile = "$SiteFolder\log\$Date\$DateTime.log"
+            Start-Transcript -Path $LFile -UseMinimalHeader
+            Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
+        }
+        else {
+            $SiteType = $SiteName
+            $SiteFolder = $SiteFolder + $SiteType
+            $LFolderBase = "$SiteFolder\log\"
+            $LFile = "$SiteFolder\log\$Date\$DateTime.log"
+            Start-Transcript -Path $LFile -UseMinimalHeader
+            Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
+        }
         Write-Output "$(Get-Timestamp) - $site = $SiteName. Continuing..."
     }
     else {
         Write-Output "$(Get-Timestamp) - $site != $SiteName. Exiting..."
         exit
     }
+    $SiteUser = $SNfile.username
+    $SitePass = $SNfile.password
+    $SiteLib = $SNfile.libraryid
+    $SubFont = $SNfile.font
     $BackupDrive = $ConfigFile.configuration.Directory.backup.location
     $TempDrive = $ConfigFile.configuration.Directory.temp.location
     $SrcDrive = $ConfigFile.configuration.Directory.src.location
@@ -781,18 +778,15 @@ if ($Site) {
     [int]$FilledLogs = $ConfigFile.configuration.Logs.filledlogs.keepdays
     $PlexHost = $ConfigFile.configuration.Plex.hosturl.url
     $PlexToken = $ConfigFile.configuration.Plex.plextoken.token
-    $PlexLibrary = $ConfigFile.SelectNodes(('//library[@folder]')) | Where-Object { $_.libraryid -eq $SiteLib }
-    $PlexLibPath = $PlexLibrary.Attributes[1].'#text'
-    $PlexLibId = $PlexLibrary.Attributes[0].'#text'
-    $FBBaseFolder = $ConfigFile.configuration.Filebot.fbfolder.name
-    $ConfigFile.getElementsByTagName('override') | Select-Object 'id', 'orSrcdrive' | ForEach-Object {
-        $OverrideSeries = $_.id
-        $OverrideDrive = [System.IO.path]::GetPathRoot(($_.orSrcdrive).trim())
-        $OverrideSeriesPath = [OverrideSeriesPath]::new($OverrideSeries, $OverrideDrive)
-        [void]$OverrideSeriesList.Add($OverrideSeriesPath)
-    }
+    $PlexLibrary = $ConfigFile.configuration.plex.library | Where-Object { $_.libraryid -eq $SiteLib } | Select-Object libraryid, folder
+    $PlexLibId = $PlexLibrary.libraryid
+    $PlexLibPath = $PlexLibrary.folder
+    $FBBaseFolder = $ConfigFile.configuration.Filebot.fbfolder.fbFolderName
+    $FBArgument = $ConfigFile.configuration.Filebot.fbArgument.fbArg
+    $OverrideSeriesList = $ConfigFile.configuration.Filebot.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
     $Telegramtoken = $ConfigFile.configuration.Telegram.token
     $Telegramchatid = $ConfigFile.configuration.Telegram.chatid
+    # End reading from XML
     if ($SubFont.Trim() -ne '') {
         $SubFontDir = "$FontFolder\$Subfont"
         if (Test-Path $SubFontDir) {
@@ -810,7 +804,6 @@ if ($Site) {
         $SF = 'None'
         Write-Output "$(Get-Timestamp) - $SubFont - No font set for $SiteName."
     }
-    $SiteFolder = "$ScriptDirectory\sites\"
     $SiteShared = "$ScriptDirectory\shared\"
     $SrcBackup = "$BackupDrive\_Backup\"
     $SrcDriveShared = "$SrcBackup" + 'shared\'
@@ -818,8 +811,6 @@ if ($Site) {
     $dlpParams = 'yt-dlp'
     $dlpArray = @()
     if ($Daily) {
-        $SiteType = $SiteName + '_D'
-        $SiteFolder = "$SiteFolder" + $SiteType
         $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1)
         $SiteTempBaseMatch = $SiteTempBase.Replace('\', '\\')
         $SiteTemp = "$SiteTempBase\$Time"
@@ -830,15 +821,11 @@ if ($Site) {
         $SiteHomeBaseMatch = $SiteHomeBase.Replace('\', '\\')
         $SiteHome = "$SiteHomeBase\$Time"
         $SiteConfig = $SiteFolder + '\yt-dlp.conf'
-        $LFolderBase = "$SiteFolder\log\"
-        $LFile = "$SiteFolder\log\$Date\$DateTime.log"
         if ($SrcDrive -eq $TempDrive) {
             Write-Output "[Setup] $(Get-Timestamp) - Src($SrcDrive) and Temp($TempDrive) Directories cannot be the same"
             Exit
         }
-        Start-Transcript -Path $LFile -UseMinimalHeader
         if ((Test-Path -Path $SiteConfig)) {
-            Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
             Write-Output "$(Get-Timestamp) - $SiteConfig file found. Continuing..."
             $dlpParams = $dlpParams + " --config-location $SiteConfig -P temp:$SiteTemp -P home:$SiteSrc"
             $dlpArray += "`"--config-location`"", "`"$SiteConfig`"", "`"-P`"", "`"temp:$SiteTemp`"", "`"-P`"", "`"home:$SiteSrc`""
@@ -849,8 +836,6 @@ if ($Site) {
         }
     }
     else {
-        $SiteType = $SiteName
-        $SiteFolder = $SiteFolder + $SiteType
         $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1) + 'M'
         $SiteTempBaseMatch = $SiteTempBase.Replace('\', '\\')
         $SiteTemp = "$SiteTempBase\$Time"
@@ -861,11 +846,7 @@ if ($Site) {
         $SiteHomeBaseMatch = $SiteHomeBase.Replace('\', '\\')
         $SiteHome = "$SiteHomeBase\$Time"
         $SiteConfig = $SiteFolder + '\yt-dlp.conf'
-        $LFolderBase = "$SiteFolder\log\"
-        $LFile = "$SiteFolder\log\$Date\$DateTime.log"
-        Start-Transcript -Path $LFile -UseMinimalHeader
         if ((Test-Path -Path $SiteConfig)) {
-            Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
             Write-Output "$(Get-Timestamp) - $SiteConfig file found. Continuing..."
             $dlpParams = $dlpParams + " --config-location $SiteConfig -P temp:$SiteTemp -P home:$SiteSrc"
             $dlpArray += "`"--config-location`"", "`"$SiteConfig`"", "`"-P`"", "`"temp:$SiteTemp`"", "`"-P`"", "`"home:$SiteSrc`""
@@ -959,9 +940,8 @@ if ($Site) {
         $dlpArray += "`"--no-download-archive`""
     }
     if ($SubtitleEdit -or $MKVMerge) {
-        Write-Output $SiteConfig
         if (Select-String -Path $SiteConfig '--write-subs' -SimpleMatch -Quiet) {
-            Write-Output "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is in config. Continuing..."
+            Write-Output "$(Get-Timestamp) - SubtitleEdit or MKVMerge is true and --write-subs is in config. Continuing..."
         }
         else {
             Write-Output "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting..."
@@ -1092,7 +1072,7 @@ if ($Site) {
                 $VSEpisodeSubFBPath = ''
             }
             $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $SiteHome)
-            $VSOverridePath = $OverrideSeriesList | Where-Object { $_._OR_Series.ToLower() -eq $VSSeries.ToLower() } | Select-Object -ExpandProperty _OR_Drive
+            $VSOverridePath = $OverrideSeriesList | Where-Object { $_.orSeriesName.ToLower() -eq $VSSeries.ToLower() } | Select-Object -ExpandProperty orSrcdrive
             foreach ($i in $_) {
                 $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSEpisodeRaw, $VSEpisodeTemp, $VSEpisodePath, $VSEpisodeSubtitle, $VSEpisodeSubtitleBase, $VSEpisodeFBPath, `
                         $VSEpisodeSubFBPath, $VSOverridePath, $VSSECompleted, $VSMKVCompleted, $VSFBCompleted, $VSErrored)
@@ -1178,10 +1158,10 @@ if ($Site) {
             Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
         }
         $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count
-        $TM = Get-SiteSeriesEpisode
         # Telegram
         if ($SendTelegram) {
             Write-Output "[Telegram] $(Get-Timestamp) - Preparing Telegram message."
+            $TM = Get-SiteSeriesEpisode
             if ($PlexHost -and $PlexToken -and $PlexLibId) {
                 if ($Filebot -or !($Filebot) -and $MKVMerge) {
                     if (($VSVFBCount -gt 0 -and $VSVMKVCount -gt 0 -and $VSVFBCount -eq $VSVMKVCount) -or (!($Filebot) -and $MKVMerge -and $VSVMKVCount -gt 0)) {
