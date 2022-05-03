@@ -249,7 +249,7 @@ function Start-MKVMerge {
         else {
             if ($SF -ne 'None') {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - Python - Regex through $MKVVidSubtitle file with $SF."
-                python $SubtitleRegex $MKVVidSubtitle $SF
+                python $SubtitleRegex $MKVVidSubtitle $SF  *>&1 | Out-Host
                 break
             }
             else {
@@ -265,12 +265,12 @@ function Start-MKVMerge {
         else {
             if ($SubFontDir -ne 'None') {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - Combining $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font
+                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font  *>&1 | Out-Host
                 break
             }
             else {
                 Write-Output "[MKVMerge] $(Get-Timestamp) -  Merging as-is. No Font specified for $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle
+                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle  *>&1 | Out-Host
             }
         }
         Start-Sleep -Seconds 1
@@ -304,7 +304,7 @@ function Start-MKVMerge {
             continue
         }
         else {
-            mkvpropedit $MKVVidInput --edit track:s1 --set flag-default=1
+            mkvpropedit $MKVVidInput --edit track:s1 --set flag-default=1  *>&1 | Out-Host
             break
         }
         Start-Sleep -Seconds 1
@@ -327,27 +327,27 @@ function Start-Filebot {
             if ($FBOverrideDrive -eq '') {
                 $FBParams = $DestDriveRoot + "$FBBaseFolder\$PlexLibPath\$FBArgument"
                 Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. No Override path($FBParams)."
-                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format $FBParams --log info
+                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
                 if (!($MKVMerge)) {
                     Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming subtitle and moving files to final folder. No Override path($FBParams)."
-                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format $FBParams --log info
+                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
                 }
             }
             else {
                 $FBParams = $FBOverrideDrive + "$FBBaseFolder\$PlexLibPath\$FBArgument"
                 Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. Using Override path($FBParams)."
-                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format $FBParams --log info
+                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
                 if (!($MKVMerge)) {
                     Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming subtitle and moving files to final folder. Using Override path($FBParams)."
-                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format $FBParams --log info
+                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
                 }
             }
         }
         else {
             Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place."
-            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format $FBArgument --log info
+            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBArgument" --log info *>&1 | Out-Host
             if (!($MKVMerge)) {
-                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format $FBArgument --log info
+                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBArgument" --log info *>&1 | Out-Host
             }
         }
         if (!(Test-Path $FBVidInput)) {
@@ -357,7 +357,7 @@ function Start-Filebot {
     $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count
     if ($VSVFBCount -eq $VSVTotCount ) {
         Write-Output "[Filebot]$(Get-Timestamp) - Filebot($VSVFBCount) = ($VSVTotCount)Total Videos. No other files need to be processed. Attempting Filebot cleanup."
-        filebot -script fn:cleaner "$SiteHome" --log all
+        filebot -script fn:cleaner "$SiteHome" --log info
     }
     else {
         Write-Output "[Filebot] $(Get-Timestamp) - Filebot($VSVFBCount) and Total Video($VSVTotCount) count mismatch. Manual check required."
@@ -448,73 +448,32 @@ $xmlconfig = @'
         <ffmpeg location="" />
     </Directory>
     <Logs>
-        <emptylogs keepdays="" />
-        <filledlogs keepdays="" />
+        <keeplog emptylogskeepdays="0" filledlogskeepdays="7" />
     </Logs>
     <Plex>
-        <hosturl url="" />
-        <plextoken token="" />
+        <plexcred plexUrl="" plexToken="" />
         <library libraryid="" folder="" />
         <library libraryid="" folder="" />
         <library libraryid="" folder="" />
     </Plex>
     <Filebot>
-        <fbfolder name="" />
-        <fbarg arg="" />
-        <override orSeriesName="">
-            <orSrcdrive></orSrcdrive>
-        </override>
-        <override orSeriesName="">
-            <orSrcdrive></orSrcdrive>
-        </override>
+        <fbfolder fbFolderName="Videos" fbargument="{ plex.tail }" />
+        <override orSeriesName="" orSrcdrive="" />
+        <override orSeriesName="" orSrcdrive="" />
     </Filebot>
     <Telegram>
-        <token></token>
-        <chatid></chatid>
+        <token tokenId="" chatid="" />
     </Telegram>
     <credentials>
-        <site id="">
-            <username></username>
-            <password></password>
-            <libraryid></libraryid>
-            <font></font>
-        </site>
-        <site id="">
-            <username></username>
-            <password></password>
-            <libraryid></libraryid>
-            <font></font>
-        </site>
-        <site id="">
-            <username></username>
-            <password></password>
-            <libraryid></libraryid>
-            <font></font>
-        </site>
-        <site id="">
-            <username></username>
-            <password></password>
-            <libraryid></libraryid>
-            <font></font>
-        </site>
-        <site id="">
-            <username></username>
-            <password></password>
-            <libraryid></libraryid>
-            <font></font>
-        </site>
-        <site id="">
-            <username></username>
-            <password></password>
-            <libraryid></libraryid>
-            <font></font>
-        </site>
-        <site id="">
-            <username></username>
-            <password></password>
-            <libraryid></libraryid>
-            <font></font>
-        </site>
+        <site siteName="" username="" password="" libraryid="" font="" />
+        <site siteName="" username="" password="" libraryid="" font="" />
+        <site siteName="" username="" password="" libraryid="" font="" />
+        <site siteName="" username="" password="" libraryid="" font="" />
+        <site siteName="" username="" password="" libraryid="" font="" />
+        <site siteName="" username="" password="" libraryid="" font="" />
+        <site siteName="" username="" password="" libraryid="" font="" />
+        <site siteName="" username="" password="" libraryid="" font="" />
+        <site siteName="" username="" password="" libraryid="" font="" />
     </credentials>
 </configuration>
 '@
@@ -689,10 +648,10 @@ if ($SupportFiles) {
     Set-Folders $FontFolder
     $ConfigPath = "$ScriptDirectory\config.xml"
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
-    $SNfile = $ConfigFile.getElementsByTagName('site') | Where-Object { $_.id.trim() -ne '' } | Select-Object 'id' -ExpandProperty id
+    $SNfile = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.trim() -ne '' } | Select-Object 'siteName' -ExpandProperty siteName
     $SNfile | ForEach-Object {
         $SN = New-Object -Type PSObject -Property @{
-            SN = $_.id
+            SN = $_.siteName
         }
         $SharedF = "$ScriptDirectory\shared"
         Set-Folders $SharedF
@@ -737,9 +696,9 @@ if ($Site) {
     # Reading from XML
     $ConfigPath = "$ScriptDirectory\config.xml"
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
-    $SNfile = $ConfigFile.configuration.credentials.site | Select-Object 'id', 'username', 'password', 'libraryid', 'font' | Where-Object { $_.id.ToLower() -eq "$site" }
-    $SiteName = $SNfile.id.ToLower()
-    $SiteNameRaw = $SNfile.id
+    $SNfile = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'libraryid', 'font' -First 1
+    $SiteName = $SNfile.siteName.ToLower()
+    $SiteNameRaw = $SNfile.siteName
     if ($site -eq $SiteName) {
         $SiteFolder = "$ScriptDirectory\sites\"
         if ($Daily) {
@@ -758,7 +717,6 @@ if ($Site) {
             Start-Transcript -Path $LFile -UseMinimalHeader
             Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
         }
-        Write-Output "$(Get-Timestamp) - $site = $SiteName. Continuing..."
     }
     else {
         Write-Output "$(Get-Timestamp) - $site != $SiteName. Exiting..."
@@ -774,18 +732,18 @@ if ($Site) {
     $DestDrive = $ConfigFile.configuration.Directory.dest.location
     $DestDriveRoot = [System.IO.path]::GetPathRoot($DestDrive)
     $Ffmpeg = $ConfigFile.configuration.Directory.ffmpeg.location
-    [int]$EmptyLogs = $ConfigFile.configuration.Logs.emptylogs.keepdays
-    [int]$FilledLogs = $ConfigFile.configuration.Logs.filledlogs.keepdays
-    $PlexHost = $ConfigFile.configuration.Plex.hosturl.url
-    $PlexToken = $ConfigFile.configuration.Plex.plextoken.token
+    [int]$EmptyLogs = $ConfigFile.configuration.Logs.keeplog.emptylogskeepdays
+    [int]$FilledLogs = $ConfigFile.configuration.Logs.keeplog.filledlogskeepdays
+    $PlexHost = $ConfigFile.configuration.Plex.plexcred.plexUrl
+    $PlexToken = $ConfigFile.configuration.Plex.plexcred.plexToken
     $PlexLibrary = $ConfigFile.configuration.plex.library | Where-Object { $_.libraryid -eq $SiteLib } | Select-Object libraryid, folder
     $PlexLibId = $PlexLibrary.libraryid
     $PlexLibPath = $PlexLibrary.folder
     $FBBaseFolder = $ConfigFile.configuration.Filebot.fbfolder.fbFolderName
-    $FBArgument = $ConfigFile.configuration.Filebot.fbArgument.fbArg
+    $FBArgument = $ConfigFile.configuration.Filebot.fbfolder.fbArgument
     $OverrideSeriesList = $ConfigFile.configuration.Filebot.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
-    $Telegramtoken = $ConfigFile.configuration.Telegram.token
-    $Telegramchatid = $ConfigFile.configuration.Telegram.chatid
+    $Telegramtoken = $ConfigFile.configuration.Telegram.token.tokenId
+    $Telegramchatid = $ConfigFile.configuration.Telegram.token.chatid
     # End reading from XML
     if ($SubFont.Trim() -ne '') {
         $SubFontDir = "$FontFolder\$Subfont"
