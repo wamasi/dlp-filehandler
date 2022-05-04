@@ -249,7 +249,7 @@ function Start-MKVMerge {
         else {
             if ($SF -ne 'None') {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - Python - Regex through $MKVVidSubtitle file with $SF."
-                python $SubtitleRegex $MKVVidSubtitle $SF  *>&1 | Out-Host
+                python $SubtitleRegex $MKVVidSubtitle $SF *>&1 | Out-Host
                 break
             }
             else {
@@ -265,12 +265,12 @@ function Start-MKVMerge {
         else {
             if ($SubFontDir -ne 'None') {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - Combining $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font  *>&1 | Out-Host
+                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font *>&1 | Out-Host
                 break
             }
             else {
                 Write-Output "[MKVMerge] $(Get-Timestamp) -  Merging as-is. No Font specified for $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle  *>&1 | Out-Host
+                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle *>&1 | Out-Host
             }
         }
         Start-Sleep -Seconds 1
@@ -304,7 +304,7 @@ function Start-MKVMerge {
             continue
         }
         else {
-            mkvpropedit $MKVVidInput --edit track:s1 --set flag-default=1  *>&1 | Out-Host
+            mkvpropedit $MKVVidInput --edit track:s1 --set flag-default=1 *>&1 | Out-Host
             break
         }
         Start-Sleep -Seconds 1
