@@ -223,9 +223,9 @@ function Get-SiteSeriesEpisode {
 }
 # Sending To telegram for new file notifications
 function Send-Telegram {
-    Param([Parameter(Mandatory = $true)][String]$STMessage)
-    $Telegramtoken
-    $Telegramchatid
+    Param(
+        [Parameter( Mandatory = $true)]
+        [String]$STMessage)
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html" | Out-Null
 }
@@ -545,6 +545,13 @@ $crunchyrollconfig = @'
 --convert-thumbnails 'png'
 --remux-video 'mkv'
 -N 32
+--sleep-requests "2"
+--sleep-subtitles "3"
+--min-sleep-interval "60"
+--max-sleep-interval "120"
+--retries "10"
+--file-access-retries "10"
+--fragment-retries "10"
 --match-filter "season!~='\(.* Dub\)'"
 --downloader aria2c
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
@@ -595,6 +602,13 @@ $hidiveconfig = @'
 --convert-thumbnails 'png'
 --remux-video 'mkv'
 -N 32
+--sleep-requests "2"
+--sleep-subtitles "3"
+--min-sleep-interval "60"
+--max-sleep-interval "120"
+--retries "10"
+--file-access-retries "10"
+--fragment-retries "10"
 --downloader aria2c
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
