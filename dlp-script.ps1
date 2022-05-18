@@ -52,6 +52,7 @@ param(
     [Alias('ST')]
     [switch]$SendTelegram
 )
+$ScriptStopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 $PSStyle.OutputRendering = 'Host'
 $Width = $host.UI.RawUI.MaxPhysicalWindowSize.Width
 $host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.size($Width, 9999)
@@ -1191,7 +1192,8 @@ if ($Site) {
     Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch
     Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
     Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
-    Write-Output "[END] $(Get-Timestamp) - Script completed"
+    $ScriptStopWatch.Stop()
+    Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($ScriptStopWatch.Elapsed.ToString())"
     Stop-Transcript
     ((Get-Content $LFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content $LFile
     Remove-Spaces $LFile
