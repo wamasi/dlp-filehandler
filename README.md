@@ -30,6 +30,10 @@ Aria2c
 - Video downloader used with yt-dlp
 - https://github.com/aria2/aria2
 
+Mkvtoolnix
+- Embeds subtitle and fonts
+- https://mkvtoolnix.download/
+
 Filebot
 - File renamer based on tvdb entries
 - https://www.filebot.net/
@@ -37,11 +41,7 @@ Filebot
 Subtitle Edit
 - Fixes common subtitle issues like text timings
 - https://www.nikse.dk/SubtitleEdit/
-
-Mkvtoolnix
-- Embeds subtitle and fonts
-- https://mkvtoolnix.download/
-
+- 
 Plex (optional)
 - Media Server
 - https://www.plex.tv/
