@@ -1,4 +1,4 @@
-# Powershell and Python scripts for yt-dlp downloads and file handling with Subtitle Edit, Filebot, and Plex
+# Powershell script for yt-dlp downloads and file handling with Subtitle Edit, Filebot, and Plex
 Script used to fetch files with yt-dlp, fix subtitles, embed into video file, rename and move video files into media server folders.
 ## Prerequisites
 
