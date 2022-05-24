@@ -41,7 +41,7 @@ Filebot
 Subtitle Edit
 - Fixes common subtitle issues like text timings
 - https://www.nikse.dk/SubtitleEdit/
-- 
+ 
 Plex (optional)
 - Media Server
 - https://www.plex.tv/
