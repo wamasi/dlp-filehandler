@@ -50,7 +50,13 @@ param(
     [switch]$Filebot,
     [Parameter(Mandatory = $false)]
     [Alias('ST')]
-    [switch]$SendTelegram
+    [switch]$SendTelegram,
+    [Parameter(Mandatory = $false)]
+    [Alias('AL')]
+    [string]$AudioLang,
+    [Parameter(Mandatory = $false)]
+    [Alias('SL')]
+    [string]$SubtileLang
 )
 $ScriptStopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 $PSStyle.OutputRendering = 'Host'
@@ -242,6 +248,17 @@ function Start-MKVMerge {
         [parameter(Mandatory = $true)]
         [string]$MKVVidTempOutput
     )
+    switch ($AudioLang) {
+        ja { $VideoLang = $AudioLang; $ALTrackName = 'Japanese Audio'; $VTrackName = 'Japanese Video' }
+        en { $VideoLang = $AudioLang; $ALTrackName = 'English Audio'; $VTrackName = 'English Video' }
+        Default { $VideoLang = 'und'; $AudioLang = 'und'; $ALTrackName = 'und audio'; $VTrackName = 'und Video' }
+    }
+    switch ($SubtileLang) {
+        ja { $STTrackName = 'Japanese Sub' }
+        en { $STTrackName = 'English Sub' }
+        Default { $SubtileLang = 'und'; $STTrackName = 'und sub' }
+    }
+    Write-Output "[MKVMerge] $(Get-Timestamp) - Video = $VideoLang/$VTrackName - Audio Language = $AudioLang/$ALTrackName - Subtitle = $SubtileLang/$STTrackName."
     Write-Output "[MKVMerge] $(Get-Timestamp) - Replacing Styling in $MKVVidSubtitle."
     While ($True) {
         if ((Test-Lock $MKVVidSubtitle) -eq $True) {
@@ -266,12 +283,12 @@ function Start-MKVMerge {
         else {
             if ($SubFontDir -ne 'None') {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - Combining $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font *>&1 | Out-Host
+                mkvmerge -o $MKVVidTempOutput --language 0:$VideoLang --track-name 0:$VTrackName --language 1:$AudioLang --track-name 1:$ALTrackName ( $MKVVidInput ) --language 0:$SubtileLang --track-name 0:$STTrackName ( $MKVVidSubtitle ) --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font *>&1 | Out-Host
                 break
             }
             else {
                 Write-Output "[MKVMerge] $(Get-Timestamp) -  Merging as-is. No Font specified for $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                mkvmerge -o $MKVVidTempOutput $MKVVidInput $MKVVidSubtitle *>&1 | Out-Host
+                mkvmerge -o $MKVVidTempOutput --language 0:$VideoLang --track-name 0:$VTrackName --language 1:$AudioLang --track-name 1:$ALTrackName ( $MKVVidInput ) --language 0:$SubtileLang --track-name 0:$STTrackName ( $MKVVidSubtitle ) *>&1 | Out-Host
             }
         }
         Start-Sleep -Seconds 1
@@ -546,13 +563,6 @@ $crunchyrollconfig = @'
 --convert-thumbnails 'png'
 --remux-video 'mkv'
 -N 32
---sleep-requests "2"
---sleep-subtitles "3"
---min-sleep-interval "60"
---max-sleep-interval "120"
---retries "10"
---file-access-retries "10"
---fragment-retries "10"
 --match-filter "season!~='\(.* Dub\)'"
 --downloader aria2c
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
@@ -711,9 +721,9 @@ if ($Site) {
     # Reading from XML
     $ConfigPath = "$ScriptDirectory\config.xml"
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
-    $SNfile = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'libraryid', 'font' -First 1
-    $SiteName = $SNfile.siteName.ToLower()
-    $SiteNameRaw = $SNfile.siteName
+    $SiteParams = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'libraryid', 'font' -First 1
+    $SiteName = $SiteParams.siteName.ToLower()
+    $SiteNameRaw = $SiteParams.siteName
     if ($site -eq $SiteName) {
         $SiteFolder = "$ScriptDirectory\sites\"
         if ($Daily) {
@@ -737,10 +747,10 @@ if ($Site) {
         Write-Output "$(Get-Timestamp) - $site != $SiteName. Exiting..."
         exit
     }
-    $SiteUser = $SNfile.username
-    $SitePass = $SNfile.password
-    $SiteLib = $SNfile.libraryid
-    $SubFont = $SNfile.font
+    $SiteUser = $SiteParams.username
+    $SitePass = $SiteParams.password
+    $SiteLib = $SiteParams.libraryid
+    $SubFont = $SiteParams.font
     $BackupDrive = $ConfigFile.configuration.Directory.backup.location
     $TempDrive = $ConfigFile.configuration.Directory.temp.location
     $SrcDrive = $ConfigFile.configuration.Directory.src.location
