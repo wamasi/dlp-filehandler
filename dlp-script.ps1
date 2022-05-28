@@ -26,6 +26,18 @@ param(
     [switch]$TestScript,
     [Parameter(Mandatory = $false)]
     [Alias('SN')]
+    [ValidateScript({ if (Test-Path -Path "$PSScriptRoot\config.xml") {
+                if (([xml](Get-Content -Path "$PSScriptRoot\config.xml")).getElementsByTagName('site').siteName -contains $_ ) {
+                    $true
+                }
+                else {
+                    throw ([xml](Get-Content -Path "$PSScriptRoot\config.xml")).getElementsByTagName('site').siteName
+                }
+            }
+            else {
+                throw "No valid config.xml found in $PSScriptRoot. Run ($PSScriptRoot\dlp-script.ps1 -nc) for a new config file."
+            }
+        })]
     [string]$Site,
     [Parameter(Mandatory = $false)]
     [Alias('D')]
@@ -52,9 +64,11 @@ param(
     [Alias('ST')]
     [switch]$SendTelegram,
     [Parameter(Mandatory = $false)]
+    [ValidateSet('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', IgnoreCase = $true)]
     [Alias('AL')]
     [string]$AudioLang,
     [Parameter(Mandatory = $false)]
+    [ValidateSet('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', IgnoreCase = $true)]
     [Alias('SL')]
     [string]$SubtileLang
 )
@@ -249,11 +263,31 @@ function Start-MKVMerge {
         [string]$MKVVidTempOutput
     )
     switch ($AudioLang) {
-        ja { $VideoLang = $AudioLang; $ALTrackName = 'Japanese Audio'; $VTrackName = 'Japanese Video' }
+        ar { $VideoLang = $AudioLang; $ALTrackName = 'Arabic Audio'; $VTrackName = 'Arabic Video' }
+        de { $VideoLang = $AudioLang; $ALTrackName = 'Deutsch Audio'; $VTrackName = 'Deutsch Video' }
         en { $VideoLang = $AudioLang; $ALTrackName = 'English Audio'; $VTrackName = 'English Video' }
+        es { $VideoLang = $AudioLang; $ALTrackName = 'Spanish(Latin America) Audio'; $VTrackName = 'Spanish(Latin America) Video' }
+        es-es { $VideoLang = $AudioLang; $ALTrackName = 'Spanish(Spain) Audio'; $VTrackName = 'Spanish(Spain) Video' }
+        fr { $VideoLang = $AudioLang; $ALTrackName = 'French Audio'; $VTrackName = 'French Video' }
+        it { $VideoLang = $AudioLang; $ALTrackName = 'Italian Audio'; $VTrackName = 'Italian Video' }
+        ja { $VideoLang = $AudioLang; $ALTrackName = 'Japanese Audio'; $VTrackName = 'Japanese Video' }
+        pt-br { $VideoLang = $AudioLang; $ALTrackName = 'Portuguese(Brasil) Audio'; $VTrackName = 'Portuguese(Brasil) Video' }
+        pt-pt { $VideoLang = $AudioLang; $ALTrackName = 'Portuguese(Portugal) Audio'; $VTrackName = 'Portuguese(Portugal) Video' }
+        ru { $VideoLang = $AudioLang; $ALTrackName = 'Russian Audio'; $VTrackName = 'Russian Video' }
         Default { $VideoLang = 'und'; $AudioLang = 'und'; $ALTrackName = 'und audio'; $VTrackName = 'und Video' }
     }
     switch ($SubtileLang) {
+        ar { $STTrackName = 'Arabic Sub' }
+        de { $STTrackName = 'Deutsch Sub' }
+        en { $STTrackName = 'English Sub' }
+        es { $STTrackName = 'Spanish(Latin America) Sub' }
+        es-es { $STTrackName = 'Spanish(Spain) Sub' }
+        fr { $STTrackName = 'French Sub' }
+        it { $STTrackName = 'Italian Sub' }
+        ja { $STTrackName = 'Japanese Sub' }
+        pt-br { $STTrackName = 'Portuguese(Brasil) Sub' }
+        pt-pt { $STTrackName = 'Portuguese(Portugal) Sub' }
+        ru { $STTrackName = 'Russian Video' }
         ja { $STTrackName = 'Japanese Sub' }
         en { $STTrackName = 'English Sub' }
         Default { $SubtileLang = 'und'; $STTrackName = 'und sub' }
