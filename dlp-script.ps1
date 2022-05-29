@@ -556,9 +556,12 @@ $xmlconfig = @'
     </Plex>
     <Filebot>
         <fbfolder fbFolderName="Videos" fbargument="{ plex.tail }" />
-        <override orSeriesName="" orSrcdrive="" />
-        <override orSeriesName="" orSrcdrive="" />
     </Filebot>
+    <OverrideSeries>
+        <override orSeriesName="" orSrcdrive="" />
+        <override orSeriesName="" orSrcdrive="" />
+        <override orSeriesName="" orSrcdrive="" />
+    </OverrideSeries>
     <Telegram>
         <token tokenId="" chatid="" />
     </Telegram>
@@ -840,7 +843,7 @@ if ($Site) {
     $PlexLibPath = $PlexLibrary.folder
     $FBBaseFolder = $ConfigFile.configuration.Filebot.fbfolder.fbFolderName
     $FBArgument = $ConfigFile.configuration.Filebot.fbfolder.fbArgument
-    $OverrideSeriesList = $ConfigFile.configuration.Filebot.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
+    $OverrideSeriesList = $ConfigFile.configuration.OverrideSeries.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
     $Telegramtoken = $ConfigFile.configuration.Telegram.token.tokenId
     $Telegramchatid = $ConfigFile.configuration.Telegram.token.chatid
     # End reading from XML
