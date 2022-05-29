@@ -159,6 +159,7 @@ class VideoStatus {
     [string]$_VSSite
     [string]$_VSSeries
     [string]$_VSEpisode
+    [string]$_VSSeriesDirectory
     [string]$_VSEpisodeRaw
     [string]$_VSEpisodeTemp
     [string]$_VSEpisodePath
@@ -167,16 +168,19 @@ class VideoStatus {
     [string]$_VSEpisodeFBPath
     [string]$_VSEpisodeSubFBPath
     [string]$_VSOverridePath
+    [string]$_VSDestPath
+    [string]$_VSDestPathBase
     [bool]$_VSSECompleted
     [bool]$_VSMKVCompleted
     [bool]$_VSFBCompleted
     [bool]$_VSErrored
     
-    VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSEpisodeRaw, [string]$VSEpisodeTemp, [string]$VSEpisodePath, [string]$VSEpisodeSubtitle, `
-            [string]$VSEpisodeSubtitleBase, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [string]$VSOverridePath, [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
+    VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSSeriesDirectory, [string]$VSEpisodeRaw, [string]$VSEpisodeTemp, [string]$VSEpisodePath, [string]$VSEpisodeSubtitle, `
+            [string]$VSEpisodeSubtitleBase, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [string]$VSOverridePath, [string]$VSDestPath, [string]$VSDestPathBase, [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
         $this._VSSite = $VSSite
         $this._VSSeries = $VSSeries
         $this._VSEpisode = $VSEpisode
+        $this._VSSeriesDirectory = $VSSeriesDirectory
         $this._VSEpisodeRaw = $VSEpisodeRaw
         $this._VSEpisodeTemp = $VSEpisodeTemp
         $this._VSEpisodePath = $VSEpisodePath
@@ -185,6 +189,8 @@ class VideoStatus {
         $this._VSEpisodeFBPath = $VSEpisodeFBPath
         $this._VSEpisodeSubFBPath = $VSEpisodeSubFBPath
         $this._VSOverridePath = $VSOverridePath
+        $this._VSDestPath = $VSDestPath
+        $this._VSDestPathBase = $VSDestPathBase
         $this._VSSECompleted = $VSSECompleted
         $this._VSMKVCompleted = $VSMKVCompleted
         $this._VSFBCompleted = $VSFBCompleted
@@ -370,35 +376,26 @@ function Start-Filebot {
         [string]$FBPath
     )
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to rename and move to final folder."
-    $VSCompletedFilesList | Select-Object _VSEpisodeFBPath, _VSEpisodeRaw, _VSEpisodeSubFBPath, _VSOverridePath | ForEach-Object {
-        $FBVidInput = $_._VSEpisodeFBPath
-        $FBSubInput = $_._VSEpisodeSubFBPath
-        $FBVidBaseName = $_._VSEpisodeRaw
-        $FBOverrideDrive = $_._VSOverridePath
+    $FBVideoList = $VSCompletedFilesList | Where-Object { $_._VSDestPath -eq $FBPath } | Select-Object _VSDestPath, _VSEpisodeFBPath, _VSEpisodeRaw, _VSEpisodeSubFBPath, _VSOverridePath
+    foreach ($FBFiles in $FBVideoList) {
+        $FBVidInput = $FBFiles._VSEpisodeFBPath
+        $FBSubInput = $FBFiles._VSEpisodeSubFBPath
+        $FBVidBaseName = $FBFiles._VSEpisodeRaw
+        $FBOverrideDrive = $FBFiles._VSOverridePath
         if ($PlexLibPath) {
-            if ($FBOverrideDrive -eq '') {
-                $FBParams = $DestDriveRoot + "$FBBaseFolder\$PlexLibPath\$FBArgument"
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. No Override path($FBParams)."
-                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
-                if (!($MKVMerge)) {
-                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming subtitle and moving files to final folder. No Override path($FBParams)."
-                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
-                }
-            }
-            else {
-                $FBParams = $FBOverrideDrive + "$FBBaseFolder\$PlexLibPath\$FBArgument"
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming video and moving files to final folder. Using Override path($FBParams)."
-                filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
-                if (!($MKVMerge)) {
-                    Write-Output "[Filebot] $(Get-Timestamp) - Files found. Renaming subtitle and moving files to final folder. Using Override path($FBParams)."
-                    filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
-                }
+            $FBParams = $FBOverrideDrive + "$FBBaseFolder\$PlexLibPath\$FBArgument"
+            Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBVidInput). Renaming video and moving files to final folder. Using path($FBParams)."
+            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
+            if (!($MKVMerge)) {
+                Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBSubInput). Renaming subtitle and moving files to final folder. Using path($FBParams)."
+                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
             }
         }
         else {
-            Write-Output "[Filebot] $(Get-Timestamp) - Files found. Plex path not specified. Renaming files in place."
+            Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBVidInput). Plex path not specified. Renaming files in place."
             filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBArgument" --log info *>&1 | Out-Host
             if (!($MKVMerge)) {
+                Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBSubInput). Renaming subtitle and moving files to final folder. Using path($FBParams)."
                 filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBArgument" --log info *>&1 | Out-Host
             }
         }
@@ -504,9 +501,16 @@ function Exit-Script {
     Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch
     Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
     Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
+    if ($OverrideDriveList.count -gt 0) {
+        foreach ($ORDriveList in $OverrideDriveList) {
+            $ORDriveListBaseMatch = ($ORDriveList._VSDestPathBase).Replace('\', '\\')
+            Remove-Folders -RFFolder $ORDriveList._VSDestPath -RFMatch '\\tmp\\' -RFBaseMatch $ORDriveListBaseMatch
+        }
+    }
     # Cleanup Log Files
     Remove-Logfiles
     if ($ExitScript) {
+        Rename-Item -Path $LFile -NewName "$DateTime-DEBUG.log"
         exit
     }
     else {
@@ -832,7 +836,6 @@ if ($Site) {
     $TempDrive = $ConfigFile.configuration.Directory.temp.location
     $SrcDrive = $ConfigFile.configuration.Directory.src.location
     $DestDrive = $ConfigFile.configuration.Directory.dest.location
-    $DestDriveRoot = [System.IO.path]::GetPathRoot($DestDrive)
     $Ffmpeg = $ConfigFile.configuration.Directory.ffmpeg.location
     [int]$EmptyLogs = $ConfigFile.configuration.Logs.keeplog.emptylogskeepdays
     [int]$FilledLogs = $ConfigFile.configuration.Logs.keeplog.filledlogskeepdays
@@ -1102,23 +1105,45 @@ if ($Site) {
             $VSSite = $SiteNameRaw
             $VSSeries = (Get-Culture).TextInfo.ToTitleCase(("$(Split-Path (Split-Path $_ -Parent) -Leaf)").Replace('_', ' ').Replace('-', ' ')) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
             $VSEpisode = (Get-Culture).TextInfo.ToTitleCase( ($_.BaseName.Replace('_', ' ').Replace('-', ' '))) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
+            $VSSeriesDirectory = $_.DirectoryName
             $VSEpisodeRaw = $_.BaseName
-            $VSEpisodeTemp = $_.DirectoryName + "\$VSEpisodeRaw.temp" + $_.Extension
+            $VSEpisodeTemp = $VSSeriesDirectory + "\$VSEpisodeRaw.temp" + $_.Extension
             $VSEpisodePath = $_.FullName
             $VSEpisodeSubtitle = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).FullName
-            if ($VSEpisodeSubtitle -ne '') {
-                $VSEpisodeSubtitleBase = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).Name
-                $VSEpisodeSubFBPath = $VSEpisodeSubtitle.Replace($SiteSrc, $SiteHome)
+            $VSOverridePath = $OverrideSeriesList | Where-Object { $_.orSeriesName.ToLower() -eq $VSSeries.ToLower() } | Select-Object -ExpandProperty orSrcdrive
+            Write-Host "Test $VSOverridePath"
+            if ($null -ne $VSOverridePath) {
+                Write-Host "[Test] - WITH OVERRIDE $VSOverridePath"
+                $VSDestPath = $VSOverridePath + $SiteHome.Substring(3)
+                $VSDestPathBase = $VSOverridePath + $SiteHomeBase.Substring(3)
+                $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $VSDestPath)
+                if ($VSEpisodeSubtitle -ne '') {
+                    $VSEpisodeSubtitleBase = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).Name
+                    $VSEpisodeSubFBPath = $VSEpisodeSubtitle.Replace($SiteSrc, $VSDestPath)
+                }
+                else {
+                    $VSEpisodeSubtitleBase = ''
+                    $VSEpisodeSubFBPath = ''
+                }
             }
             else {
-                $VSEpisodeSubtitleBase = ''
-                $VSEpisodeSubFBPath = ''
+                $VSDestPath = $SiteHome
+                $VSDestPathBase = $SiteHomeBase
+                $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $VSDestPath)
+                $VSOverridePath = [System.IO.path]::GetPathRoot($VSDestPath)
+                Write-Host "[Test] - NO OVERRIDE $VSOverridePath"
+                if ($VSEpisodeSubtitle -ne '') {
+                    $VSEpisodeSubtitleBase = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).Name
+                    $VSEpisodeSubFBPath = $VSEpisodeSubtitle.Replace($SiteSrc, $VSDestPath)
+                }
+                else {
+                    $VSEpisodeSubtitleBase = ''
+                    $VSEpisodeSubFBPath = ''
+                }
             }
-            $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $SiteHome)
-            $VSOverridePath = $OverrideSeriesList | Where-Object { $_.orSeriesName.ToLower() -eq $VSSeries.ToLower() } | Select-Object -ExpandProperty orSrcdrive
             foreach ($i in $_) {
-                $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSEpisodeRaw, $VSEpisodeTemp, $VSEpisodePath, $VSEpisodeSubtitle, $VSEpisodeSubtitleBase, $VSEpisodeFBPath, `
-                        $VSEpisodeSubFBPath, $VSOverridePath, $VSSECompleted, $VSMKVCompleted, $VSFBCompleted, $VSErrored)
+                $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSSeriesDirectory, $VSEpisodeRaw, $VSEpisodeTemp, $VSEpisodePath, $VSEpisodeSubtitle, $VSEpisodeSubtitleBase, $VSEpisodeFBPath, `
+                        $VSEpisodeSubFBPath, $VSOverridePath, $VSDestPath, $VSDestPathBase, $VSSECompleted, $VSMKVCompleted, $VSFBCompleted, $VSErrored)
                 [void]$VSCompletedFilesList.Add($VideoStatus)
             }
         }
@@ -1131,6 +1156,7 @@ if ($Site) {
     else {
         Write-Output "[VideoList] $(Get-Timestamp) - No files to process."
     }
+    $VSCompletedFilesList
     $VSVTotCount = ($VSCompletedFilesList | Measure-Object).Count
     $VSVErrorCount = ($VSCompletedFilesList | Where-Object { $_._VSErrored -eq $true } | Measure-Object).Count
     Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $VSVTotCount"
@@ -1171,19 +1197,29 @@ if ($Site) {
         else {
             Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMerge not running. Moving to next step."
         }
+        $OverrideDriveList = $VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Select-Object _VSSeriesDirectory, _VSDestPath, _VSDestPathBase -Unique
+        $OverrideDriveList
         $VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Measure-Object).Count
         # FileMoving
         if (($VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or (!($MKVMerge) -and $VSVErrorCount -eq 0)) {
             Write-Output "[FileMoving] $(Get-Timestamp)- All files had matching subtitle file"
-            Write-Output "[FileMoving] $(Get-Timestamp) - $SiteSrc contains files. Moving to $SiteHomeBase..."
-            Move-Item -Path $SiteSrc -Destination $SiteHomeBase -Force -Verbose
+            foreach ($ORDriveList in $OverrideDriveList) {
+                Write-Output "[FileMoving] $(Get-Timestamp) - $($ORDriveList._VSSeriesDirectory) contains files. Moving to $($ORDriveList._VSDestPath)..."
+                if (!(Test-Path $ORDriveList._VSDestPath)) {
+                    Set-Folders $ORDriveList._VSDestPath
+                }
+                Move-Item -Path $ORDriveList._VSSeriesDirectory -Destination $ORDriveList._VSDestPath -Force -Verbose
+            }
         }
         else {
             Write-Output "[FileMoving] $(Get-Timestamp) - $SiteSrc contains file(s) with error(s). Not moving files."
         }
         # Filebot
         if (($Filebot -and $VSVMKVCount -eq $VSVTotCount) -or ($Filebot -and !($MKVMerge))) {
-            Start-Filebot -FBPath $SiteHome
+            foreach ($ORDriveList in $OverrideDriveList) {
+                Write-Output "[Filebot] $(Get-Timestamp) - Renaming files in $($ORDriveList._VSDestPath)."
+                Start-Filebot -FBPath $ORDriveList._VSDestPath
+            }
         }
         elseif (($Filebot -and $MKVMerge -and $VSVMKVCount -ne $VSVTotCount)) {
             Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc."
