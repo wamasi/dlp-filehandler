@@ -509,13 +509,23 @@ function Exit-Script {
     }
     # Cleanup Log Files
     Remove-Logfiles
-    if ($ExitScript) {
+    if ($ExitScript -and !($TestScript)) {
+        exit
+    }
+    elseif ($TestScript) {
         Rename-Item -Path $LFile -NewName "$DateTime-DEBUG.log"
         exit
     }
     else {
         if ($VSVTotCount -gt 0) {
-            Rename-Item -Path $LFile -NewName "$DateTime-Total-$VSVTotCount.log"
+            $LogTemp = "$LFolderBaseDate\$DateTime-Temp.log"
+            New-Item -Path $LogTemp -ItemType File
+            $VSCompletedFilesTable | Out-File $LogTemp
+            Get-Content $LFile -ReadCount 5000 | ForEach-Object {
+                $_ | Add-Content "$LogTemp"
+            }
+            Remove-Item $LFile
+            Rename-Item $LogTemp -NewName "$DateTime-Total-$VSVTotCount.log"
         }
     }
 }
@@ -816,7 +826,8 @@ if ($Site) {
         $SiteType = $SiteName + '_D'
         $SiteFolder = "$SiteFolder" + $SiteType
         $LFolderBase = "$SiteFolder\log\"
-        $LFile = "$SiteFolder\log\$Date\$DateTime.log"
+        $LFolderBaseDate = "$LFolderBase\$Date\"
+        $LFile = "$LFolderBaseDate" + "$DateTime.log"
         Start-Transcript -Path $LFile -UseMinimalHeader
         Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
     }
@@ -824,7 +835,8 @@ if ($Site) {
         $SiteType = $SiteName
         $SiteFolder = $SiteFolder + $SiteType
         $LFolderBase = "$SiteFolder\log\"
-        $LFile = "$SiteFolder\log\$Date\$DateTime.log"
+        $LFolderBaseDate = "$SiteFolder\log\$Date\"
+        $LFile = "$LFolderBaseDate" + "$DateTime.log"
         Start-Transcript -Path $LFile -UseMinimalHeader
         Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
     }
@@ -1111,9 +1123,7 @@ if ($Site) {
             $VSEpisodePath = $_.FullName
             $VSEpisodeSubtitle = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).FullName
             $VSOverridePath = $OverrideSeriesList | Where-Object { $_.orSeriesName.ToLower() -eq $VSSeries.ToLower() } | Select-Object -ExpandProperty orSrcdrive
-            Write-Host "Test $VSOverridePath"
             if ($null -ne $VSOverridePath) {
-                Write-Host "[Test] - WITH OVERRIDE $VSOverridePath"
                 $VSDestPath = $VSOverridePath + $SiteHome.Substring(3)
                 $VSDestPathBase = $VSOverridePath + $SiteHomeBase.Substring(3)
                 $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $VSDestPath)
@@ -1131,7 +1141,6 @@ if ($Site) {
                 $VSDestPathBase = $SiteHomeBase
                 $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $VSDestPath)
                 $VSOverridePath = [System.IO.path]::GetPathRoot($VSDestPath)
-                Write-Host "[Test] - NO OVERRIDE $VSOverridePath"
                 if ($VSEpisodeSubtitle -ne '') {
                     $VSEpisodeSubtitleBase = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).Name
                     $VSEpisodeSubFBPath = $VSEpisodeSubtitle.Replace($SiteSrc, $VSDestPath)
@@ -1156,7 +1165,6 @@ if ($Site) {
     else {
         Write-Output "[VideoList] $(Get-Timestamp) - No files to process."
     }
-    $VSCompletedFilesList
     $VSVTotCount = ($VSCompletedFilesList | Measure-Object).Count
     $VSVErrorCount = ($VSCompletedFilesList | Where-Object { $_._VSErrored -eq $true } | Measure-Object).Count
     Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $VSVTotCount"
@@ -1198,7 +1206,6 @@ if ($Site) {
             Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMerge not running. Moving to next step."
         }
         $OverrideDriveList = $VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Select-Object _VSSeriesDirectory, _VSDestPath, _VSDestPathBase -Unique
-        $OverrideDriveList
         $VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Measure-Object).Count
         # FileMoving
         if (($VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or (!($MKVMerge) -and $VSVErrorCount -eq 0)) {
@@ -1263,11 +1270,11 @@ if ($Site) {
                 Send-Telegram -STMessage $TM
             }
         }
-        Write-Output "[VideoList] $(Get-Timestamp) - Final file status:"
-        $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, `
-        @{Label = 'EpisodeSubtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, @{Label = 'EpisodeOverrideDrive'; Expression = { $_._VSOverridePath } }, @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, `
-        @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, `
-        @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
+        Write-Output "[VideoList] $(Get-Timestamp) - Total videos downloaded: $VSVTotCount"
+        $VSCompletedFilesTable = $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, @{Label = 'EpisodeSubtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, `
+        @{Label = 'EpisodeOverrideDrive'; Expression = { $_._VSOverridePath } }, @{Label = 'VSSeriesDirectory'; Expression = { $_._VSSeriesDirectory } }, @{Label = 'VSDestPathBase'; Expression = { $_._VSDestPathBase } }, `
+        @{Label = 'VSDestPath'; Expression = { $_._VSDestPath } }, @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, `
+        @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
     }
     else {
         Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded. Skipping other defined steps."
