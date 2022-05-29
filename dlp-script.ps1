@@ -22,9 +22,6 @@ param(
     [Alias('SU')]
     [switch]$SupportFiles,
     [Parameter(Mandatory = $false)]
-    [Alias('T')]
-    [switch]$TestScript,
-    [Parameter(Mandatory = $false)]
     [Alias('SN')]
     [ValidateScript({ if (Test-Path -Path "$PSScriptRoot\config.xml") {
                 if (([xml](Get-Content -Path "$PSScriptRoot\config.xml")).getElementsByTagName('site').siteName -contains $_ ) {
@@ -70,7 +67,10 @@ param(
     [Parameter(Mandatory = $false)]
     [ValidateSet('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', IgnoreCase = $true)]
     [Alias('SL')]
-    [string]$SubtileLang
+    [string]$SubtitleLang,
+    [Parameter(Mandatory = $false)]
+    [Alias('T')]
+    [switch]$TestScript
 )
 $ScriptStopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 $PSStyle.OutputRendering = 'Host'
@@ -192,7 +192,6 @@ class VideoStatus {
     }
 }
 [System.Collections.ArrayList]$VSCompletedFilesList = @()
-
 # Update SE/MKV/FB true false
 function Set-VideoStatus {
     param (
@@ -262,6 +261,7 @@ function Start-MKVMerge {
         [parameter(Mandatory = $true)]
         [string]$MKVVidTempOutput
     )
+    # Video track title inherits from Audio language code
     switch ($AudioLang) {
         ar { $VideoLang = $AudioLang; $ALTrackName = 'Arabic Audio'; $VTrackName = 'Arabic Video' }
         de { $VideoLang = $AudioLang; $ALTrackName = 'Deutsch Audio'; $VTrackName = 'Deutsch Video' }
@@ -271,12 +271,12 @@ function Start-MKVMerge {
         fr { $VideoLang = $AudioLang; $ALTrackName = 'French Audio'; $VTrackName = 'French Video' }
         it { $VideoLang = $AudioLang; $ALTrackName = 'Italian Audio'; $VTrackName = 'Italian Video' }
         ja { $VideoLang = $AudioLang; $ALTrackName = 'Japanese Audio'; $VTrackName = 'Japanese Video' }
-        pt-br { $VideoLang = $AudioLang; $ALTrackName = 'Portuguese(Brasil) Audio'; $VTrackName = 'Portuguese(Brasil) Video' }
-        pt-pt { $VideoLang = $AudioLang; $ALTrackName = 'Portuguese(Portugal) Audio'; $VTrackName = 'Portuguese(Portugal) Video' }
+        pt-br { $VideoLang = $AudioLang; $ALTrackName = 'Português (Brasil) Audio'; $VTrackName = 'Português (Brasil) Video' }
+        pt-pt { $VideoLang = $AudioLang; $ALTrackName = 'Português (Portugal) Audio'; $VTrackName = 'Português (Portugal) Video' }
         ru { $VideoLang = $AudioLang; $ALTrackName = 'Russian Audio'; $VTrackName = 'Russian Video' }
         Default { $VideoLang = 'und'; $AudioLang = 'und'; $ALTrackName = 'und audio'; $VTrackName = 'und Video' }
     }
-    switch ($SubtileLang) {
+    switch ($SubtitleLang) {
         ar { $STTrackName = 'Arabic Sub' }
         de { $STTrackName = 'Deutsch Sub' }
         en { $STTrackName = 'English Sub' }
@@ -285,14 +285,14 @@ function Start-MKVMerge {
         fr { $STTrackName = 'French Sub' }
         it { $STTrackName = 'Italian Sub' }
         ja { $STTrackName = 'Japanese Sub' }
-        pt-br { $STTrackName = 'Portuguese(Brasil) Sub' }
-        pt-pt { $STTrackName = 'Portuguese(Portugal) Sub' }
+        pt-br { $STTrackName = 'Português (Brasil) Sub' }
+        pt-pt { $STTrackName = 'Português (Portugal) Sub' }
         ru { $STTrackName = 'Russian Video' }
         ja { $STTrackName = 'Japanese Sub' }
         en { $STTrackName = 'English Sub' }
-        Default { $SubtileLang = 'und'; $STTrackName = 'und sub' }
+        Default { $SubtitleLang = 'und'; $STTrackName = 'und sub' }
     }
-    Write-Output "[MKVMerge] $(Get-Timestamp) - Video = $VideoLang/$VTrackName - Audio Language = $AudioLang/$ALTrackName - Subtitle = $SubtileLang/$STTrackName."
+    Write-Output "[MKVMerge] $(Get-Timestamp) - Video = $VideoLang/$VTrackName - Audio Language = $AudioLang/$ALTrackName - Subtitle = $SubtitleLang/$STTrackName."
     Write-Output "[MKVMerge] $(Get-Timestamp) - Replacing Styling in $MKVVidSubtitle."
     While ($True) {
         if ((Test-Lock $MKVVidSubtitle) -eq $True) {
@@ -317,12 +317,12 @@ function Start-MKVMerge {
         else {
             if ($SubFontDir -ne 'None') {
                 Write-Output "[MKVMerge] $(Get-Timestamp) - Combining $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                mkvmerge -o $MKVVidTempOutput --language 0:$VideoLang --track-name 0:$VTrackName --language 1:$AudioLang --track-name 1:$ALTrackName ( $MKVVidInput ) --language 0:$SubtileLang --track-name 0:$STTrackName ( $MKVVidSubtitle ) --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font *>&1 | Out-Host
+                mkvmerge -o $MKVVidTempOutput --language 0:$VideoLang --track-name 0:$VTrackName --language 1:$AudioLang --track-name 1:$ALTrackName ( $MKVVidInput ) --language 0:$SubtitleLang --track-name 0:$STTrackName ( $MKVVidSubtitle ) --attach-file $SubFontDir --attachment-mime-type application/x-truetype-font *>&1 | Out-Host
                 break
             }
             else {
                 Write-Output "[MKVMerge] $(Get-Timestamp) -  Merging as-is. No Font specified for $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                mkvmerge -o $MKVVidTempOutput --language 0:$VideoLang --track-name 0:$VTrackName --language 1:$AudioLang --track-name 1:$ALTrackName ( $MKVVidInput ) --language 0:$SubtileLang --track-name 0:$STTrackName ( $MKVVidSubtitle ) *>&1 | Out-Host
+                mkvmerge -o $MKVVidTempOutput --language 0:$VideoLang --track-name 0:$VTrackName --language 1:$AudioLang --track-name 1:$ALTrackName ( $MKVVidInput ) --language 0:$SubtitleLang --track-name 0:$STTrackName ( $MKVVidSubtitle ) *>&1 | Out-Host
             }
         }
         Start-Sleep -Seconds 1
@@ -468,6 +468,52 @@ function Test-Lock {
     }
     Write-Output "[FileLockCheck] $(Get-Timestamp) - $TLfile File unlocked. Continuing..."
     return $false
+}
+function Remove-Logfiles {
+    # Log cleanup
+    $FilledLogslimit = (Get-Date).AddDays(-$FilledLogs)
+    $EmptyLogslimit = (Get-Date).AddDays(-$EmptyLogs)
+    if (!(Test-Path $LFolderBase)) {
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup..."
+    }
+    else {
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting Filledlog($FilledLogs) cleanup..."
+        Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $FilledLogslimit } | `
+            ForEach-Object {
+            $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+        }
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting emptylog($EmptyLogs) cleanup..."
+        Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $EmptyLogslimit } | `
+            ForEach-Object {
+            $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+        }
+        & $DeleteRecursion -DRPath $LFolderBase
+    }
+}
+function Exit-Script {
+    param (
+        [alias('ES')]
+        [switch]$ExitScript
+    )
+    $ScriptStopWatch.Stop()
+    Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($ScriptStopWatch.Elapsed.ToString())"
+    Stop-Transcript
+    ((Get-Content $LFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content $LFile
+    Remove-Spaces $LFile
+    # Cleanup folders
+    Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch
+    Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
+    Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
+    # Cleanup Log Files
+    Remove-Logfiles
+    if ($ExitScript) {
+        exit
+    }
+    else {
+        if ($VSVTotCount -gt 0) {
+            Rename-Item -Path $LFile -NewName "$DateTime-Total-$VSVTotCount.log"
+        }
+    }
 }
 $DeleteRecursion = {
     param(
@@ -758,28 +804,22 @@ if ($Site) {
     $SiteParams = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'libraryid', 'font' -First 1
     $SiteName = $SiteParams.siteName.ToLower()
     $SiteNameRaw = $SiteParams.siteName
-    if ($site -eq $SiteName) {
-        $SiteFolder = "$ScriptDirectory\sites\"
-        if ($Daily) {
-            $SiteType = $SiteName + '_D'
-            $SiteFolder = "$SiteFolder" + $SiteType
-            $LFolderBase = "$SiteFolder\log\"
-            $LFile = "$SiteFolder\log\$Date\$DateTime.log"
-            Start-Transcript -Path $LFile -UseMinimalHeader
-            Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
-        }
-        else {
-            $SiteType = $SiteName
-            $SiteFolder = $SiteFolder + $SiteType
-            $LFolderBase = "$SiteFolder\log\"
-            $LFile = "$SiteFolder\log\$Date\$DateTime.log"
-            Start-Transcript -Path $LFile -UseMinimalHeader
-            Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
-        }
+    $SiteFolder = "$ScriptDirectory\sites\"
+    if ($Daily) {
+        $SiteType = $SiteName + '_D'
+        $SiteFolder = "$SiteFolder" + $SiteType
+        $LFolderBase = "$SiteFolder\log\"
+        $LFile = "$SiteFolder\log\$Date\$DateTime.log"
+        Start-Transcript -Path $LFile -UseMinimalHeader
+        Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
     }
     else {
-        Write-Output "$(Get-Timestamp) - $site != $SiteName. Exiting..."
-        exit
+        $SiteType = $SiteName
+        $SiteFolder = $SiteFolder + $SiteType
+        $LFolderBase = "$SiteFolder\log\"
+        $LFile = "$SiteFolder\log\$Date\$DateTime.log"
+        Start-Transcript -Path $LFile -UseMinimalHeader
+        Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
     }
     $SiteUser = $SiteParams.username
     $SitePass = $SiteParams.password
@@ -812,7 +852,7 @@ if ($Site) {
         }
         else {
             Write-Output "$(Get-Timestamp) - $SubFont specified in $ConfigFile is missing from $FontFolder. Exiting..."
-            Exit
+            Exit-Script -es
         }
     }
     else {
@@ -840,7 +880,7 @@ if ($Site) {
         $SiteConfig = $SiteFolder + '\yt-dlp.conf'
         if ($SrcDrive -eq $TempDrive) {
             Write-Output "[Setup] $(Get-Timestamp) - Src($SrcDrive) and Temp($TempDrive) Directories cannot be the same"
-            Exit
+            Exit-Script -es
         }
         if ((Test-Path -Path $SiteConfig)) {
             Write-Output "$(Get-Timestamp) - $SiteConfig file found. Continuing..."
@@ -849,7 +889,7 @@ if ($Site) {
         }
         else {
             Write-Output "$(Get-Timestamp) - $SiteConfig does not exist. Exiting..."
-            Exit
+            Exit-Script -es
         }
     }
     else {
@@ -870,7 +910,7 @@ if ($Site) {
         }
         else {
             Write-Output "$(Get-Timestamp) - $SiteConfig does not exist. Exiting..."
-            Exit
+            Exit-Script -es
         }
     }
     $SiteConfigBackup = $SrcBackup + "sites\$SiteType\"
@@ -888,7 +928,7 @@ if ($Site) {
                 }
                 else {
                     Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting..."
-                    Exit
+                    Exit-Script -es
                 }
             }
             else {
@@ -898,7 +938,7 @@ if ($Site) {
         }
         else {
             Write-Output "$(Get-Timestamp) - Login is true and Username/Password is Empty. Exiting..."
-            Exit
+            Exit-Script -es
         }
     }
     else {
@@ -909,7 +949,7 @@ if ($Site) {
         }
         else {
             Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting..."
-            Exit
+            Exit-Script -es
         }
     }
     if ($Ffmpeg) {
@@ -919,7 +959,7 @@ if ($Site) {
     }
     else {
         Write-Output "$(Get-Timestamp) - FFMPEG: $Ffmpeg missing. Exiting..."
-        Exit
+        Exit-Script -es
     }
     $BatFile = "$SiteShared" + $SiteType + '_B'
     if ((Test-Path -Path $BatFile)) {
@@ -931,12 +971,12 @@ if ($Site) {
         }
         else {
             Write-Output "$(Get-Timestamp) - $BatFile is empty. Exiting..."
-            Exit
+            Exit-Script -es
         }
     }
     else {
         Write-Output "$(Get-Timestamp) - BAT: $Batfile missing. Exiting..."
-        Exit
+        Exit-Script -es
     }
     if ($Archive) {
         $ArchiveFile = "$SiteShared" + $SiteType + '_A'
@@ -947,7 +987,7 @@ if ($Site) {
         }
         else {
             Write-Output "$(Get-Timestamp) - Archive file missing. Exiting..."
-            Exit
+            Exit-Script -es
         }
     }
     else {
@@ -962,7 +1002,7 @@ if ($Site) {
         }
         else {
             Write-Output "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting..."
-            Exit
+            Exit-Script -es
         }
         $SType = Select-String -Path $SiteConfig -Pattern '--convert-subs.*' | Select-Object -First 1
         if ($null -ne $SType) {
@@ -973,12 +1013,12 @@ if ($Site) {
             }
             else {
                 Write-Output "$(Get-Timestamp) - Subtype(ass) is missing. Exiting..."
-                exit
+                Exit-Script -es
             }
         }
         else {
             Write-Output "$(Get-Timestamp) - --convert-subs parameter is missing. Exiting..."
-            exit
+            Exit-Script -es
         }
         $Vtype = Select-String -Path $SiteConfig -Pattern '--remux-video.*' | Select-Object -First 1
         if ($null -ne $Vtype) {
@@ -989,12 +1029,12 @@ if ($Site) {
             }
             else {
                 Write-Output "$(Get-Timestamp) - VidType(mkv) is missing. Exiting..."
-                exit
+                Exit-Script -es
             }
         }
         else {
             Write-Output "$(Get-Timestamp) - --remux-video parameter is missing. Exiting..."
-            exit
+            Exit-Script -es
         }
         $Wsub = Select-String -Path $SiteConfig -Pattern '--write-subs.*' | Select-Object -First 1
         if ($null -ne $Wsub) {
@@ -1002,14 +1042,14 @@ if ($Site) {
         }
         else {
             Write-Output "$(Get-Timestamp) - SubSubWrite is missing. Exiting..."
-            exit
+            Exit-Script -es
         }
     }
     else {
         Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
     }
     $DebugVars = [ordered]@{Site = $SiteName; isDaily = $Daily; UseLogin = $Login; UseCookies = $Cookies; UseArchive = $Archive; SubtitleEdit = $SubtitleEdit; `
-            MKVMerge = $MKVMerge; Filebot = $Filebot; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; `
+            MKVMerge = $MKVMerge; AudioLang = $AudioLang; SubtitleLang = $SubtitleLang; Filebot = $Filebot; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; `
             SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBase = $SiteSrcBase; `
             SiteSrcBaseMatch = $SiteSrcBaseMatch; SiteHome = $SiteHome; SiteHomeBase = $SiteHomeBase; SiteHomeBaseMatch = $SiteHomeBaseMatch; `
             SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; `
@@ -1023,8 +1063,8 @@ if ($Site) {
         $OverrideSeriesList
         Write-Output 'dlpArray:'
         $dlpArray
-        Write-Output "[End] $DateTime - Debugging enabled. Exiting..."
-        exit
+        Write-Output "[END] $DateTime - Debugging enabled. Exiting..."
+        Exit-Script -es
     }
     else {
         $DebugVarRemove = 'SitePass', 'PlexToken', 'TelegramToken', 'TelegramChatId'
@@ -1049,24 +1089,7 @@ if ($Site) {
             Set-Folders $c
         }
         # Log cleanup
-        $FilledLogslimit = (Get-Date).AddDays(-$FilledLogs)
-        $EmptyLogslimit = (Get-Date).AddDays(-$EmptyLogs)
-        if (!(Test-Path $LFolderBase)) {
-            Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup..."
-        }
-        else {
-            Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting Filledlog($FilledLogs) cleanup..."
-            Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $FilledLogslimit } | `
-                ForEach-Object {
-                $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
-            }
-            Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting emptylog($EmptyLogs) cleanup..."
-            Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $EmptyLogslimit } | `
-                ForEach-Object {
-                $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
-            }
-            & $DeleteRecursion -DRPath $LFolderBase
-        }
+        Remove-Logfiles
     }
     # yt-dlp
     & yt-dlp.exe $dlpArray *>&1 | Out-Host
@@ -1172,7 +1195,7 @@ if ($Site) {
             Invoke-WebRequest -Uri $PlexUrl | Out-Null
         }
         else {
-            Write-Output "[PLEX] $(Get-Timestamp) - [End] - Not using Plex."
+            Write-Output "[PLEX] $(Get-Timestamp) - [END] - Not using Plex."
         }
         $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count
         # Telegram
@@ -1232,16 +1255,5 @@ if ($Site) {
             }
         }
     }
-    # Cleanup
-    Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch
-    Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
-    Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
-    $ScriptStopWatch.Stop()
-    Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($ScriptStopWatch.Elapsed.ToString())"
-    Stop-Transcript
-    ((Get-Content $LFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content $LFile
-    Remove-Spaces $LFile
-    if ($VSVTotCount -gt 0) {
-        Rename-Item -Path $LFile -NewName "$DateTime-Total-$VSVTotCount.log"
-    }
+    Exit-Script
 }
