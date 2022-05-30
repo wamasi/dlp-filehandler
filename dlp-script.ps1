@@ -582,12 +582,12 @@ $xmlconfig = @'
     <Plex>
         <!-- PLEX local IP and token used to update plex library after success processing -->
         <plexcred plexUrl="" plexToken="" />
-        <!-- Plex Library and parent folder name
-            <library libraryid="1" folder="TV" />
+        <!-- Plex Library id found by either api call or using get info > View XML for a given video in a library
+            <library libraryid="1" />
         -->
-        <library libraryid="" folder="" />
-        <library libraryid="" folder="" />
-        <library libraryid="" folder="" />
+        <library libraryid="" />
+        <library libraryid="" />
+        <library libraryid="" />
     </Plex>
     <Filebot>
         <!-- Uses dest drive with site parentfolder/subfolder and argument to run filebot command. may want to run for 1 episode to see what the series folder name comes out to.
@@ -875,6 +875,7 @@ if ($Site) {
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
     $SiteParams = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'libraryid', 'parentfolder', 'subfolder', 'font' -First 1
     $SiteName = $SiteParams.siteName.ToLower()
+    $SiteNameRaw = $SiteParams.siteName
     $SiteFolderDirectory = Join-Path $ScriptDirectory -ChildPath 'sites'
     if ($Daily) {
         $SiteType = $SiteName + '_D'
@@ -911,7 +912,6 @@ if ($Site) {
     $PlexToken = $ConfigFile.configuration.Plex.plexcred.plexToken
     $PlexLibrary = $ConfigFile.configuration.plex.library | Where-Object { $_.libraryid -eq $SiteLib } | Select-Object libraryid, folder
     $PlexLibId = $PlexLibrary.libraryid
-    $PlexLibPath = $PlexLibrary.folder
     $FBArgument = $ConfigFile.configuration.Filebot.fbfolder.fbArgument
     $OverrideSeriesList = $ConfigFile.configuration.OverrideSeries.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
     $Telegramtoken = $ConfigFile.configuration.Telegram.token.tokenId
@@ -947,7 +947,7 @@ if ($Site) {
         $SiteSrcBase = Join-Path $SrcDrive -ChildPath $SiteName.Substring(0, 1)
         $SiteSrcBaseMatch = $SiteSrcBase.Replace('\', '\\')
         $SiteSrc = Join-Path $SiteSrcBase -ChildPath $Time
-        $SiteHomeBase = Join-Path (Join-Path $DestDrive -ChildPath "_$PlexLibPath") -ChildPath ($SiteName).Substring(0, 1)
+        $SiteHomeBase = Join-Path (Join-Path $DestDrive -ChildPath "_$SiteSubFolder") -ChildPath ($SiteName).Substring(0, 1)
         $SiteHomeBaseMatch = $SiteHomeBase.Replace('\', '\\')
         $SiteHome = Join-Path $SiteHomeBase -ChildPath $Time
         $SiteConfig = Join-Path $SiteFolder -ChildPath 'yt-dlp.conf'
@@ -1126,7 +1126,7 @@ if ($Site) {
             SiteFolder = $SiteFolder; SiteParentFolder = $SiteParentFolder; SiteSubFolder = $SiteSubFolder; SiteTemp = $SiteTemp; SiteSrcBase = $SiteSrcBase; SiteSrc = $SiteSrc; SiteHomeBase = $SiteHomeBase; `
             SiteHome = $SiteHome; SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; `
             SubType = $SubType; VidType = $VidType; Backup = $SrcBackup; BackupShared = $SrcDriveShared; BackupFont = $SrcDriveSharedFonts; SiteConfigBackup = $SiteConfigBackup; PlexHost = $PlexHost; `
-            PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; `
+            PlexToken = $PlexToken; PlexLibId = $PlexLibId; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; `
             dlpParams = $dlpParams
     }
     if ($TestScript) {
