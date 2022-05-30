@@ -382,8 +382,8 @@ function Start-Filebot {
         $FBSubInput = $FBFiles._VSEpisodeSubFBPath
         $FBVidBaseName = $FBFiles._VSEpisodeRaw
         $FBOverrideDrive = $FBFiles._VSOverridePath
-        if ($PlexLibPath) {
-            $FBParams = Join-Path (Join-Path (Join-Path $FBOverrideDrive -ChildPath $FBBaseFolder) -ChildPath $PlexLibPath) -ChildPath $FBArgument
+        if ($SiteParentFolder.trim() -ne '' -or $SiteSubFolder.trim() -ne '') {
+            $FBParams = Join-Path (Join-Path (Join-Path $FBOverrideDrive -ChildPath $SiteParentFolder) -ChildPath $SiteSubFolder) -ChildPath $FBArgument
             Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBVidInput). Renaming video and moving files to final folder. Using path($FBParams)."
             filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
             if (!($MKVMerge)) {
@@ -392,7 +392,7 @@ function Start-Filebot {
             }
         }
         else {
-            Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBVidInput). Plex path not specified. Renaming files in place."
+            Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBVidInput). ParentFolder or Subfolder path not specified. Renaming files in place."
             filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBArgument" --log info *>&1 | Out-Host
             if (!($MKVMerge)) {
                 Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBSubInput). Renaming subtitle and moving files to final folder. Using path($FBParams)."
@@ -400,6 +400,7 @@ function Start-Filebot {
             }
         }
         if (!(Test-Path $FBVidInput)) {
+            Write-Output "[Filebot] $(Get-Timestamp) - Setting file($FBVidInput) as completed."
             Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $FBVidBaseName -SVSFP $true
         }
     }
@@ -553,42 +554,94 @@ $xmlconfig = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
     <Directory>
+        <!-- Folder to store backup of site config/archive/bat/cookie files
+            ex: <backup location="E:\Backup" />
+        -->
         <backup location="" />
+        <!-- Temp folder used by YT-DLP
+            ex: <temp location="D:\tmp" />
+        -->
         <temp location="" />
+        <!-- Staging folder for post-process after download
+            ex: <src location="D:\src" />
+        -->
         <src location="" />
+        <!-- Default final staging after post-processing. Can be overridden per series/show under OverrideSeries section
+            ex: <dest location="J:\tmp" />
+        -->
         <dest location="" />
+        <!-- Location of YT-DLP FFMPEG version
+            ex: <ffmpeg location="D:\Common\ffmpeg\bin" />
+        -->
         <ffmpeg location="" />
     </Directory>
     <Logs>
+        <!-- How long to keep folders that did or didn't result in a download -->
         <keeplog emptylogskeepdays="0" filledlogskeepdays="7" />
     </Logs>
     <Plex>
+        <!-- PLEX local IP and token used to update plex library after success processing -->
         <plexcred plexUrl="" plexToken="" />
+        <!-- Plex Library and parent folder name
+            <library libraryid="1" folder="TV" />
+        -->
         <library libraryid="" folder="" />
         <library libraryid="" folder="" />
         <library libraryid="" folder="" />
     </Plex>
     <Filebot>
-        <fbfolder fbFolderName="Videos" fbargument="{ plex.tail }" />
+        <!-- Uses dest drive with site parentfolder/subfolder and argument to run filebot command. may want to run for 1 episode to see what the series folder name comes out to.
+            ex: <fbfolder fbArgument="{n}\{'Season '+s00}\{n} - {s00e00} - {t}" />
+        -->
+        <fbfolder fbArgument="{n}\{'Season '+s00}\{n} - {s00e00} - {t}" />
     </Filebot>
     <OverrideSeries>
+        <!-- Used to move files to different tmp folder than whats defined in defauilt above.
+            <override orSeriesName="MySeriesThatIsInADifferentDriveThanDefaultTemp" orSrcdrive="I:\" />
+        -->
         <override orSeriesName="" orSrcdrive="" />
         <override orSeriesName="" orSrcdrive="" />
         <override orSeriesName="" orSrcdrive="" />
     </OverrideSeries>
     <Telegram>
+        <!-- Telegram Bot tokenId and your group ChatId -->
         <token tokenId="" chatid="" />
     </Telegram>
     <credentials>
-        <site siteName="" username="" password="" libraryid="" font="" />
-        <site siteName="" username="" password="" libraryid="" font="" />
-        <site siteName="" username="" password="" libraryid="" font="" />
-        <site siteName="" username="" password="" libraryid="" font="" />
-        <site siteName="" username="" password="" libraryid="" font="" />
-        <site siteName="" username="" password="" libraryid="" font="" />
-        <site siteName="" username="" password="" libraryid="" font="" />
-        <site siteName="" username="" password="" libraryid="" font="" />
-        <site siteName="" username="" password="" libraryid="" font="" />
+        <!-- Where you store the Site name, username/password, plex libraryId, folder in library, and a custom font used to embed into video/sub
+            <site sitename="Crunchyroll">
+                <username>MyUserName</username>
+                <password>MyPassword</password>
+                <libraryid>4</libraryid>
+                <parentfolder>Video</parentfolder>
+                <subfolder>A</subfolder>
+                <font>Marker SD.ttf</font>
+            </site>
+        -->
+        <site sitename="">
+            <username></username>
+            <password></password>
+            <libraryid></libraryid>
+            <parentfolder></parentfolder>
+            <subfolder></subfolder>
+            <font></font>
+        </site>
+        <site sitename="">
+            <username></username>
+            <password></password>
+            <libraryid></libraryid>
+            <parentfolder></parentfolder>
+            <subfolder></subfolder>
+            <font></font>
+        </site>
+        <site sitename="">
+            <username></username>
+            <password></password>
+            <libraryid></libraryid>
+            <parentfolder></parentfolder>
+            <subfolder></subfolder>
+            <font></font>
+        </site>
     </credentials>
 </configuration>
 '@
@@ -820,13 +873,12 @@ if ($Site) {
     # Reading from XML
     $ConfigPath = Join-Path $ScriptDirectory -ChildPath 'config.xml'
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
-    $SiteParams = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'libraryid', 'font' -First 1
+    $SiteParams = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'libraryid', 'parentfolder', 'subfolder', 'font' -First 1
     $SiteName = $SiteParams.siteName.ToLower()
-    $SiteNameRaw = $SiteParams.siteName
-    $SiteFolder = Join-Path $ScriptDirectory -ChildPath 'sites'
+    $SiteFolderDirectory = Join-Path $ScriptDirectory -ChildPath 'sites'
     if ($Daily) {
         $SiteType = $SiteName + '_D'
-        $SiteFolder = Join-Path $SiteFolder -ChildPath $SiteType
+        $SiteFolder = Join-Path $SiteFolderDirectory -ChildPath $SiteType
         $LFolderBase = Join-Path $SiteFolder -ChildPath 'log'
         $LFolderBaseDate = Join-Path $LFolderBase -ChildPath $Date
         $LFile = Join-Path $LFolderBaseDate -ChildPath "$DateTime.log"
@@ -835,7 +887,7 @@ if ($Site) {
     }
     else {
         $SiteType = $SiteName
-        $SiteFolder = $SiteFolder + $SiteType
+        $SiteFolder = Join-Path $SiteFolderDirectory -ChildPath $SiteType
         $LFolderBase = Join-Path $SiteFolder -ChildPath 'log'
         $LFolderBaseDate = Join-Path $LFolderBase -ChildPath $Date
         $LFile = Join-Path $LFolderBaseDate -ChildPath "$DateTime.log"
@@ -845,6 +897,8 @@ if ($Site) {
     $SiteUser = $SiteParams.username
     $SitePass = $SiteParams.password
     $SiteLib = $SiteParams.libraryid
+    $SiteParentFolder = $SiteParams.parentfolder
+    $SiteSubFolder = $SiteParams.subfolder
     $SubFont = $SiteParams.font
     $BackupDrive = $ConfigFile.configuration.Directory.backup.location
     $TempDrive = $ConfigFile.configuration.Directory.temp.location
@@ -858,7 +912,6 @@ if ($Site) {
     $PlexLibrary = $ConfigFile.configuration.plex.library | Where-Object { $_.libraryid -eq $SiteLib } | Select-Object libraryid, folder
     $PlexLibId = $PlexLibrary.libraryid
     $PlexLibPath = $PlexLibrary.folder
-    $FBBaseFolder = $ConfigFile.configuration.Filebot.fbfolder.fbFolderName
     $FBArgument = $ConfigFile.configuration.Filebot.fbfolder.fbArgument
     $OverrideSeriesList = $ConfigFile.configuration.OverrideSeries.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
     $Telegramtoken = $ConfigFile.configuration.Telegram.token.tokenId
@@ -1070,12 +1123,11 @@ if ($Site) {
     }
     $DebugVars = [ordered]@{Site = $SiteName; isDaily = $Daily; UseLogin = $Login; UseCookies = $Cookies; UseArchive = $Archive; SubtitleEdit = $SubtitleEdit; `
             MKVMerge = $MKVMerge; AudioLang = $AudioLang; SubtitleLang = $SubtitleLang; Filebot = $Filebot; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; `
-            SiteFolder = $SiteFolder; SiteTemp = $SiteTemp; SiteTempBaseMatch = $SiteTempBaseMatch; SiteSrc = $SiteSrc; SiteSrcBase = $SiteSrcBase; `
-            SiteSrcBaseMatch = $SiteSrcBaseMatch; SiteHome = $SiteHome; SiteHomeBase = $SiteHomeBase; SiteHomeBaseMatch = $SiteHomeBaseMatch; `
-            SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; `
-            SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; Backup = $SrcBackup; BackupShared = $SrcDriveShared; BackupFont = $SrcDriveSharedFonts; `
-            SiteConfigBackup = $SiteConfigBackup; PlexHost = $PlexHost; PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; `
-            TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; dlpParams = $dlpParams
+            SiteFolder = $SiteFolder; SiteParentFolder = $SiteParentFolder; SiteSubFolder = $SiteSubFolder; SiteTemp = $SiteTemp; SiteSrcBase = $SiteSrcBase; SiteSrc = $SiteSrc; SiteHomeBase = $SiteHomeBase; `
+            SiteHome = $SiteHome; SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; `
+            SubType = $SubType; VidType = $VidType; Backup = $SrcBackup; BackupShared = $SrcDriveShared; BackupFont = $SrcDriveSharedFonts; SiteConfigBackup = $SiteConfigBackup; PlexHost = $PlexHost; `
+            PlexToken = $PlexToken; PlexLibPath = $PlexLibPath; PlexLibId = $PlexLibId; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; `
+            dlpParams = $dlpParams
     }
     if ($TestScript) {
         Write-Output "[START] $DateTime - $SiteNameRaw - DEBUG Run"
@@ -1224,9 +1276,10 @@ if ($Site) {
             Write-Output "[FileMoving] $(Get-Timestamp) - $SiteSrc contains file(s) with error(s). Not moving files."
         }
         # Filebot
+        $FBOverrideDriveList = $VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Select-Object _VSDestPath -Unique
         if (($Filebot -and $VSVMKVCount -eq $VSVTotCount) -or ($Filebot -and !($MKVMerge))) {
-            foreach ($ORDriveList in $OverrideDriveList) {
-                Write-Output "[Filebot] $(Get-Timestamp) - Renaming files in $($ORDriveList._VSDestPath)."
+            foreach ($FBORDriveList in $FBOverrideDriveList) {
+                Write-Output "[Filebot] $(Get-Timestamp) - Renaming files in $($FBORDriveList._VSDestPath)."
                 Start-Filebot -FBPath $ORDriveList._VSDestPath
             }
         }
