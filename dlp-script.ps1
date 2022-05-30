@@ -383,7 +383,7 @@ function Start-Filebot {
         $FBVidBaseName = $FBFiles._VSEpisodeRaw
         $FBOverrideDrive = $FBFiles._VSOverridePath
         if ($PlexLibPath) {
-            $FBParams = $FBOverrideDrive + "$FBBaseFolder\$PlexLibPath\$FBArgument"
+            $FBParams = Join-Path (Join-Path (Join-Path $FBOverrideDrive -ChildPath $FBBaseFolder) -ChildPath $PlexLibPath) -ChildPath $FBArgument
             Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBVidInput). Renaming video and moving files to final folder. Using path($FBParams)."
             filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
             if (!($MKVMerge)) {
@@ -518,7 +518,7 @@ function Exit-Script {
     }
     else {
         if ($VSVTotCount -gt 0) {
-            $LogTemp = "$LFolderBaseDate\$DateTime-Temp.log"
+            $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
             New-Item -Path $LogTemp -ItemType File
             $VSCompletedFilesTable | Out-File $LogTemp
             Get-Content $LFile -ReadCount 5000 | ForEach-Object {
@@ -544,11 +544,11 @@ $DeleteRecursion = {
     }
 }
 $ScriptDirectory = $PSScriptRoot
-$DLPScript = "$ScriptDirectory\dlp-script.ps1"
-$SubtitleRegex = "$ScriptDirectory\subtitle_regex.py"
-$ConfigPath = "$ScriptDirectory\config.xml"
-$SharedF = "$ScriptDirectory\shared"
-$FontFolder = "$ScriptDirectory\fonts"
+$DLPScript = Join-Path $ScriptDirectory -ChildPath 'dlp-script.ps1'
+$SubtitleRegex = Join-Path $ScriptDirectory -ChildPath 'subtitle_regex.py'
+$ConfigPath = Join-Path $ScriptDirectory -ChildPath 'config.xml'
+$SharedF = Join-Path $ScriptDirectory -ChildPath 'shared'
+$FontFolder = Join-Path $ScriptDirectory -ChildPath 'fonts'
 $xmlconfig = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -768,37 +768,39 @@ if ($NewConfig) {
 }
 if ($SupportFiles) {
     Set-Folders $FontFolder
-    $ConfigPath = "$ScriptDirectory\config.xml"
+    $ConfigPath = Join-Path $ScriptDirectory -ChildPath 'config.xml'
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
     $SNfile = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.trim() -ne '' } | Select-Object 'siteName' -ExpandProperty siteName
     $SNfile | ForEach-Object {
         $SN = New-Object -Type PSObject -Property @{
             SN = $_.siteName
         }
-        $SharedF = "$ScriptDirectory\shared"
+        $SharedF = Join-Path $ScriptDirectory -ChildPath 'shared'
         Set-Folders $SharedF
-        $SCC = "$ScriptDirectory\sites"
+        $SCC = Join-Path $ScriptDirectory -ChildPath 'sites'
         Set-Folders $SCC
-        $SCF = "$SCC\" + $SN.SN
+        $SCF = Join-Path $SCC -ChildPath $SN.SN
         Set-Folders $SCF
-        $SCDF = "$SCF" + '_D'
+        $SCDF = $SCF.TrimEnd('\') + '_D'
         Set-Folders $SCDF
-        $SADF = "$SharedF\" + $SN.SN + '_D_A'
+        $SADF = Join-Path $SharedF -ChildPath "$($SN.SN)_D_A"
         Set-SuppFiles $SADF
-        $SBDF = "$SharedF\" + $SN.SN + '_D_B'
+        $SBDF = Join-Path $SharedF -ChildPath "$($SN.SN)_D_B"
         Set-SuppFiles $SBDF
-        $SBDC = "$SharedF\" + $SN.SN + '_D_C'
+        $SBDC = Join-Path $SharedF -ChildPath "$($SN.SN)_D_C"
         Set-SuppFiles $SBDC
-        $SAF = "$SharedF\" + $SN.SN + '_A'
+        $SAF = Join-Path $SharedF -ChildPath "$($SN.SN)_A"
         Set-SuppFiles $SAF
-        $SBF = "$SharedF\" + $SN.SN + '_B'
+        $SBF = Join-Path $SharedF -ChildPath "$($SN.SN)_B"
         Set-SuppFiles $SBF
-        $SBC = "$SharedF\" + $SN.SN + '_C'
+        $SBC = Join-Path $SharedF -ChildPath "$($SN.SN)_C"
         Set-SuppFiles $SBC
-        $SCFDC = "$SCF" + '_D\yt-dlp.conf'
+        $SCFDCD = $SCF.TrimEnd('\') + '_D'
+        Write-Host $SCFDCD
+        $SCFDC = Join-Path $SCFDCD -ChildPath 'yt-dlp.conf'
         Resolve-Configs $SCFDC
         Remove-Spaces $SCFDC
-        $SCFC = "$SCF\yt-dlp.conf"
+        $SCFC = Join-Path $SCF -ChildPath 'yt-dlp.conf'
         Resolve-Configs $SCFC
         Remove-Spaces $SCFC
     }
@@ -816,27 +818,27 @@ if ($Site) {
     $Time = Get-Time
     $site = $site.ToLower()
     # Reading from XML
-    $ConfigPath = "$ScriptDirectory\config.xml"
+    $ConfigPath = Join-Path $ScriptDirectory -ChildPath 'config.xml'
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
     $SiteParams = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'libraryid', 'font' -First 1
     $SiteName = $SiteParams.siteName.ToLower()
     $SiteNameRaw = $SiteParams.siteName
-    $SiteFolder = "$ScriptDirectory\sites\"
+    $SiteFolder = Join-Path $ScriptDirectory -ChildPath 'sites'
     if ($Daily) {
         $SiteType = $SiteName + '_D'
-        $SiteFolder = "$SiteFolder" + $SiteType
-        $LFolderBase = "$SiteFolder\log\"
-        $LFolderBaseDate = "$LFolderBase\$Date\"
-        $LFile = "$LFolderBaseDate" + "$DateTime.log"
+        $SiteFolder = Join-Path $SiteFolder -ChildPath $SiteType
+        $LFolderBase = Join-Path $SiteFolder -ChildPath 'log'
+        $LFolderBaseDate = Join-Path $LFolderBase -ChildPath $Date
+        $LFile = Join-Path $LFolderBaseDate -ChildPath "$DateTime.log"
         Start-Transcript -Path $LFile -UseMinimalHeader
         Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
     }
     else {
         $SiteType = $SiteName
         $SiteFolder = $SiteFolder + $SiteType
-        $LFolderBase = "$SiteFolder\log\"
-        $LFolderBaseDate = "$SiteFolder\log\$Date\"
-        $LFile = "$LFolderBaseDate" + "$DateTime.log"
+        $LFolderBase = Join-Path $SiteFolder -ChildPath 'log'
+        $LFolderBaseDate = Join-Path $LFolderBase -ChildPath $Date
+        $LFile = Join-Path $LFolderBaseDate -ChildPath "$DateTime.log"
         Start-Transcript -Path $LFile -UseMinimalHeader
         Write-Output "[Setup] $(Get-Timestamp) - $SiteNameRaw"
     }
@@ -863,7 +865,7 @@ if ($Site) {
     $Telegramchatid = $ConfigFile.configuration.Telegram.token.chatid
     # End reading from XML
     if ($SubFont.Trim() -ne '') {
-        $SubFontDir = "$FontFolder\$Subfont"
+        $SubFontDir = Join-Path $FontFolder -ChildPath $Subfont
         if (Test-Path $SubFontDir) {
             $SF = [System.Io.Path]::GetFileNameWithoutExtension($SubFont)
             Write-Output "$(Get-Timestamp) - $SubFont set for $SiteName."
@@ -879,23 +881,23 @@ if ($Site) {
         $SF = 'None'
         Write-Output "$(Get-Timestamp) - $SubFont - No font set for $SiteName."
     }
-    $SiteShared = "$ScriptDirectory\shared\"
-    $SrcBackup = "$BackupDrive\_Backup\"
-    $SrcDriveShared = "$SrcBackup" + 'shared\'
-    $SrcDriveSharedFonts = "$SrcBackup" + 'fonts\'
+    $SiteShared = Join-Path $ScriptDirectory -ChildPath 'shared'
+    $SrcBackup = Join-Path $BackupDrive -ChildPath '_Backup'
+    $SrcDriveShared = Join-Path $SrcBackup -ChildPath 'shared'
+    $SrcDriveSharedFonts = Join-Path $SrcBackup -ChildPath 'fonts'
     $dlpParams = 'yt-dlp'
     $dlpArray = @()
     if ($Daily) {
-        $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1)
+        $SiteTempBase = Join-Path $TempDrive -ChildPath $SiteName.Substring(0, 1)
         $SiteTempBaseMatch = $SiteTempBase.Replace('\', '\\')
-        $SiteTemp = "$SiteTempBase\$Time"
-        $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1)
+        $SiteTemp = Join-Path $SiteTempBase -ChildPath $Time
+        $SiteSrcBase = Join-Path $SrcDrive -ChildPath $SiteName.Substring(0, 1)
         $SiteSrcBaseMatch = $SiteSrcBase.Replace('\', '\\')
-        $SiteSrc = "$SiteSrcBase\$Time"
-        $SiteHomeBase = "$DestDrive\_" + $PlexLibPath + '\' + ($SiteName).Substring(0, 1)
+        $SiteSrc = Join-Path $SiteSrcBase -ChildPath $Time
+        $SiteHomeBase = Join-Path (Join-Path $DestDrive -ChildPath "_$PlexLibPath") -ChildPath ($SiteName).Substring(0, 1)
         $SiteHomeBaseMatch = $SiteHomeBase.Replace('\', '\\')
-        $SiteHome = "$SiteHomeBase\$Time"
-        $SiteConfig = $SiteFolder + '\yt-dlp.conf'
+        $SiteHome = Join-Path $SiteHomeBase -ChildPath $Time
+        $SiteConfig = Join-Path $SiteFolder -ChildPath 'yt-dlp.conf'
         if ($SrcDrive -eq $TempDrive) {
             Write-Output "[Setup] $(Get-Timestamp) - Src($SrcDrive) and Temp($TempDrive) Directories cannot be the same"
             Exit-Script -es
@@ -911,15 +913,15 @@ if ($Site) {
         }
     }
     else {
-        $SiteTempBase = "$TempDrive\" + $SiteName.Substring(0, 1) + 'M'
+        $SiteTempBase = Join-Path $TempDrive -ChildPath "$($SiteName.Substring(0, 1))M"
         $SiteTempBaseMatch = $SiteTempBase.Replace('\', '\\')
-        $SiteTemp = "$SiteTempBase\$Time"
-        $SiteSrcBase = "$SrcDrive\" + $SiteName.Substring(0, 1) + 'M'
+        $SiteTemp = Join-Path $SiteTempBase -ChildPath $Time
+        $SiteSrcBase = Join-Path $SrcDrive -ChildPath "$($SiteName.Substring(0, 1))M"
         $SiteSrcBaseMatch = $SiteSrcBase.Replace('\', '\\')
-        $SiteSrc = "$SiteSrcBase\$Time"
-        $SiteHomeBase = "$DestDrive\_M\" + $SiteName.Substring(0, 1)
+        $SiteSrc = Join-Path $SiteSrcBase -ChildPath $Time
+        $SiteHomeBase = Join-Path (Join-Path $DestDrive -ChildPath '_M') -ChildPath ($SiteName).Substring(0, 1)
         $SiteHomeBaseMatch = $SiteHomeBase.Replace('\', '\\')
-        $SiteHome = "$SiteHomeBase\$Time"
+        $SiteHome = Join-Path $SiteHomeBase -ChildPath $Time
         $SiteConfig = $SiteFolder + '\yt-dlp.conf'
         if ((Test-Path -Path $SiteConfig)) {
             Write-Output "$(Get-Timestamp) - $SiteConfig file found. Continuing..."
@@ -931,8 +933,8 @@ if ($Site) {
             Exit-Script -es
         }
     }
-    $SiteConfigBackup = $SrcBackup + "sites\$SiteType\"
-    $CookieFile = $SiteShared + $SiteType + '_C'
+    $SiteConfigBackup = Join-Path (Join-Path $SrcBackup -ChildPath 'sites') -ChildPath $SiteType
+    $CookieFile = Join-Path $SiteShared -ChildPath "$($SiteType)_C"
     if ($Login) {
         if ($SiteUser -and $SitePass) {
             Write-Output "$(Get-Timestamp) - Login is true and SiteUser/Password is filled. Continuing..."
@@ -979,7 +981,7 @@ if ($Site) {
         Write-Output "$(Get-Timestamp) - FFMPEG: $Ffmpeg missing. Exiting..."
         Exit-Script -es
     }
-    $BatFile = "$SiteShared" + $SiteType + '_B'
+    $BatFile = Join-Path $SiteShared -ChildPath "$($SiteType)_B"
     if ((Test-Path -Path $BatFile)) {
         Write-Output "$(Get-Timestamp) - $BatFile file found. Continuing..."
         if (![String]::IsNullOrWhiteSpace((Get-Content $BatFile))) {
@@ -997,7 +999,7 @@ if ($Site) {
         Exit-Script -es
     }
     if ($Archive) {
-        $ArchiveFile = "$SiteShared" + $SiteType + '_A'
+        $ArchiveFile = Join-Path $SiteShared -ChildPath "$($SiteType)_A"
         if ((Test-Path -Path $ArchiveFile)) {
             Write-Output "$(Get-Timestamp) - $ArchiveFile file found. Continuing..."
             $dlpParams = $dlpParams + " --download-archive $ArchiveFile"
@@ -1119,13 +1121,13 @@ if ($Site) {
             $VSEpisode = (Get-Culture).TextInfo.ToTitleCase( ($_.BaseName.Replace('_', ' ').Replace('-', ' '))) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
             $VSSeriesDirectory = $_.DirectoryName
             $VSEpisodeRaw = $_.BaseName
-            $VSEpisodeTemp = $VSSeriesDirectory + "\$VSEpisodeRaw.temp" + $_.Extension
+            $VSEpisodeTemp = Join-Path $VSSeriesDirectory -ChildPath "$($VSEpisodeRaw).temp$($_.Extension)"
             $VSEpisodePath = $_.FullName
             $VSEpisodeSubtitle = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).FullName
             $VSOverridePath = $OverrideSeriesList | Where-Object { $_.orSeriesName.ToLower() -eq $VSSeries.ToLower() } | Select-Object -ExpandProperty orSrcdrive
             if ($null -ne $VSOverridePath) {
-                $VSDestPath = $VSOverridePath + $SiteHome.Substring(3)
-                $VSDestPathBase = $VSOverridePath + $SiteHomeBase.Substring(3)
+                $VSDestPath = Join-Path $VSOverridePath -ChildPath $SiteHome.Substring(3)
+                $VSDestPathBase = Join-Path $VSOverridePath -ChildPath $SiteHomeBase.Substring(3)
                 $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $VSDestPath)
                 if ($VSEpisodeSubtitle -ne '') {
                     $VSEpisodeSubtitleBase = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).Name
@@ -1271,9 +1273,9 @@ if ($Site) {
             }
         }
         Write-Output "[VideoList] $(Get-Timestamp) - Total videos downloaded: $VSVTotCount"
-        $VSCompletedFilesTable = $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, @{Label = 'EpisodeSubtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, `
-        @{Label = 'EpisodeOverrideDrive'; Expression = { $_._VSOverridePath } }, @{Label = 'VSSeriesDirectory'; Expression = { $_._VSSeriesDirectory } }, @{Label = 'VSDestPathBase'; Expression = { $_._VSDestPathBase } }, `
-        @{Label = 'VSDestPath'; Expression = { $_._VSDestPath } }, @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, `
+        $VSCompletedFilesTable = $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, @{Label = 'Subtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, `
+        @{Label = 'Drive'; Expression = { $_._VSOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._VSSeriesDirectory } }, @{Label = 'DestBase'; Expression = { $_._VSDestPathBase } }, `
+        @{Label = 'DestPath'; Expression = { $_._VSDestPath } }, @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, `
         @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
     }
     else {
