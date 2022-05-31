@@ -84,7 +84,7 @@ function Get-TimeStamp {
     return (Get-Date -Format 'yy-MM-dd HH-mm-ss')
 }
 function Get-Time {
-    return (Get-Date -Format 'MMddHHmmss')
+    return (Get-Date -Format 'MMddHHmmssfff')
 }
 function Set-Folders {
     param (
@@ -93,7 +93,7 @@ function Set-Folders {
     )
     if (!(Test-Path -Path $Fullpath)) {
         New-Item -ItemType Directory -Path $Fullpath -Force | Out-Null
-        Write-Output "[SetFolder] - $(Get-Timestamp) - $Fullpath missing. Creating..."
+        Write-Output "[SetFolder] - $(Get-Timestamp) - $Fullpath missing. Creating."
     }
     else {
         Write-Output "[SetFolder] - $(Get-Timestamp) - $Fullpath already exists."
@@ -106,7 +106,7 @@ function Set-SuppFiles {
     )
     if (!(Test-Path $SuppFiles -PathType Leaf)) {
         New-Item $SuppFiles -ItemType File | Out-Null
-        Write-Output "$SuppFiles file missing. Creating..."
+        Write-Output "$SuppFiles file missing. Creating."
     }
     else {
         Write-Output "$SuppFiles already file exists."
@@ -383,7 +383,8 @@ function Start-Filebot {
         $FBVidBaseName = $FBFiles._VSEpisodeRaw
         $FBOverrideDrive = $FBFiles._VSOverridePath
         if ($SiteParentFolder.trim() -ne '' -or $SiteSubFolder.trim() -ne '') {
-            $FBParams = Join-Path (Join-Path (Join-Path $FBOverrideDrive -ChildPath $SiteParentFolder) -ChildPath $SiteSubFolder) -ChildPath $FBArgument
+            $FBRootFolder = $FBOverrideDrive + $SiteParentFolder
+            $FBParams = Join-Path (Join-Path $FBRootFolder -ChildPath $SiteSubFolder) -ChildPath $FBArgument
             Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBVidInput). Renaming video and moving files to final folder. Using path($FBParams)."
             filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
             if (!($MKVMerge)) {
@@ -457,14 +458,14 @@ function Test-Lock {
     $TLfile = Get-Item (Resolve-Path $TLfilename) -Force
     if ($TLfile -is [IO.FileInfo]) {
         trap {
-            Write-Output "[FileLockCheck] $(Get-Timestamp) - $TLfile File locked. Waiting..."
+            Write-Output "[FileLockCheck] $(Get-Timestamp) - $TLfile File locked. Waiting."
             return $true
             continue
         }
         $TLstream = New-Object system.IO.StreamReader $TLfile
         if ($TLstream) { $TLstream.Close() }
     }
-    Write-Output "[FileLockCheck] $(Get-Timestamp) - $TLfile File unlocked. Continuing..."
+    Write-Output "[FileLockCheck] $(Get-Timestamp) - $TLfile File unlocked. Continuing."
     return $false
 }
 function Remove-Logfiles {
@@ -472,15 +473,15 @@ function Remove-Logfiles {
     $FilledLogslimit = (Get-Date).AddDays(-$FilledLogs)
     $EmptyLogslimit = (Get-Date).AddDays(-$EmptyLogs)
     if (!(Test-Path $LFolderBase)) {
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup..."
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup."
     }
     else {
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting Filledlog($FilledLogs) cleanup..."
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting Filledlog($FilledLogs) cleanup."
         Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $FilledLogslimit } | `
             ForEach-Object {
             $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
         }
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting emptylog($EmptyLogs) cleanup..."
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting emptylog($EmptyLogs) cleanup."
         Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $EmptyLogslimit } | `
             ForEach-Object {
             $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
@@ -494,10 +495,6 @@ function Exit-Script {
         [switch]$ExitScript
     )
     $ScriptStopWatch.Stop()
-    Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($ScriptStopWatch.Elapsed.ToString())"
-    Stop-Transcript
-    ((Get-Content $LFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content $LFile
-    Remove-Spaces $LFile
     # Cleanup folders
     Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch
     Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
@@ -510,23 +507,53 @@ function Exit-Script {
     }
     # Cleanup Log Files
     Remove-Logfiles
+    Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($ScriptStopWatch.Elapsed.ToString())"
+    Stop-Transcript
+    ((Get-Content $LFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content $LFile
+    Remove-Spaces $LFile
     if ($ExitScript -and !($TestScript)) {
+        $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
+        New-Item -Path $LogTemp -ItemType File | Out-Null
+        $asciiLogo | Out-File $LogTemp -Width 9999
+        Get-Content $LFile -ReadCount 5000 | ForEach-Object {
+            $_ | Add-Content "$LogTemp"
+        }
+        Remove-Item $LFile
+        Rename-Item $LogTemp -NewName $LFile
         exit
     }
     elseif ($TestScript) {
-        Rename-Item -Path $LFile -NewName "$DateTime-DEBUG.log"
+        $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
+        New-Item -Path $LogTemp -ItemType File | Out-Null
+        $asciiLogo | Out-File $LogTemp -Width 9999
+        Get-Content $LFile -ReadCount 5000 | ForEach-Object {
+            $_ | Add-Content "$LogTemp"
+        }
+        Remove-Item $LFile
+        Rename-Item -Path $LogTemp -NewName "$DateTime-DEBUG.log"
         exit
     }
     else {
         if ($VSVTotCount -gt 0) {
             $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
-            New-Item -Path $LogTemp -ItemType File
-            $VSCompletedFilesTable | Out-File $LogTemp
+            New-Item -Path $LogTemp -ItemType File | Out-Null
+            $asciiLogo | Out-File $LogTemp -Width 9999
+            $VSCompletedFilesTable | Out-File $LogTemp -Width 9999 -Append
             Get-Content $LFile -ReadCount 5000 | ForEach-Object {
                 $_ | Add-Content "$LogTemp"
             }
             Remove-Item $LFile
             Rename-Item $LogTemp -NewName "$DateTime-Total-$VSVTotCount.log"
+        }
+        else {
+            $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
+            New-Item -Path $LogTemp -ItemType File | Out-Null
+            $asciiLogo | Out-File $LogTemp -Width 9999
+            Get-Content $LFile -ReadCount 5000 | ForEach-Object {
+                $_ | Add-Content "$LogTemp"
+            }
+            Remove-Item $LFile
+            Rename-Item $LogTemp -NewName $LFile
         }
     }
 }
@@ -763,13 +790,6 @@ $hidiveconfig = @'
 --convert-thumbnails 'png'
 --remux-video 'mkv'
 -N 32
---sleep-requests "2"
---sleep-subtitles "3"
---min-sleep-interval "60"
---max-sleep-interval "120"
---retries "10"
---file-access-retries "10"
---fragment-retries "10"
 --downloader aria2c
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
@@ -798,6 +818,14 @@ $paramountplusconfig = @'
 --downloader-args aria2c:'-c -j 64 -s 64 -x 16 --file-allocation=none --optimize-concurrent-downloads=true --http-accept-gzip=true'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
+'@
+$asciiLogo = @'
+######   ##       #######           #######  ######   ##       #######  ##   ##  #######  ###  ##  ######   ##       #######  #######
+     ##  ##            ##                      ##     ##                ##   ##       ##  #### ##       ##  ##                     ##
+##   ##  ##       #######   #####   ####       ##     ##       ####     #######  #######  ## ####  ##   ##  ##       ####     #######
+##   ##  ##   ##  ##       # # #    ##         ##     ##   ##  ##       ##   ##  ##   ##  ##  ###  ##   ##  ##   ##  ##       ##  ##
+######   #######  ##                ##       ######   #######  #######  ##   ##  ##   ##  ##   ##  ######   #######  #######  ##   ##
+_____________________________________________________________________________________________________________________________________
 '@
 if (!(Test-Path "$ScriptDirectory\config.xml" -PathType Leaf)) {
     New-Item "$ScriptDirectory\config.xml" -ItemType File -Force
@@ -863,7 +891,7 @@ if ($Site) {
         Write-Output "$(Get-Timestamp) - $DLPScript, $subtitle_regex do exist in $ScriptDirectory folder."
     }
     else {
-        Write-Output "$(Get-Timestamp) - subtitle_regex.py does not exist or was not found in $ScriptDirectory folder. Exiting..."
+        Write-Output "$(Get-Timestamp) - subtitle_regex.py does not exist or was not found in $ScriptDirectory folder. Exiting."
         Exit
     }
     $Date = Get-Day
@@ -924,7 +952,7 @@ if ($Site) {
             Write-Output "$(Get-Timestamp) - $SubFont set for $SiteName."
         }
         else {
-            Write-Output "$(Get-Timestamp) - $SubFont specified in $ConfigFile is missing from $FontFolder. Exiting..."
+            Write-Output "$(Get-Timestamp) - $SubFont specified in $ConfigFile is missing from $FontFolder. Exiting."
             Exit-Script -es
         }
     }
@@ -956,12 +984,12 @@ if ($Site) {
             Exit-Script -es
         }
         if ((Test-Path -Path $SiteConfig)) {
-            Write-Output "$(Get-Timestamp) - $SiteConfig file found. Continuing..."
+            Write-Output "$(Get-Timestamp) - $SiteConfig file found. Continuing."
             $dlpParams = $dlpParams + " --config-location $SiteConfig -P temp:$SiteTemp -P home:$SiteSrc"
             $dlpArray += "`"--config-location`"", "`"$SiteConfig`"", "`"-P`"", "`"temp:$SiteTemp`"", "`"-P`"", "`"home:$SiteSrc`""
         }
         else {
-            Write-Output "$(Get-Timestamp) - $SiteConfig does not exist. Exiting..."
+            Write-Output "$(Get-Timestamp) - $SiteConfig does not exist. Exiting."
             Exit-Script -es
         }
     }
@@ -977,12 +1005,12 @@ if ($Site) {
         $SiteHome = Join-Path $SiteHomeBase -ChildPath $Time
         $SiteConfig = $SiteFolder + '\yt-dlp.conf'
         if ((Test-Path -Path $SiteConfig)) {
-            Write-Output "$(Get-Timestamp) - $SiteConfig file found. Continuing..."
+            Write-Output "$(Get-Timestamp) - $SiteConfig file found. Continuing."
             $dlpParams = $dlpParams + " --config-location $SiteConfig -P temp:$SiteTemp -P home:$SiteSrc"
             $dlpArray += "`"--config-location`"", "`"$SiteConfig`"", "`"-P`"", "`"temp:$SiteTemp`"", "`"-P`"", "`"home:$SiteSrc`""
         }
         else {
-            Write-Output "$(Get-Timestamp) - $SiteConfig does not exist. Exiting..."
+            Write-Output "$(Get-Timestamp) - $SiteConfig does not exist. Exiting."
             Exit-Script -es
         }
     }
@@ -990,91 +1018,91 @@ if ($Site) {
     $CookieFile = Join-Path $SiteShared -ChildPath "$($SiteType)_C"
     if ($Login) {
         if ($SiteUser -and $SitePass) {
-            Write-Output "$(Get-Timestamp) - Login is true and SiteUser/Password is filled. Continuing..."
+            Write-Output "$(Get-Timestamp) - Login is true and SiteUser/Password is filled. Continuing."
             $dlpParams = $dlpParams + " -u $SiteUser -p $SitePass"
             $dlpArray += "`"-u`"", "`"$SiteUser`"", "`"-p`"", "`"$SitePass`""
             if ($Cookies) {
                 if ((Test-Path -Path $CookieFile)) {
-                    Write-Output "$(Get-Timestamp) - Cookies is true and $CookieFile file found. Continuing..."
+                    Write-Output "$(Get-Timestamp) - Cookies is true and $CookieFile file found. Continuing."
                     $dlpParams = $dlpParams + " --cookies $CookieFile"
                     $dlpArray += "`"--cookies`"", "`"$CookieFile`""
                 }
                 else {
-                    Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting..."
+                    Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting."
                     Exit-Script -es
                 }
             }
             else {
                 $CookieFile = 'None'
-                Write-Output "$(Get-Timestamp) - Login is true and Cookies is false. Continuing..."
+                Write-Output "$(Get-Timestamp) - Login is true and Cookies is false. Continuing."
             }
         }
         else {
-            Write-Output "$(Get-Timestamp) - Login is true and Username/Password is Empty. Exiting..."
+            Write-Output "$(Get-Timestamp) - Login is true and Username/Password is Empty. Exiting."
             Exit-Script -es
         }
     }
     else {
         if ((Test-Path -Path $CookieFile)) {
-            Write-Output "$(Get-Timestamp) - $CookieFile file found. Continuing..."
+            Write-Output "$(Get-Timestamp) - $CookieFile file found. Continuing."
             $dlpParams = $dlpParams + " --cookies $CookieFile"
             $dlpArray += "`"--cookies`"", "`"$CookieFile`""
         }
         else {
-            Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting..."
+            Write-Output "$(Get-Timestamp) - $CookieFile does not exist. Exiting."
             Exit-Script -es
         }
     }
     if ($Ffmpeg) {
-        Write-Output "$(Get-Timestamp) - $Ffmpeg file found. Continuing..."
+        Write-Output "$(Get-Timestamp) - $Ffmpeg file found. Continuing."
         $dlpParams = $dlpParams + " --ffmpeg-location $Ffmpeg"
         $dlpArray += "`"--ffmpeg-location`"", "`"$Ffmpeg`""
     }
     else {
-        Write-Output "$(Get-Timestamp) - FFMPEG: $Ffmpeg missing. Exiting..."
+        Write-Output "$(Get-Timestamp) - FFMPEG: $Ffmpeg missing. Exiting."
         Exit-Script -es
     }
     $BatFile = Join-Path $SiteShared -ChildPath "$($SiteType)_B"
     if ((Test-Path -Path $BatFile)) {
-        Write-Output "$(Get-Timestamp) - $BatFile file found. Continuing..."
+        Write-Output "$(Get-Timestamp) - $BatFile file found. Continuing."
         if (![String]::IsNullOrWhiteSpace((Get-Content $BatFile))) {
-            Write-Output "$(Get-Timestamp) - $BatFile not empty. Continuing..."
+            Write-Output "$(Get-Timestamp) - $BatFile not empty. Continuing."
             $dlpParams = $dlpParams + " -a $BatFile"
             $dlpArray += "`"-a`"", "`"$BatFile`""
         }
         else {
-            Write-Output "$(Get-Timestamp) - $BatFile is empty. Exiting..."
+            Write-Output "$(Get-Timestamp) - $BatFile is empty. Exiting."
             Exit-Script -es
         }
     }
     else {
-        Write-Output "$(Get-Timestamp) - BAT: $Batfile missing. Exiting..."
+        Write-Output "$(Get-Timestamp) - BAT: $Batfile missing. Exiting."
         Exit-Script -es
     }
     if ($Archive) {
         $ArchiveFile = Join-Path $SiteShared -ChildPath "$($SiteType)_A"
         if ((Test-Path -Path $ArchiveFile)) {
-            Write-Output "$(Get-Timestamp) - $ArchiveFile file found. Continuing..."
+            Write-Output "$(Get-Timestamp) - $ArchiveFile file found. Continuing."
             $dlpParams = $dlpParams + " --download-archive $ArchiveFile"
             $dlpArray += "`"--download-archive`"", "`"$ArchiveFile`""
         }
         else {
-            Write-Output "$(Get-Timestamp) - Archive file missing. Exiting..."
+            Write-Output "$(Get-Timestamp) - Archive file missing. Exiting."
             Exit-Script -es
         }
     }
     else {
-        Write-Output "$(Get-Timestamp) - Using --no-download-archive. Continuing..."
+        Write-Output "$(Get-Timestamp) - Using --no-download-archive. Continuing."
         $ArchiveFile = 'None'
         $dlpParams = $dlpParams + ' --no-download-archive'
         $dlpArray += "`"--no-download-archive`""
     }
     if ($SubtitleEdit -or $MKVMerge) {
         if (Select-String -Path $SiteConfig '--write-subs' -SimpleMatch -Quiet) {
-            Write-Output "$(Get-Timestamp) - SubtitleEdit or MKVMerge is true and --write-subs is in config. Continuing..."
+            Write-Output "$(Get-Timestamp) - SubtitleEdit or MKVMerge is true and --write-subs is in config. Continuing."
         }
         else {
-            Write-Output "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting..."
+            Write-Output "$(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting."
             Exit-Script -es
         }
         $SType = Select-String -Path $SiteConfig -Pattern '--convert-subs.*' | Select-Object -First 1
@@ -1082,15 +1110,15 @@ if ($Site) {
             $SubType = '*.' + ($SType -split ' ')[1]
             $SubType = $SubType.Replace("'", '').Replace('"', '')
             if ($SubType -eq '*.ass') {
-                Write-Output "$(Get-Timestamp) - Using $SubType. Continuing..."
+                Write-Output "$(Get-Timestamp) - Using $SubType. Continuing."
             }
             else {
-                Write-Output "$(Get-Timestamp) - Subtype(ass) is missing. Exiting..."
+                Write-Output "$(Get-Timestamp) - Subtype(ass) is missing. Exiting."
                 Exit-Script -es
             }
         }
         else {
-            Write-Output "$(Get-Timestamp) - --convert-subs parameter is missing. Exiting..."
+            Write-Output "$(Get-Timestamp) - --convert-subs parameter is missing. Exiting."
             Exit-Script -es
         }
         $Vtype = Select-String -Path $SiteConfig -Pattern '--remux-video.*' | Select-Object -First 1
@@ -1098,28 +1126,28 @@ if ($Site) {
             $VidType = '*.' + ($Vtype -split ' ')[1]
             $VidType = $VidType.Replace("'", '').Replace('"', '')
             if ($VidType -eq '*.mkv') {
-                Write-Output "$(Get-Timestamp) - Using $VidType. Continuing..."
+                Write-Output "$(Get-Timestamp) - Using $VidType. Continuing."
             }
             else {
-                Write-Output "$(Get-Timestamp) - VidType(mkv) is missing. Exiting..."
+                Write-Output "$(Get-Timestamp) - VidType(mkv) is missing. Exiting."
                 Exit-Script -es
             }
         }
         else {
-            Write-Output "$(Get-Timestamp) - --remux-video parameter is missing. Exiting..."
+            Write-Output "$(Get-Timestamp) - --remux-video parameter is missing. Exiting."
             Exit-Script -es
         }
         $Wsub = Select-String -Path $SiteConfig -Pattern '--write-subs.*' | Select-Object -First 1
         if ($null -ne $Wsub) {
-            Write-Output "$(Get-Timestamp) - --write-subs is in config. Continuing..."
+            Write-Output "$(Get-Timestamp) - --write-subs is in config. Continuing."
         }
         else {
-            Write-Output "$(Get-Timestamp) - SubSubWrite is missing. Exiting..."
+            Write-Output "$(Get-Timestamp) - SubSubWrite is missing. Exiting."
             Exit-Script -es
         }
     }
     else {
-        Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing..."
+        Write-Output "$(Get-Timestamp) - SubtitleEdit is false. Continuing."
     }
     $DebugVars = [ordered]@{Site = $SiteName; isDaily = $Daily; UseLogin = $Login; UseCookies = $Cookies; UseArchive = $Archive; SubtitleEdit = $SubtitleEdit; `
             MKVMerge = $MKVMerge; AudioLang = $AudioLang; SubtitleLang = $SubtitleLang; Filebot = $Filebot; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; `
@@ -1135,11 +1163,11 @@ if ($Site) {
         $OverrideSeriesList
         Write-Output 'dlpArray:'
         $dlpArray
-        Write-Output "[END] $DateTime - Debugging enabled. Exiting..."
+        Write-Output "[END] $DateTime - Debugging enabled. Exiting."
         Exit-Script -es
     }
     else {
-        $DebugVarRemove = 'SitePass', 'PlexToken', 'TelegramToken', 'TelegramChatId'
+        $DebugVarRemove = 'SiteUser' , 'SitePass', 'PlexToken', 'TelegramToken', 'TelegramChatId'
         foreach ($dbv in $DebugVarRemove) {
             $DebugVars.Remove($dbv)
         }
@@ -1153,8 +1181,6 @@ if ($Site) {
         $DebugVars
         Write-Output 'Series Drive Overrides:'
         $OverrideSeriesList
-        Write-Output 'dlpArray:'
-        $dlpArray
         # Create folders
         $CreateFolders = $TempDrive, $SrcDrive, $BackupDrive, $SrcBackup, $SiteConfigBackup, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
         foreach ($c in $CreateFolders) {
@@ -1265,7 +1291,7 @@ if ($Site) {
         if (($VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or (!($MKVMerge) -and $VSVErrorCount -eq 0)) {
             Write-Output "[FileMoving] $(Get-Timestamp)- All files had matching subtitle file"
             foreach ($ORDriveList in $OverrideDriveList) {
-                Write-Output "[FileMoving] $(Get-Timestamp) - $($ORDriveList._VSSeriesDirectory) contains files. Moving to $($ORDriveList._VSDestPath)..."
+                Write-Output "[FileMoving] $(Get-Timestamp) - $($ORDriveList._VSSeriesDirectory) contains files. Moving to $($ORDriveList._VSDestPath)."
                 if (!(Test-Path $ORDriveList._VSDestPath)) {
                     Set-Folders $ORDriveList._VSDestPath
                 }
@@ -1284,7 +1310,7 @@ if ($Site) {
             }
         }
         elseif (($Filebot -and $MKVMerge -and $VSVMKVCount -ne $VSVTotCount)) {
-            Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step... Incomplete files in $SiteSrc."
+            Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step. Incomplete files in $SiteSrc."
         }
         else {
             Write-Output "[Filebot] $(Get-Timestamp) - Not running Filebot."
