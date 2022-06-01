@@ -242,7 +242,7 @@ function Get-SiteSeriesEpisode {
         foreach ($i in $_) {
             $EpList = $_.Episode._VSEpisode | Out-String
         }
-        $SeriesMessage = '<b>Series:</b> ' + $_.Series + "`n<b>Episode:</b>`n" + $EpList
+        $SeriesMessage = '<strong>Series:</strong> ' + $_.Series + "`n<strong>Episode:</strong>`n" + $EpList
         $Telegrammessage += $SeriesMessage + "`n"
     }
     return $Telegrammessage
@@ -253,7 +253,12 @@ function Send-Telegram {
         [Parameter( Mandatory = $true)]
         [String]$STMessage)
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html" | Out-Null
+    switch ($TelegramNotification.ToLower()) {
+        true { $TGRequest = "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html&disable_notification=true" }
+        false { $TGRequest = "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html" }
+        Default { Write-Host 'Improper configured value. Accepted values: true/false' }
+    }
+    Invoke-WebRequest -Uri $TGRequest | Out-Null
 }
 # Run MKVMerge process
 function Start-MKVMerge {
@@ -631,8 +636,8 @@ $xmlconfig = @'
         <override orSeriesName="" orSrcdrive="" />
     </OverrideSeries>
     <Telegram>
-        <!-- Telegram Bot tokenId and your group ChatId -->
-        <token tokenId="" chatid="" />
+        <!-- Telegram Bot tokenId/ your group ChatId, disable sound notification -->
+        <token tokenId="" chatid="" disableNotification="true" />
     </Telegram>
     <credentials>
         <!-- Where you store the Site name, username/password, plex libraryId, folder in library, and a custom font used to embed into video/sub
@@ -944,6 +949,7 @@ if ($Site) {
     $OverrideSeriesList = $ConfigFile.configuration.OverrideSeries.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
     $Telegramtoken = $ConfigFile.configuration.Telegram.token.tokenId
     $Telegramchatid = $ConfigFile.configuration.Telegram.token.chatid
+    $TelegramNotification = $ConfigFile.configuration.Telegram.token.disableNotification
     # End reading from XML
     if ($SubFont.Trim() -ne '') {
         $SubFontDir = Join-Path $FontFolder -ChildPath $Subfont
