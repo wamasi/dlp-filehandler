@@ -168,15 +168,18 @@ class VideoStatus {
     [string]$_VSEpisodeFBPath
     [string]$_VSEpisodeSubFBPath
     [string]$_VSOverridePath
+    [string]$_VSDestPathDirectory
     [string]$_VSDestPath
     [string]$_VSDestPathBase
     [bool]$_VSSECompleted
     [bool]$_VSMKVCompleted
+    [bool]$_VSMoveCompleted
     [bool]$_VSFBCompleted
     [bool]$_VSErrored
     
     VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSSeriesDirectory, [string]$VSEpisodeRaw, [string]$VSEpisodeTemp, [string]$VSEpisodePath, [string]$VSEpisodeSubtitle, `
-            [string]$VSEpisodeSubtitleBase, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [string]$VSOverridePath, [string]$VSDestPath, [string]$VSDestPathBase, [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
+            [string]$VSEpisodeSubtitleBase, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [string]$VSOverridePath, [string]$VSDestPathDirectory, [string]$VSDestPath, [string]$VSDestPathBase, `
+            [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSMoveCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
         $this._VSSite = $VSSite
         $this._VSSeries = $VSSeries
         $this._VSEpisode = $VSEpisode
@@ -189,10 +192,12 @@ class VideoStatus {
         $this._VSEpisodeFBPath = $VSEpisodeFBPath
         $this._VSEpisodeSubFBPath = $VSEpisodeSubFBPath
         $this._VSOverridePath = $VSOverridePath
+        $this._VSDestPathDirectory = $VSDestPathDirectory
         $this._VSDestPath = $VSDestPath
         $this._VSDestPathBase = $VSDestPathBase
         $this._VSSECompleted = $VSSECompleted
         $this._VSMKVCompleted = $VSMKVCompleted
+        $this._VSMoveCompleted = $VSMoveCompleted
         $this._VSFBCompleted = $VSFBCompleted
         $this._VSErrored = $VSErrored
     }
@@ -206,13 +211,15 @@ function Set-VideoStatus {
         [parameter(Mandatory = $true)]
         [string]$SVSValue,
         [parameter(Mandatory = $false)]
-        [bool]$SVSSE,
+        [switch]$SVSSE,
         [parameter(Mandatory = $false)]
-        [bool]$SVSMKV,
+        [switch]$SVSMKV,
         [parameter(Mandatory = $false)]
-        [bool]$SVSFP,
+        [switch]$SVSMove,
         [parameter(Mandatory = $false)]
-        [bool]$SVSER
+        [switch]$SVSFP,
+        [parameter(Mandatory = $false)]
+        [switch]$SVSER
     )
     $VSCompletedFilesList | Where-Object { $_.$SVSKey -eq $SVSValue } | ForEach-Object {
         if ($SVSSE) {
@@ -220,6 +227,9 @@ function Set-VideoStatus {
         }
         if ($SVSMKV) {
             $_._VSMKVCompleted = $SVSMKV
+        }
+        if ($SVSMove) {
+            $_._VSMoveCompleted = $SVSMove
         }
         if ($SVSFP) {
             $_._VSFBCompleted = $SVSFP
@@ -372,7 +382,7 @@ function Start-MKVMerge {
         }
         Start-Sleep -Seconds 1
     }
-    Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $MKVVidBaseName -SVSMKV $true
+    Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $MKVVidBaseName -SVSMKV
 }
 # Function to process video files through FileBot
 function Start-Filebot {
@@ -407,7 +417,7 @@ function Start-Filebot {
         }
         if (!(Test-Path $FBVidInput)) {
             Write-Output "[Filebot] $(Get-Timestamp) - Setting file($FBVidInput) as completed."
-            Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $FBVidBaseName -SVSFP $true
+            Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $FBVidBaseName -SVSFP
         }
     }
     $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count
@@ -1103,6 +1113,22 @@ if ($Site) {
         $dlpParams = $dlpParams + ' --no-download-archive'
         $dlpArray += "`"--no-download-archive`""
     }
+    $Vtype = Select-String -Path $SiteConfig -Pattern '--remux-video.*' | Select-Object -First 1
+    if ($null -ne $Vtype) {
+        $VidType = '*.' + ($Vtype -split ' ')[1]
+        $VidType = $VidType.Replace("'", '').Replace('"', '')
+        if ($VidType -eq '*.mkv') {
+            Write-Output "$(Get-Timestamp) - Using $VidType. Continuing."
+        }
+        else {
+            Write-Output "$(Get-Timestamp) - VidType(mkv) is missing. Exiting."
+            Exit-Script -es
+        }
+    }
+    else {
+        Write-Output "$(Get-Timestamp) - --remux-video parameter is missing. Exiting."
+        Exit-Script -es
+    }
     if ($SubtitleEdit -or $MKVMerge) {
         if (Select-String -Path $SiteConfig '--write-subs' -SimpleMatch -Quiet) {
             Write-Output "$(Get-Timestamp) - SubtitleEdit or MKVMerge is true and --write-subs is in config. Continuing."
@@ -1125,22 +1151,6 @@ if ($Site) {
         }
         else {
             Write-Output "$(Get-Timestamp) - --convert-subs parameter is missing. Exiting."
-            Exit-Script -es
-        }
-        $Vtype = Select-String -Path $SiteConfig -Pattern '--remux-video.*' | Select-Object -First 1
-        if ($null -ne $Vtype) {
-            $VidType = '*.' + ($Vtype -split ' ')[1]
-            $VidType = $VidType.Replace("'", '').Replace('"', '')
-            if ($VidType -eq '*.mkv') {
-                Write-Output "$(Get-Timestamp) - Using $VidType. Continuing."
-            }
-            else {
-                Write-Output "$(Get-Timestamp) - VidType(mkv) is missing. Exiting."
-                Exit-Script -es
-            }
-        }
-        else {
-            Write-Output "$(Get-Timestamp) - --remux-video parameter is missing. Exiting."
             Exit-Script -es
         }
         $Wsub = Select-String -Path $SiteConfig -Pattern '--write-subs.*' | Select-Object -First 1
@@ -1199,7 +1209,7 @@ if ($Site) {
     & yt-dlp.exe $dlpArray *>&1 | Out-Host
     # Post-processing
     if ((Get-ChildItem $SiteSrc -Recurse -Force -File -Include "$VidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-        Get-ChildItem $SiteSrc -Recurse -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -Unique | ForEach-Object {
+        Get-ChildItem $SiteSrc -Recurse -Include "$VidType" | Sort-Object LastWriteTime | Select-Object -Unique | Get-Unique | ForEach-Object {
             $VSSite = $SiteNameRaw
             $VSSeries = (Get-Culture).TextInfo.ToTitleCase(("$(Split-Path (Split-Path $_ -Parent) -Leaf)").Replace('_', ' ').Replace('-', ' ')) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
             $VSEpisode = (Get-Culture).TextInfo.ToTitleCase( ($_.BaseName.Replace('_', ' ').Replace('-', ' '))) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
@@ -1213,6 +1223,7 @@ if ($Site) {
                 $VSDestPath = Join-Path $VSOverridePath -ChildPath $SiteHome.Substring(3)
                 $VSDestPathBase = Join-Path $VSOverridePath -ChildPath $SiteHomeBase.Substring(3)
                 $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $VSDestPath)
+                $VSDestPathDirectory = Split-Path $VSEpisodeFBPath -Parent
                 if ($VSEpisodeSubtitle -ne '') {
                     $VSEpisodeSubtitleBase = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).Name
                     $VSEpisodeSubFBPath = $VSEpisodeSubtitle.Replace($SiteSrc, $VSDestPath)
@@ -1224,8 +1235,9 @@ if ($Site) {
             }
             else {
                 $VSDestPath = $SiteHome
-                $VSDestPathBase = $SiteHomeBase
+                $VSDestPathBase = $SiteHomeBase  #_VSDestPathDirectory = $VSDestPathDirectory
                 $VSEpisodeFBPath = $VSEpisodePath.Replace($SiteSrc, $VSDestPath)
+                $VSDestPathDirectory = Split-Path $VSEpisodeFBPath -Parent
                 $VSOverridePath = [System.IO.path]::GetPathRoot($VSDestPath)
                 if ($VSEpisodeSubtitle -ne '') {
                     $VSEpisodeSubtitleBase = (Get-ChildItem $SiteSrc -Recurse -File -Include "$SubType" | Where-Object { $_.FullName -match $VSEpisodeRaw } | Select-Object -First 1 ).Name
@@ -1238,19 +1250,20 @@ if ($Site) {
             }
             foreach ($i in $_) {
                 $VideoStatus = [VideoStatus]::new($VSSite, $VSSeries, $VSEpisode, $VSSeriesDirectory, $VSEpisodeRaw, $VSEpisodeTemp, $VSEpisodePath, $VSEpisodeSubtitle, $VSEpisodeSubtitleBase, $VSEpisodeFBPath, `
-                        $VSEpisodeSubFBPath, $VSOverridePath, $VSDestPath, $VSDestPathBase, $VSSECompleted, $VSMKVCompleted, $VSFBCompleted, $VSErrored)
+                        $VSEpisodeSubFBPath, $VSOverridePath, $VSDestPathDirectory, $VSDestPath, $VSDestPathBase, $VSSECompleted, $VSMKVCompleted, $VSMoveCompleted, $VSFBCompleted, $VSErrored)
                 [void]$VSCompletedFilesList.Add($VideoStatus)
             }
         }
         $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | ForEach-Object {
             if (($_._VSEpisodeSubtitle.Trim() -eq '') -or ($null -eq $_._VSEpisodeSubtitle)) {
-                Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $VSEpisodeRaw -SVSER $true
+                Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $VSEpisodeRaw -SVSER
             }
         }
     }
     else {
         Write-Output "[VideoList] $(Get-Timestamp) - No files to process."
     }
+    $VSCompletedFilesList
     $VSVTotCount = ($VSCompletedFilesList | Measure-Object).Count
     $VSVErrorCount = ($VSCompletedFilesList | Where-Object { $_._VSErrored -eq $true } | Measure-Object).Count
     Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $VSVTotCount"
@@ -1268,7 +1281,7 @@ if ($Site) {
                     else {
                         $outSE = Invoke-Command -ScriptBlock { powershell "SubtitleEdit /convert '$SESubtitle' AdvancedSubStationAlpha /overwrite /MergeSameTimeCodes" }
                         Write-Output $outSE
-                        Set-VideoStatus -SVSKey '_VSEpisodeSubtitle' -SVSValue $SESubtitle -SVSSE $true
+                        Set-VideoStatus -SVSKey '_VSEpisodeSubtitle' -SVSValue $SESubtitle -SVSSE
                         break
                     }
                     Start-Sleep -Seconds 1
@@ -1287,21 +1300,28 @@ if ($Site) {
                 $MKVVidTempOutput = $_._VSEpisodeTemp
                 Start-MKVMerge $MKVVidInput $MKVVidBaseName $MKVVidSubtitle $MKVVidTempOutput
             }
+            $OverrideDriveList = $VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Select-Object _VSSeriesDirectory, _VSDestPath, _VSDestPathBase -Unique
         }
         else {
             Write-Output "[MKVMerge] $(Get-Timestamp) - MKVMerge not running. Moving to next step."
+            $OverrideDriveList = $VSCompletedFilesList | Where-Object { $_._VSErrored -eq $false } | Select-Object _VSSeriesDirectory, _VSDestPath, _VSDestPathBase -Unique
         }
-        $OverrideDriveList = $VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Select-Object _VSSeriesDirectory, _VSDestPath, _VSDestPathBase -Unique
         $VSVMKVCount = ($VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Measure-Object).Count
         # FileMoving
         if (($VSVMKVCount -eq $VSVTotCount -and $VSVErrorCount -eq 0) -or (!($MKVMerge) -and $VSVErrorCount -eq 0)) {
-            Write-Output "[FileMoving] $(Get-Timestamp)- All files had matching subtitle file"
+            Write-Output "[FileMoving] $(Get-Timestamp) - All files had matching subtitle file"
             foreach ($ORDriveList in $OverrideDriveList) {
                 Write-Output "[FileMoving] $(Get-Timestamp) - $($ORDriveList._VSSeriesDirectory) contains files. Moving to $($ORDriveList._VSDestPath)."
                 if (!(Test-Path $ORDriveList._VSDestPath)) {
                     Set-Folders $ORDriveList._VSDestPath
                 }
+                Write-Output "[FileMoving] $(Get-Timestamp) - Moving $($ORDriveList._VSSeriesDirectory) to $($ORDriveList._VSDestPath)."
                 Move-Item -Path $ORDriveList._VSSeriesDirectory -Destination $ORDriveList._VSDestPath -Force -Verbose
+                if (!(Test-Path $ORDriveList._VSSeriesDirectory)) {
+                    Write-Output "[FileMoving] $(Get-Timestamp) - Move completed for $($ORDriveList._VSSeriesDirectory)."
+                    Set-VideoStatus -SVSKey '_VSSeriesDirectory' -SVSValue $ORDriveList._VSSeriesDirectory -SVSMove
+                    
+                }
             }
         }
         else {
@@ -1317,6 +1337,16 @@ if ($Site) {
         }
         elseif (($Filebot -and $MKVMerge -and $VSVMKVCount -ne $VSVTotCount)) {
             Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step. Incomplete files in $SiteSrc."
+        }
+        elseif (!($Filebot) -and !($MKVMerge)) {
+            $MoveManualList = $VSCompletedFilesList | Where-Object { $_._VSMoveCompleted -eq $true } | Select-Object _VSDestPathDirectory, _VSOverridePath -Unique
+            foreach ($MMFiles in $MoveManualList) {
+                $MMOverrideDrive = $MMFiles._VSOverridePath
+                $MoveRootDirectory = $MMOverrideDrive + $SiteParentFolder
+                $MoveFolder = Join-Path $MoveRootDirectory -ChildPath $SiteSubFolder
+                Write-Output "[FileMoving] $(Get-Timestamp) -  Moving $($MMFiles._VSDestPathDirectory) to $MoveFolder."
+                Move-Item -Path $MMFiles._VSDestPathDirectory -Destination $MoveFolder -Force -Verbose
+            }
         }
         else {
             Write-Output "[Filebot] $(Get-Timestamp) - Not running Filebot."
@@ -1358,10 +1388,21 @@ if ($Site) {
             }
         }
         Write-Output "[VideoList] $(Get-Timestamp) - Total videos downloaded: $VSVTotCount"
-        $VSCompletedFilesTable = $VSCompletedFilesList | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, @{Label = 'Subtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, `
-        @{Label = 'Drive'; Expression = { $_._VSOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._VSSeriesDirectory } }, @{Label = 'DestBase'; Expression = { $_._VSDestPathBase } }, `
-        @{Label = 'DestPath'; Expression = { $_._VSDestPath } }, @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, `
-        @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
+        if ($VSVTotCount -gt 12) {
+            $VSCompletedFilesTable = $VSCompletedFilesList | Sort-Object _VSSeries, _VSEpisode | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, `
+            @{Label = 'Subtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, @{Label = 'Drive'; Expression = { $_._VSOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._VSSeriesDirectory } }, `
+            @{Label = 'DestBase'; Expression = { $_._VSDestPathBase } }, @{Label = 'DestPath'; Expression = { $_._VSDestPath } }, @{Label = 'DestPathDirectory'; Expression = { $_._VSDestPathDirectory } }, `
+            @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'MoveCompleted'; Expression = { $_._VSMoveCompleted } }, `
+            @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
+    
+        }
+        else {
+            $VSCompletedFilesTable = $VSCompletedFilesList | Sort-Object _VSSeries, _VSEpisode | Format-List @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, `
+            @{Label = 'Subtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, @{Label = 'Drive'; Expression = { $_._VSOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._VSSeriesDirectory } }, `
+            @{Label = 'DestBase'; Expression = { $_._VSDestPathBase } }, @{Label = 'DestPath'; Expression = { $_._VSDestPath } }, @{Label = 'DestPathDirectory'; Expression = { $_._VSDestPathDirectory } }, `
+            @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'MoveCompleted'; Expression = { $_._VSMoveCompleted } }, `
+            @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, @{Label = 'Errored'; Expression = { $_._VSErrored } }
+        }
     }
     else {
         Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded. Skipping other defined steps."
