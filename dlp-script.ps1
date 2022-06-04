@@ -11,6 +11,7 @@
    See https://github.com/wamasi/dlp-filehandler for full details
    Script was designed to be ran via powershell console on a cronjob. copying and pasting into powershell console will not work.
 #>
+[CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
     [Alias('H')]
@@ -72,7 +73,9 @@ param(
     [Alias('T')]
     [switch]$TestScript
 )
+# Timer for script
 $ScriptStopWatch = [System.Diagnostics.Stopwatch]::StartNew()
+# Setting styling to remove error characters and width
 $PSStyle.OutputRendering = 'Host'
 $Width = $host.UI.RawUI.MaxPhysicalWindowSize.Width
 $host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.size($Width, 9999)
@@ -86,7 +89,26 @@ function Get-TimeStamp {
 function Get-Time {
     return (Get-Date -Format 'MMddHHmmssfff')
 }
-function Set-Folders {
+# Test if file is available to interact with
+function Test-Lock {
+    Param(
+        [parameter(Mandatory = $true)]
+        $TLfilename
+    )
+    $TLfile = Get-Item (Resolve-Path $TLfilename) -Force
+    if ($TLfile -is [IO.FileInfo]) {
+        trap {
+            Write-Output "[FileLockCheck] $(Get-Timestamp) - $TLfile File locked. Waiting."
+            return $true
+            continue
+        }
+        $TLstream = New-Object system.IO.StreamReader $TLfile
+        if ($TLstream) { $TLstream.Close() }
+    }
+    Write-Output "[FileLockCheck] $(Get-Timestamp) - $TLfile File unlocked. Continuing."
+    return $false
+}
+function New-Folder {
     param (
         [Parameter(Mandatory = $true)]
         [string] $Fullpath
@@ -99,7 +121,7 @@ function Set-Folders {
         Write-Output "[SetFolder] - $(Get-Timestamp) - $Fullpath already exists."
     }
 }
-function Set-SuppFiles {
+function New-SuppFiles {
     param (
         [Parameter(Mandatory = $true)]
         [string] $SuppFiles
@@ -112,7 +134,7 @@ function Set-SuppFiles {
         Write-Output "$SuppFiles already file exists."
     }
 }
-function Resolve-Configs {
+function New-Config {
     param (
         [Parameter(Mandatory = $true)]
         [string] $Configs
@@ -144,6 +166,73 @@ function Resolve-Configs {
         Write-Output "$Configs created with default values."
     }
 }
+# Delete Tmp/Src/Home folder logic
+function Remove-Folders {
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$RFFolder,
+        [parameter(Mandatory = $false)]
+        [string]$RFMatch,
+        [parameter(Mandatory = $true)]
+        [string]$RFBaseMatch
+    )
+    if ($RFFolder -eq $SiteTemp) {
+        if (($RFFolder -match '\\tmp\\') -and ($RFFolder -match $RFBaseMatch) -and (Test-Path $RFFolder)) {
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $RFFolder folders/files."
+            Remove-Item $RFFolder -Recurse -Force -Confirm:$false -Verbose | Out-Null
+        }
+        else {
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteTemp($RFFolder) folder already deleted. Nothing to remove."
+        }
+    }
+    else {
+        if (!(Test-Path $RFFolder)) {
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) already deleted."
+        }
+        elseif ((Test-Path $RFFolder) -and (Get-ChildItem $RFFolder -Recurse -File | Measure-Object).Count -eq 0) {
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) is empty. Deleting folder."
+            & $DeleteRecursion -DRPath $RFFolder
+        }
+        else {
+            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) contains files. Manual attention needed."
+        }
+    }
+}
+function Remove-Logfiles {
+    # Log cleanup
+    $FilledLogslimit = (Get-Date).AddDays(-$FilledLogs)
+    $EmptyLogslimit = (Get-Date).AddDays(-$EmptyLogs)
+    if (!(Test-Path $LFolderBase)) {
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup."
+    }
+    else {
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting Filledlog($FilledLogs) cleanup."
+        Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $FilledLogslimit } | `
+            ForEach-Object {
+            $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+        }
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting emptylog($EmptyLogs) cleanup."
+        Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $EmptyLogslimit } | `
+            ForEach-Object {
+            $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
+        }
+        & $DeleteRecursion -DRPath $LFolderBase
+    }
+}
+$DeleteRecursion = {
+    param(
+        $DRPath
+    )
+    foreach ($DRchildDirectory in Get-ChildItem -Force -LiteralPath $DRPath -Directory) {
+        & $DeleteRecursion -DRPath $DRchildDirectory.FullName
+    }
+    $DRcurrentChildren = Get-ChildItem -Force -LiteralPath $DRPath
+    $DRisEmpty = $DRcurrentChildren -eq $null
+    if ($DRisEmpty) {
+        Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting '${DRPath}' folders/files if empty."
+        Remove-Item -Force -LiteralPath $DRPath -Verbose
+    }
+}
 function Remove-Spaces {
     param (
         [Parameter(Mandatory = $true)]
@@ -154,55 +243,74 @@ function Remove-Spaces {
     $content = $content.Trim()
     [System.IO.File]::WriteAllText($File, $content)
 }
-# Setting up arraylist for MKV and Filebot lists
-class VideoStatus {
-    [string]$_VSSite
-    [string]$_VSSeries
-    [string]$_VSEpisode
-    [string]$_VSSeriesDirectory
-    [string]$_VSEpisodeRaw
-    [string]$_VSEpisodeTemp
-    [string]$_VSEpisodePath
-    [string]$_VSEpisodeSubtitle
-    [string]$_VSEpisodeSubtitleBase
-    [string]$_VSEpisodeFBPath
-    [string]$_VSEpisodeSubFBPath
-    [string]$_VSOverridePath
-    [string]$_VSDestPathDirectory
-    [string]$_VSDestPath
-    [string]$_VSDestPathBase
-    [bool]$_VSSECompleted
-    [bool]$_VSMKVCompleted
-    [bool]$_VSMoveCompleted
-    [bool]$_VSFBCompleted
-    [bool]$_VSErrored
-    
-    VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSSeriesDirectory, [string]$VSEpisodeRaw, [string]$VSEpisodeTemp, [string]$VSEpisodePath, [string]$VSEpisodeSubtitle, `
-            [string]$VSEpisodeSubtitleBase, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [string]$VSOverridePath, [string]$VSDestPathDirectory, [string]$VSDestPath, [string]$VSDestPathBase, `
-            [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSMoveCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
-        $this._VSSite = $VSSite
-        $this._VSSeries = $VSSeries
-        $this._VSEpisode = $VSEpisode
-        $this._VSSeriesDirectory = $VSSeriesDirectory
-        $this._VSEpisodeRaw = $VSEpisodeRaw
-        $this._VSEpisodeTemp = $VSEpisodeTemp
-        $this._VSEpisodePath = $VSEpisodePath
-        $this._VSEpisodeSubtitle = $VSEpisodeSubtitle
-        $this._VSEpisodeSubtitleBase = $VSEpisodeSubtitleBase
-        $this._VSEpisodeFBPath = $VSEpisodeFBPath
-        $this._VSEpisodeSubFBPath = $VSEpisodeSubFBPath
-        $this._VSOverridePath = $VSOverridePath
-        $this._VSDestPathDirectory = $VSDestPathDirectory
-        $this._VSDestPath = $VSDestPath
-        $this._VSDestPathBase = $VSDestPathBase
-        $this._VSSECompleted = $VSSECompleted
-        $this._VSMKVCompleted = $VSMKVCompleted
-        $this._VSMoveCompleted = $VSMoveCompleted
-        $this._VSFBCompleted = $VSFBCompleted
-        $this._VSErrored = $VSErrored
+function Exit-Script {
+    param (
+        [alias('ES')]
+        [switch]$ExitScript
+    )
+    $ScriptStopWatch.Stop()
+    # Cleanup folders
+    Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch
+    Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
+    Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
+    if ($OverrideDriveList.count -gt 0) {
+        foreach ($ORDriveList in $OverrideDriveList) {
+            $ORDriveListBaseMatch = ($ORDriveList._VSDestPathBase).Replace('\', '\\')
+            Remove-Folders -RFFolder $ORDriveList._VSDestPath -RFMatch '\\tmp\\' -RFBaseMatch $ORDriveListBaseMatch
+        }
+    }
+    # Cleanup Log Files
+    Remove-Logfiles
+    Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($ScriptStopWatch.Elapsed.ToString())"
+    Stop-Transcript
+    ((Get-Content $LFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content $LFile
+    Remove-Spaces $LFile
+    if ($ExitScript -and !($TestScript)) {
+        $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
+        New-Item -Path $LogTemp -ItemType File | Out-Null
+        $asciiLogo | Out-File $LogTemp -Width 9999
+        Get-Content $LFile -ReadCount 5000 | ForEach-Object {
+            $_ | Add-Content "$LogTemp"
+        }
+        Remove-Item $LFile
+        Rename-Item $LogTemp -NewName $LFile
+        exit
+    }
+    elseif ($TestScript) {
+        $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
+        New-Item -Path $LogTemp -ItemType File | Out-Null
+        $asciiLogo | Out-File $LogTemp -Width 9999
+        Get-Content $LFile -ReadCount 5000 | ForEach-Object {
+            $_ | Add-Content "$LogTemp"
+        }
+        Remove-Item $LFile
+        Rename-Item -Path $LogTemp -NewName "$DateTime-DEBUG.log"
+        exit
+    }
+    else {
+        if ($VSVTotCount -gt 0) {
+            $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
+            New-Item -Path $LogTemp -ItemType File | Out-Null
+            $asciiLogo | Out-File $LogTemp -Width 9999
+            $VSCompletedFilesTable | Out-File $LogTemp -Width 9999 -Append
+            Get-Content $LFile -ReadCount 5000 | ForEach-Object {
+                $_ | Add-Content "$LogTemp"
+            }
+            Remove-Item $LFile
+            Rename-Item $LogTemp -NewName "$DateTime-Total-$VSVTotCount.log"
+        }
+        else {
+            $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
+            New-Item -Path $LogTemp -ItemType File | Out-Null
+            $asciiLogo | Out-File $LogTemp -Width 9999
+            Get-Content $LFile -ReadCount 5000 | ForEach-Object {
+                $_ | Add-Content "$LogTemp"
+            }
+            Remove-Item $LFile
+            Rename-Item $LogTemp -NewName $LFile
+        }
     }
 }
-[System.Collections.ArrayList]$VSCompletedFilesList = @()
 # Update SE/MKV/FB true false
 function Set-VideoStatus {
     param (
@@ -258,7 +366,7 @@ function Get-SiteSeriesEpisode {
     return $Telegrammessage
 }
 # Sending To telegram for new file notifications
-function Send-Telegram {
+function Invoke-Telegram {
     Param(
         [Parameter( Mandatory = $true)]
         [String]$STMessage)
@@ -271,7 +379,7 @@ function Send-Telegram {
     Invoke-WebRequest -Uri $TGRequest | Out-Null
 }
 # Run MKVMerge process
-function Start-MKVMerge {
+function Invoke-MKVMerge {
     param (
         [parameter(Mandatory = $true)]
         [string]$MKVVidInput,
@@ -385,7 +493,7 @@ function Start-MKVMerge {
     Set-VideoStatus -SVSKey '_VSEpisodeRaw' -SVSValue $MKVVidBaseName -SVSMKV
 }
 # Function to process video files through FileBot
-function Start-Filebot {
+function Invoke-Filebot {
     param (
         [parameter(Mandatory = $true)]
         [string]$FBPath
@@ -432,160 +540,56 @@ function Start-Filebot {
         Write-Output "[Filebot] $(Get-Timestamp) - [FolderCleanup] - File needs processing."
     }
 }
-# Delete Tmp/Src/Home folder logic
-function Remove-Folders {
-    param (
-        [parameter(Mandatory = $true)]
-        [string]$RFFolder,
-        [parameter(Mandatory = $false)]
-        [string]$RFMatch,
-        [parameter(Mandatory = $true)]
-        [string]$RFBaseMatch
-    )
-    if ($RFFolder -eq $SiteTemp) {
-        if (($RFFolder -match '\\tmp\\') -and ($RFFolder -match $RFBaseMatch) -and (Test-Path $RFFolder)) {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $RFFolder folders/files."
-            Remove-Item $RFFolder -Recurse -Force -Confirm:$false -Verbose | Out-Null
-        }
-        else {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteTemp($RFFolder) folder already deleted. Nothing to remove."
-        }
-    }
-    else {
-        if (!(Test-Path $RFFolder)) {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) already deleted."
-        }
-        elseif ((Test-Path $RFFolder) -and (Get-ChildItem $RFFolder -Recurse -File | Measure-Object).Count -eq 0) {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) is empty. Deleting folder."
-            & $DeleteRecursion -DRPath $RFFolder
-        }
-        else {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($RFFolder) contains files. Manual attention needed."
-        }
-    }
-}
-# Test if file is available to interact with
-function Test-Lock {
-    Param(
-        [parameter(Mandatory = $true)]
-        $TLfilename
-    )
-    $TLfile = Get-Item (Resolve-Path $TLfilename) -Force
-    if ($TLfile -is [IO.FileInfo]) {
-        trap {
-            Write-Output "[FileLockCheck] $(Get-Timestamp) - $TLfile File locked. Waiting."
-            return $true
-            continue
-        }
-        $TLstream = New-Object system.IO.StreamReader $TLfile
-        if ($TLstream) { $TLstream.Close() }
-    }
-    Write-Output "[FileLockCheck] $(Get-Timestamp) - $TLfile File unlocked. Continuing."
-    return $false
-}
-function Remove-Logfiles {
-    # Log cleanup
-    $FilledLogslimit = (Get-Date).AddDays(-$FilledLogs)
-    $EmptyLogslimit = (Get-Date).AddDays(-$EmptyLogs)
-    if (!(Test-Path $LFolderBase)) {
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup."
-    }
-    else {
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting Filledlog($FilledLogs) cleanup."
-        Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $FilledLogslimit } | `
-            ForEach-Object {
-            $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
-        }
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting emptylog($EmptyLogs) cleanup."
-        Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $EmptyLogslimit } | `
-            ForEach-Object {
-            $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
-        }
-        & $DeleteRecursion -DRPath $LFolderBase
+# Setting up arraylist for MKV and Filebot lists
+class VideoStatus {
+    [string]$_VSSite
+    [string]$_VSSeries
+    [string]$_VSEpisode
+    [string]$_VSSeriesDirectory
+    [string]$_VSEpisodeRaw
+    [string]$_VSEpisodeTemp
+    [string]$_VSEpisodePath
+    [string]$_VSEpisodeSubtitle
+    [string]$_VSEpisodeSubtitleBase
+    [string]$_VSEpisodeFBPath
+    [string]$_VSEpisodeSubFBPath
+    [string]$_VSOverridePath
+    [string]$_VSDestPathDirectory
+    [string]$_VSDestPath
+    [string]$_VSDestPathBase
+    [bool]$_VSSECompleted
+    [bool]$_VSMKVCompleted
+    [bool]$_VSMoveCompleted
+    [bool]$_VSFBCompleted
+    [bool]$_VSErrored
+    
+    VideoStatus([string]$VSSite, [string]$VSSeries, [string]$VSEpisode, [string]$VSSeriesDirectory, [string]$VSEpisodeRaw, [string]$VSEpisodeTemp, [string]$VSEpisodePath, [string]$VSEpisodeSubtitle, `
+            [string]$VSEpisodeSubtitleBase, [string]$VSEpisodeFBPath, [string]$VSEpisodeSubFBPath, [string]$VSOverridePath, [string]$VSDestPathDirectory, [string]$VSDestPath, [string]$VSDestPathBase, `
+            [bool]$VSSECompleted, [bool]$VSMKVCompleted, [bool]$VSMoveCompleted, [bool]$VSFBCompleted, [bool]$VSErrored) {
+        $this._VSSite = $VSSite
+        $this._VSSeries = $VSSeries
+        $this._VSEpisode = $VSEpisode
+        $this._VSSeriesDirectory = $VSSeriesDirectory
+        $this._VSEpisodeRaw = $VSEpisodeRaw
+        $this._VSEpisodeTemp = $VSEpisodeTemp
+        $this._VSEpisodePath = $VSEpisodePath
+        $this._VSEpisodeSubtitle = $VSEpisodeSubtitle
+        $this._VSEpisodeSubtitleBase = $VSEpisodeSubtitleBase
+        $this._VSEpisodeFBPath = $VSEpisodeFBPath
+        $this._VSEpisodeSubFBPath = $VSEpisodeSubFBPath
+        $this._VSOverridePath = $VSOverridePath
+        $this._VSDestPathDirectory = $VSDestPathDirectory
+        $this._VSDestPath = $VSDestPath
+        $this._VSDestPathBase = $VSDestPathBase
+        $this._VSSECompleted = $VSSECompleted
+        $this._VSMKVCompleted = $VSMKVCompleted
+        $this._VSMoveCompleted = $VSMoveCompleted
+        $this._VSFBCompleted = $VSFBCompleted
+        $this._VSErrored = $VSErrored
     }
 }
-function Exit-Script {
-    param (
-        [alias('ES')]
-        [switch]$ExitScript
-    )
-    $ScriptStopWatch.Stop()
-    # Cleanup folders
-    Remove-Folders -RFFolder $SiteTemp -RFMatch '\\tmp\\' -RFBaseMatch $SiteTempBaseMatch
-    Remove-Folders -RFFolder $SiteSrc -RFMatch '\\src\\' -RFBaseMatch $SiteSrcBaseMatch
-    Remove-Folders -RFFolder $SiteHome -RFMatch '\\tmp\\' -RFBaseMatch $SiteHomeBaseMatch
-    if ($OverrideDriveList.count -gt 0) {
-        foreach ($ORDriveList in $OverrideDriveList) {
-            $ORDriveListBaseMatch = ($ORDriveList._VSDestPathBase).Replace('\', '\\')
-            Remove-Folders -RFFolder $ORDriveList._VSDestPath -RFMatch '\\tmp\\' -RFBaseMatch $ORDriveListBaseMatch
-        }
-    }
-    # Cleanup Log Files
-    Remove-Logfiles
-    Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($ScriptStopWatch.Elapsed.ToString())"
-    Stop-Transcript
-    ((Get-Content $LFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content $LFile
-    Remove-Spaces $LFile
-    if ($ExitScript -and !($TestScript)) {
-        $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
-        New-Item -Path $LogTemp -ItemType File | Out-Null
-        $asciiLogo | Out-File $LogTemp -Width 9999
-        Get-Content $LFile -ReadCount 5000 | ForEach-Object {
-            $_ | Add-Content "$LogTemp"
-        }
-        Remove-Item $LFile
-        Rename-Item $LogTemp -NewName $LFile
-        exit
-    }
-    elseif ($TestScript) {
-        $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
-        New-Item -Path $LogTemp -ItemType File | Out-Null
-        $asciiLogo | Out-File $LogTemp -Width 9999
-        Get-Content $LFile -ReadCount 5000 | ForEach-Object {
-            $_ | Add-Content "$LogTemp"
-        }
-        Remove-Item $LFile
-        Rename-Item -Path $LogTemp -NewName "$DateTime-DEBUG.log"
-        exit
-    }
-    else {
-        if ($VSVTotCount -gt 0) {
-            $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
-            New-Item -Path $LogTemp -ItemType File | Out-Null
-            $asciiLogo | Out-File $LogTemp -Width 9999
-            $VSCompletedFilesTable | Out-File $LogTemp -Width 9999 -Append
-            Get-Content $LFile -ReadCount 5000 | ForEach-Object {
-                $_ | Add-Content "$LogTemp"
-            }
-            Remove-Item $LFile
-            Rename-Item $LogTemp -NewName "$DateTime-Total-$VSVTotCount.log"
-        }
-        else {
-            $LogTemp = Join-Path $LFolderBaseDate -ChildPath "$DateTime-Temp.log"
-            New-Item -Path $LogTemp -ItemType File | Out-Null
-            $asciiLogo | Out-File $LogTemp -Width 9999
-            Get-Content $LFile -ReadCount 5000 | ForEach-Object {
-                $_ | Add-Content "$LogTemp"
-            }
-            Remove-Item $LFile
-            Rename-Item $LogTemp -NewName $LFile
-        }
-    }
-}
-$DeleteRecursion = {
-    param(
-        $DRPath
-    )
-    foreach ($DRchildDirectory in Get-ChildItem -Force -LiteralPath $DRPath -Directory) {
-        & $DeleteRecursion -DRPath $DRchildDirectory.FullName
-    }
-    $DRcurrentChildren = Get-ChildItem -Force -LiteralPath $DRPath
-    $DRisEmpty = $DRcurrentChildren -eq $null
-    if ($DRisEmpty) {
-        Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting '${DRPath}' folders/files if empty."
-        Remove-Item -Force -LiteralPath $DRPath -Verbose
-    }
-}
+[System.Collections.ArrayList]$VSCompletedFilesList = @()
+# Start of script Variable setup
 $ScriptDirectory = $PSScriptRoot
 $DLPScript = Join-Path $ScriptDirectory -ChildPath 'dlp-script.ps1'
 $SubtitleRegex = Join-Path $ScriptDirectory -ChildPath 'subtitle_regex.py'
@@ -624,12 +628,6 @@ $xmlconfig = @'
     <Plex>
         <!-- PLEX local IP and token used to update plex library after success processing -->
         <plexcred plexUrl="" plexToken="" />
-        <!-- Plex Library id found by either api call or using get info > View XML for a given video in a library
-            <library libraryid="1" />
-        -->
-        <library libraryid="" />
-        <library libraryid="" />
-        <library libraryid="" />
     </Plex>
     <Filebot>
         <!-- Uses dest drive with site parentfolder/subfolder and argument to run filebot command. may want to run for 1 episode to see what the series folder name comes out to.
@@ -650,11 +648,11 @@ $xmlconfig = @'
         <token tokenId="" chatid="" disableNotification="true" />
     </Telegram>
     <credentials>
-        <!-- Where you store the Site name, username/password, plex libraryId, folder in library, and a custom font used to embed into video/sub
+        <!-- Where you store the Site name, username/password, plexlibraryid, folder in library, and a custom font used to embed into video/sub
             <site sitename="Crunchyroll">
                 <username>MyUserName</username>
                 <password>MyPassword</password>
-                <libraryid>4</libraryid>
+                <plexlibraryid>4</plexlibraryid>
                 <parentfolder>Video</parentfolder>
                 <subfolder>A</subfolder>
                 <font>Marker SD.ttf</font>
@@ -663,7 +661,7 @@ $xmlconfig = @'
         <site sitename="">
             <username></username>
             <password></password>
-            <libraryid></libraryid>
+            <plexplexlibraryid></plexlibraryid>
             <parentfolder></parentfolder>
             <subfolder></subfolder>
             <font></font>
@@ -671,7 +669,7 @@ $xmlconfig = @'
         <site sitename="">
             <username></username>
             <password></password>
-            <libraryid></libraryid>
+            <plexlibraryid></plexlibraryid>
             <parentfolder></parentfolder>
             <subfolder></subfolder>
             <font></font>
@@ -679,7 +677,7 @@ $xmlconfig = @'
         <site sitename="">
             <username></username>
             <password></password>
-            <libraryid></libraryid>
+            <plexlibraryid></plexlibraryid>
             <parentfolder></parentfolder>
             <subfolder></subfolder>
             <font></font>
@@ -863,7 +861,7 @@ if ($NewConfig) {
     }
 }
 if ($SupportFiles) {
-    Set-Folders $FontFolder
+    New-Folder $FontFolder
     $ConfigPath = Join-Path $ScriptDirectory -ChildPath 'config.xml'
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
     $SNfile = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.trim() -ne '' } | Select-Object 'siteName' -ExpandProperty siteName
@@ -872,35 +870,36 @@ if ($SupportFiles) {
             SN = $_.siteName
         }
         $SharedF = Join-Path $ScriptDirectory -ChildPath 'shared'
-        Set-Folders $SharedF
+        New-Folder $SharedF
         $SCC = Join-Path $ScriptDirectory -ChildPath 'sites'
-        Set-Folders $SCC
+        New-Folder $SCC
         $SCF = Join-Path $SCC -ChildPath $SN.SN
-        Set-Folders $SCF
+        New-Folder $SCF
         $SCDF = $SCF.TrimEnd('\') + '_D'
-        Set-Folders $SCDF
+        New-Folder $SCDF
         $SADF = Join-Path $SharedF -ChildPath "$($SN.SN)_D_A"
-        Set-SuppFiles $SADF
+        New-SuppFiles $SADF
         $SBDF = Join-Path $SharedF -ChildPath "$($SN.SN)_D_B"
-        Set-SuppFiles $SBDF
+        New-SuppFiles $SBDF
         $SBDC = Join-Path $SharedF -ChildPath "$($SN.SN)_D_C"
-        Set-SuppFiles $SBDC
+        New-SuppFiles $SBDC
         $SAF = Join-Path $SharedF -ChildPath "$($SN.SN)_A"
-        Set-SuppFiles $SAF
+        New-SuppFiles $SAF
         $SBF = Join-Path $SharedF -ChildPath "$($SN.SN)_B"
-        Set-SuppFiles $SBF
+        New-SuppFiles $SBF
         $SBC = Join-Path $SharedF -ChildPath "$($SN.SN)_C"
-        Set-SuppFiles $SBC
+        New-SuppFiles $SBC
         $SCFDCD = $SCF.TrimEnd('\') + '_D'
         Write-Host $SCFDCD
         $SCFDC = Join-Path $SCFDCD -ChildPath 'yt-dlp.conf'
-        Resolve-Configs $SCFDC
+        New-Config $SCFDC
         Remove-Spaces $SCFDC
         $SCFC = Join-Path $SCF -ChildPath 'yt-dlp.conf'
-        Resolve-Configs $SCFC
+        New-Config $SCFC
         Remove-Spaces $SCFC
     }
 }
+
 if ($Site) {
     if (Test-Path -Path $SubtitleRegex) {
         Write-Output "$(Get-Timestamp) - $DLPScript, $subtitle_regex do exist in $ScriptDirectory folder."
@@ -916,7 +915,7 @@ if ($Site) {
     # Reading from XML
     $ConfigPath = Join-Path $ScriptDirectory -ChildPath 'config.xml'
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
-    $SiteParams = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'libraryid', 'parentfolder', 'subfolder', 'font' -First 1
+    $SiteParams = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'plexlibraryid', 'parentfolder', 'subfolder', 'font' -First 1
     $SiteName = $SiteParams.siteName.ToLower()
     $SiteNameRaw = $SiteParams.siteName
     $SiteFolderDirectory = Join-Path $ScriptDirectory -ChildPath 'sites'
@@ -940,7 +939,7 @@ if ($Site) {
     }
     $SiteUser = $SiteParams.username
     $SitePass = $SiteParams.password
-    $SiteLib = $SiteParams.libraryid
+    $SiteLibraryId = $SiteParams.plexlibraryid
     $SiteParentFolder = $SiteParams.parentfolder
     $SiteSubFolder = $SiteParams.subfolder
     $SubFont = $SiteParams.font
@@ -953,8 +952,6 @@ if ($Site) {
     [int]$FilledLogs = $ConfigFile.configuration.Logs.keeplog.filledlogskeepdays
     $PlexHost = $ConfigFile.configuration.Plex.plexcred.plexUrl
     $PlexToken = $ConfigFile.configuration.Plex.plexcred.plexToken
-    $PlexLibrary = $ConfigFile.configuration.plex.library | Where-Object { $_.libraryid -eq $SiteLib } | Select-Object libraryid, folder
-    $PlexLibId = $PlexLibrary.libraryid
     $FBArgument = $ConfigFile.configuration.Filebot.fbfolder.fbArgument
     $OverrideSeriesList = $ConfigFile.configuration.OverrideSeries.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
     $Telegramtoken = $ConfigFile.configuration.Telegram.token.tokenId
@@ -1167,10 +1164,10 @@ if ($Site) {
     }
     $DebugVars = [ordered]@{Site = $SiteName; isDaily = $Daily; UseLogin = $Login; UseCookies = $Cookies; UseArchive = $Archive; SubtitleEdit = $SubtitleEdit; `
             MKVMerge = $MKVMerge; AudioLang = $AudioLang; SubtitleLang = $SubtitleLang; Filebot = $Filebot; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; `
-            SiteFolder = $SiteFolder; SiteParentFolder = $SiteParentFolder; SiteSubFolder = $SiteSubFolder; SiteTemp = $SiteTemp; SiteSrcBase = $SiteSrcBase; SiteSrc = $SiteSrc; SiteHomeBase = $SiteHomeBase; `
+            SiteFolder = $SiteFolder; SiteParentFolder = $SiteParentFolder; SiteSubFolder = $SiteSubFolder; SiteLibraryId = $SiteLibraryId; SiteTemp = $SiteTemp; SiteSrcBase = $SiteSrcBase; SiteSrc = $SiteSrc; SiteHomeBase = $SiteHomeBase; `
             SiteHome = $SiteHome; SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; `
             SubType = $SubType; VidType = $VidType; Backup = $SrcBackup; BackupShared = $SrcDriveShared; BackupFont = $SrcDriveSharedFonts; SiteConfigBackup = $SiteConfigBackup; PlexHost = $PlexHost; `
-            PlexToken = $PlexToken; PlexLibId = $PlexLibId; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; `
+            PlexToken = $PlexToken; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; `
             dlpParams = $dlpParams
     }
     if ($TestScript) {
@@ -1196,11 +1193,12 @@ if ($Site) {
         Write-Output 'Debug Vars:'
         $DebugVars
         Write-Output 'Series Drive Overrides:'
-        $OverrideSeriesList
+        $OverrideSeriesList | Sort-Object orSrcdrive, orSeriesName | Format-Table
         # Create folders
+        Write-Output 'Creating'
         $CreateFolders = $TempDrive, $SrcDrive, $BackupDrive, $SrcBackup, $SiteConfigBackup, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
         foreach ($c in $CreateFolders) {
-            Set-Folders $c
+            New-Folder $c
         }
         # Log cleanup
         Remove-Logfiles
@@ -1298,7 +1296,7 @@ if ($Site) {
                 $MKVVidBaseName = $_._VSEpisodeRaw
                 $MKVVidSubtitle = $_._VSEpisodeSubtitle
                 $MKVVidTempOutput = $_._VSEpisodeTemp
-                Start-MKVMerge $MKVVidInput $MKVVidBaseName $MKVVidSubtitle $MKVVidTempOutput
+                Invoke-MKVMerge $MKVVidInput $MKVVidBaseName $MKVVidSubtitle $MKVVidTempOutput
             }
             $OverrideDriveList = $VSCompletedFilesList | Where-Object { $_._VSMKVCompleted -eq $true -and $_._VSErrored -eq $false } | Select-Object _VSSeriesDirectory, _VSDestPath, _VSDestPathBase -Unique
         }
@@ -1313,7 +1311,7 @@ if ($Site) {
             foreach ($ORDriveList in $OverrideDriveList) {
                 Write-Output "[FileMoving] $(Get-Timestamp) - $($ORDriveList._VSSeriesDirectory) contains files. Moving to $($ORDriveList._VSDestPath)."
                 if (!(Test-Path $ORDriveList._VSDestPath)) {
-                    Set-Folders $ORDriveList._VSDestPath
+                    New-Folder $ORDriveList._VSDestPath
                 }
                 Write-Output "[FileMoving] $(Get-Timestamp) - Moving $($ORDriveList._VSSeriesDirectory) to $($ORDriveList._VSDestPath)."
                 Move-Item -Path $ORDriveList._VSSeriesDirectory -Destination $ORDriveList._VSDestPath -Force -Verbose
@@ -1332,13 +1330,10 @@ if ($Site) {
         if (($Filebot -and $VSVMKVCount -eq $VSVTotCount) -or ($Filebot -and !($MKVMerge))) {
             foreach ($FBORDriveList in $FBOverrideDriveList) {
                 Write-Output "[Filebot] $(Get-Timestamp) - Renaming files in $($FBORDriveList._VSDestPath)."
-                Start-Filebot -FBPath $ORDriveList._VSDestPath
+                Invoke-Filebot -FBPath $ORDriveList._VSDestPath
             }
         }
-        elseif (($Filebot -and $MKVMerge -and $VSVMKVCount -ne $VSVTotCount)) {
-            Write-Output "[Filebot] $(Get-Timestamp) - Files in $SiteSrc need manual attention. Skipping to next step. Incomplete files in $SiteSrc."
-        }
-        elseif (!($Filebot) -and !($MKVMerge)) {
+        elseif ((!($Filebot) -and !($MKVMerge) -or (!($Filebot) -and $VSVMKVCount -ne $VSVTotCount))) {
             $MoveManualList = $VSCompletedFilesList | Where-Object { $_._VSMoveCompleted -eq $true } | Select-Object _VSDestPathDirectory, _VSOverridePath -Unique
             foreach ($MMFiles in $MoveManualList) {
                 $MMOverrideDrive = $MMFiles._VSOverridePath
@@ -1349,42 +1344,43 @@ if ($Site) {
             }
         }
         else {
-            Write-Output "[Filebot] $(Get-Timestamp) - Not running Filebot."
+            Write-Output "[FileMoving] $(Get-Timestamp) - Issue with files in $SiteSrc."
         }
         # Plex
-        if ($PlexHost -and $PlexToken -and $PlexLibId) {
+        if ($PlexHost -and $PlexToken -and $SiteLibraryId ) {
             Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
-            $PlexUrl = "$PlexHost/library/sections/$PlexLibId/refresh?X-Plex-Token=$PlexToken"
+            $PlexUrl = "$PlexHost/library/sections/$SiteLibraryId/refresh?X-Plex-Token=$PlexToken"
             Invoke-WebRequest -Uri $PlexUrl | Out-Null
         }
         else {
-            Write-Output "[PLEX] $(Get-Timestamp) - [END] - Not using Plex."
+            Write-Output "[PLEX] $(Get-Timestamp) - Not using Plex."
         }
         $VSVFBCount = ($VSCompletedFilesList | Where-Object { $_._VSFBCompleted -eq $true } | Measure-Object).Count
         # Telegram
         if ($SendTelegram) {
             Write-Output "[Telegram] $(Get-Timestamp) - Preparing Telegram message."
             $TM = Get-SiteSeriesEpisode
-            if ($PlexHost -and $PlexToken -and $PlexLibId) {
-                if ($Filebot -or !($Filebot) -and $MKVMerge) {
+            if ($PlexHost -and $PlexToken -and $SiteLibraryId) {
+                if ($Filebot -or  $MKVMerge) {
                     if (($VSVFBCount -gt 0 -and $VSVMKVCount -gt 0 -and $VSVFBCount -eq $VSVMKVCount) -or (!($Filebot) -and $MKVMerge -and $VSVMKVCount -gt 0)) {
                         Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome. Success."
                         $TM += 'All files added to PLEX.'
                         Write-Output $TM
-                        Send-Telegram -STMessage $TM
+                        Invoke-Telegram -STMessage $TM
                     }
                     else {
                         Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome. Failure."
                         $TM += 'Not all files added to PLEX.'
                         Write-Output $TM
-                        Send-Telegram -STMessage $TM
+                        Invoke-Telegram -STMessage $TM
                     }
                 }
             }
             else {
                 Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome."
+                $TM += 'Added files to folders.'
                 Write-Output $TM
-                Send-Telegram -STMessage $TM
+                Invoke-Telegram -STMessage $TM
             }
         }
         Write-Output "[VideoList] $(Get-Timestamp) - Total videos downloaded: $VSVTotCount"
@@ -1413,18 +1409,18 @@ if ($Site) {
         if (($sb -ne 'None') -and ($sb.trim() -ne '')) {
             if ($sb -eq $SubFontDir) {
                 Copy-Item -Path $sb -Destination $SrcDriveSharedFonts -PassThru | Out-Null
-                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveSharedFonts."
+                Write-Output "[FileBackup] $(Get-Timestamp) - Copying $sb to $SrcDriveSharedFonts."
             }
             elseif ($sb -eq $ConfigPath) {
                 Copy-Item -Path $sb -Destination $SrcBackup -PassThru | Out-Null
-                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcBackup."
+                Write-Output "[FileBackup] $(Get-Timestamp) - Copying $sb to $SrcBackup."
             }
             elseif ($sb -eq $SiteConfig) {
                 Copy-Item -Path $sb -Destination $SiteConfigBackup -PassThru | Out-Null
-                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SiteConfigBackup."
+                Write-Output "[FileBackup] $(Get-Timestamp) - Copying $sb to $SiteConfigBackup."
             }
             else {
-                Write-Output "[FileBackup] $(Get-Timestamp) - Copying ($sb) to $SrcDriveShared."
+                Write-Output "[FileBackup] $(Get-Timestamp) - Copying $sb to $SrcDriveShared."
                 Copy-Item -Path $sb -Destination $SrcDriveShared -PassThru | Out-Null
             }
         }
