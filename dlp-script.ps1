@@ -5,7 +5,7 @@
    Runs the script using the crunchyroll as a manual run with the defined config using login, cookies, archive file, mkvmerge, and sends out a telegram message
    D:\_DL\dlp-script.ps1 -sn crunchyroll -l -c -mk -a -st
 .EXAMPLE
-   Runs the script  using the crunchyroll as a daily run with the defined config using login, cookies, no archive file, and filebot/plex
+   Runs the script using the crunchyroll as a daily run with the defined config using login, cookies, no archive file, and filebot/plex
    D:\_DL\dlp-script.ps1 -sn crunchyroll -d -l -c -f
 .NOTES
    See https://github.com/wamasi/dlp-filehandler for full details
@@ -206,12 +206,12 @@ function Remove-Logfiles {
         Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase is missing. Skipping log cleanup."
     }
     else {
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting Filledlog($FilledLogs) cleanup."
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting Filledlog($FilledLogs days) cleanup."
         Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $FilledLogslimit } | `
             ForEach-Object {
             $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
         }
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting emptylog($EmptyLogs) cleanup."
+        Write-Output "[LogCleanup] $(Get-Timestamp) - $LFolderBase found. Starting emptylog($EmptyLogs days) cleanup."
         Get-ChildItem -Path $LFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-Total-.*' -and $_.FullName -ne $LFile -and $_.CreationTime -lt $EmptyLogslimit } | `
             ForEach-Object {
             $_.FullName | Remove-Item -Recurse -Force -Confirm:$false -Verbose
@@ -509,18 +509,18 @@ function Invoke-Filebot {
             $FBRootFolder = $FBOverrideDrive + $SiteParentFolder
             $FBParams = Join-Path (Join-Path $FBRootFolder -ChildPath $SiteSubFolder) -ChildPath $FBArgument
             Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBVidInput). Renaming video and moving files to final folder. Using path($FBParams)."
-            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
+            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBParams" --apply date tags clean --log info *>&1 | Out-Host
             if (!($MKVMerge)) {
                 Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBSubInput). Renaming subtitle and moving files to final folder. Using path($FBParams)."
-                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBParams" --log info *>&1 | Out-Host
+                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBParams" --apply date tags clean --log info *>&1 | Out-Host
             }
         }
         else {
             Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBVidInput). ParentFolder or Subfolder path not specified. Renaming files in place."
-            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBArgument" --log info *>&1 | Out-Host
+            filebot -rename "$FBVidInput" -r --db TheTVDB -non-strict --format "$FBArgument" --apply date tags clean --log info *>&1 | Out-Host
             if (!($MKVMerge)) {
                 Write-Output "[Filebot] $(Get-Timestamp) - Files found($FBSubInput). Renaming subtitle and moving files to final folder. Using path($FBParams)."
-                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBArgument" --log info *>&1 | Out-Host
+                filebot -rename "$FBSubInput" -r --db TheTVDB -non-strict --format "$FBArgument" --apply date tags clean --log info *>&1 | Out-Host
             }
         }
         if (!(Test-Path $FBVidInput)) {
@@ -1268,6 +1268,7 @@ if ($Site) {
     Write-Output "[VideoList] $(Get-Timestamp) - Errored Files: $VSVErrorCount"
     # SubtitleEdit, MKVMerge, Filebot
     if ($VSVTotCount -gt 0) {
+        # Subtitle Edit
         if ($SubtitleEdit) {
             $VSCompletedFilesList | Select-Object _VSEpisodeSubtitle | Where-Object { $_._VSErrored -ne $true } | ForEach-Object {
                 $SESubtitle = $_._VSEpisodeSubtitle
@@ -1289,6 +1290,7 @@ if ($Site) {
         else {
             Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running."
         }
+        # MKVMerge
         if ($MKVMerge) {
             $VSCompletedFilesList | Select-Object _VSEpisodeRaw, _VSEpisode, _VSEpisodeTemp, _VSEpisodePath, _VSEpisodeSubtitle, _VSErrored | `
                 Where-Object { $_._VSErrored -eq $false } | ForEach-Object {
@@ -1361,7 +1363,7 @@ if ($Site) {
             Write-Output "[Telegram] $(Get-Timestamp) - Preparing Telegram message."
             $TM = Get-SiteSeriesEpisode
             if ($PlexHost -and $PlexToken -and $SiteLibraryId) {
-                if ($Filebot -or  $MKVMerge) {
+                if ($Filebot -or $MKVMerge) {
                     if (($VSVFBCount -gt 0 -and $VSVMKVCount -gt 0 -and $VSVFBCount -eq $VSVMKVCount) -or (!($Filebot) -and $MKVMerge -and $VSVMKVCount -gt 0)) {
                         Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $SiteHome. Success."
                         $TM += 'All files added to PLEX.'
