@@ -29,7 +29,8 @@ param(
                     $true
                 }
                 else {
-                    throw ([xml](Get-Content -Path "$PSScriptRoot\config.xml")).getElementsByTagName('site').siteName
+                    $Test = (([xml](Get-Content -Path "$PSScriptRoot\config.xml")).getElementsByTagName('site').siteName) -join ', '
+                    throw "The following Sites are valid: $Test"
                 }
             }
             else {
@@ -62,21 +63,31 @@ param(
     [Alias('ST')]
     [switch]$SendTelegram,
     [Parameter(Mandatory = $false)]
-    [ValidateSet('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und', ErrorMessage = "Value '{0}' is invalid. Use one of the following: {1}", IgnoreCase = $true)]
+    [ValidateScript({ if ($_ -in 'ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und') {
+                $true
+            }
+            else {
+                $AudioLangValues = ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und') -join ', '
+                throw "Value '{0}' is invalid. The following languages are valid: {1}." -f $_, $AudioLangValues
+            }
+        })]
     [Alias('AL')]
     [string]$AudioLang,
     [Parameter(Mandatory = $false)]
-    [ValidateSet('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und', ErrorMessage = "Value '{0}' is invalid. Use one of the following: {1}", IgnoreCase = $true)]
+    [ValidateScript({ if ($_ -in 'ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und') {
+                $true
+            }
+            else {
+                $SubtitleLangValues = ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und') -join ', '
+                throw "Value '{0}' is invalid. The following languages are valid: {1}." -f $_, $SubtitleLangValues
+            }
+        })]
     [Alias('SL')]
     [string]$SubtitleLang,
     [Parameter(Mandatory = $false)]
     [Alias('T')]
     [switch]$TestScript
 )
-function Get-ValidSites {
-    $validSites = ([xml](Get-Content "$PSScriptRoot\config.xml")).GetElementsByTagName('site').siteName
-    return $validSites
-}
 # Timer for script
 $ScriptStopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 # Setting styling to remove error characters and width
@@ -108,7 +119,6 @@ function Invoke-ExpressionConsole {
     $SCMobj | Where-Object { $_.length -gt 0 } | ForEach-Object {
         Write-Host "[$SCMFunctionName] $(Get-TimeStamp) - $_"
     }
-    
 }
 function Test-Lock {
     Param(
