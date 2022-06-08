@@ -36,13 +36,6 @@ param(
                 throw "No valid config.xml found in $PSScriptRoot. Run ($PSScriptRoot\dlp-script.ps1 -nc) for a new config file."
             }
         })]
-    [ArgumentCompleter(
-        {
-            param($Site)
-            [array] $validSites = ([xml](Get-Content "$PSScriptRoot\config.xml")).GetElementsByTagName('site').siteName
-            $validSites -eq $Site
-        }
-    ) ]
     [string]$Site,
     [Parameter(Mandatory = $false)]
     [Alias('D')]
@@ -80,6 +73,10 @@ param(
     [Alias('T')]
     [switch]$TestScript
 )
+function Get-ValidSites {
+    $validSites = ([xml](Get-Content "$PSScriptRoot\config.xml")).GetElementsByTagName('site').siteName
+    return $validSites
+}
 # Timer for script
 $ScriptStopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 # Setting styling to remove error characters and width
