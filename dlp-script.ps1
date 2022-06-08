@@ -36,6 +36,13 @@ param(
                 throw "No valid config.xml found in $PSScriptRoot. Run ($PSScriptRoot\dlp-script.ps1 -nc) for a new config file."
             }
         })]
+    [ArgumentCompleter(
+        {
+            param($Site)
+            [array] $validSites = ([xml](Get-Content "$PSScriptRoot\config.xml")).GetElementsByTagName('site').siteName
+            $validSites -eq $Site
+        }
+    ) ]
     [string]$Site,
     [Parameter(Mandatory = $false)]
     [Alias('D')]
@@ -62,11 +69,11 @@ param(
     [Alias('ST')]
     [switch]$SendTelegram,
     [Parameter(Mandatory = $false)]
-    [ValidateSet('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', IgnoreCase = $true)]
+    [ValidateSet('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und', ErrorMessage = "Value '{0}' is invalid. Use one of the following: {1}", IgnoreCase = $true)]
     [Alias('AL')]
     [string]$AudioLang,
     [Parameter(Mandatory = $false)]
-    [ValidateSet('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', IgnoreCase = $true)]
+    [ValidateSet('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und', ErrorMessage = "Value '{0}' is invalid. Use one of the following: {1}", IgnoreCase = $true)]
     [Alias('SL')]
     [string]$SubtitleLang,
     [Parameter(Mandatory = $false)]
@@ -409,37 +416,6 @@ function Invoke-MKVMerge {
         [parameter(Mandatory = $true)]
         [string]$MKVVidTempOutput
     )
-    # Video track title inherits from Audio language code
-    switch ($AudioLang) {
-        ar { $VideoLang = $AudioLang; $ALTrackName = 'Arabic Audio'; $VTrackName = 'Arabic Video' }
-        de { $VideoLang = $AudioLang; $ALTrackName = 'Deutsch Audio'; $VTrackName = 'Deutsch Video' }
-        en { $VideoLang = $AudioLang; $ALTrackName = 'English Audio'; $VTrackName = 'English Video' }
-        es { $VideoLang = $AudioLang; $ALTrackName = 'Spanish(Latin America) Audio'; $VTrackName = 'Spanish(Latin America) Video' }
-        es-es { $VideoLang = $AudioLang; $ALTrackName = 'Spanish(Spain) Audio'; $VTrackName = 'Spanish(Spain) Video' }
-        fr { $VideoLang = $AudioLang; $ALTrackName = 'French Audio'; $VTrackName = 'French Video' }
-        it { $VideoLang = $AudioLang; $ALTrackName = 'Italian Audio'; $VTrackName = 'Italian Video' }
-        ja { $VideoLang = $AudioLang; $ALTrackName = 'Japanese Audio'; $VTrackName = 'Japanese Video' }
-        pt-br { $VideoLang = $AudioLang; $ALTrackName = 'Português (Brasil) Audio'; $VTrackName = 'Português (Brasil) Video' }
-        pt-pt { $VideoLang = $AudioLang; $ALTrackName = 'Português (Portugal) Audio'; $VTrackName = 'Português (Portugal) Video' }
-        ru { $VideoLang = $AudioLang; $ALTrackName = 'Russian Audio'; $VTrackName = 'Russian Video' }
-        Default { $VideoLang = 'und'; $AudioLang = 'und'; $ALTrackName = 'und audio'; $VTrackName = 'und Video' }
-    }
-    switch ($SubtitleLang) {
-        ar { $STTrackName = 'Arabic Sub' }
-        de { $STTrackName = 'Deutsch Sub' }
-        en { $STTrackName = 'English Sub' }
-        es { $STTrackName = 'Spanish(Latin America) Sub' }
-        es-es { $STTrackName = 'Spanish(Spain) Sub' }
-        fr { $STTrackName = 'French Sub' }
-        it { $STTrackName = 'Italian Sub' }
-        ja { $STTrackName = 'Japanese Sub' }
-        pt-br { $STTrackName = 'Português (Brasil) Sub' }
-        pt-pt { $STTrackName = 'Português (Portugal) Sub' }
-        ru { $STTrackName = 'Russian Video' }
-        ja { $STTrackName = 'Japanese Sub' }
-        en { $STTrackName = 'English Sub' }
-        Default { $SubtitleLang = 'und'; $STTrackName = 'und sub' }
-    }
     Write-Output "[MKVMerge] $(Get-Timestamp) - Video = $VideoLang/$VTrackName - Audio Language = $AudioLang/$ALTrackName - Subtitle = $SubtitleLang/$STTrackName."
     Write-Output "[MKVMerge] $(Get-Timestamp) - Replacing Styling in $MKVVidSubtitle."
     While ($True) {
@@ -978,6 +954,43 @@ if ($Site) {
     $Telegramtoken = $ConfigFile.configuration.Telegram.token.tokenId
     $Telegramchatid = $ConfigFile.configuration.Telegram.token.chatid
     $TelegramNotification = $ConfigFile.configuration.Telegram.token.disableNotification
+    # Video track title inherits from Audio language code
+    if ($AudioLang -eq '' -or $null -eq $AudioLang) {
+        $AudioLang = 'und'
+    }
+    if ($SubtitleLang -eq '' -or $null -eq $SubtitleLang) {
+        $SubtitleLang = 'und'
+    }
+    switch ($AudioLang) {
+        ar { $VideoLang = $AudioLang; $ALTrackName = 'Arabic Audio'; $VTrackName = 'Arabic Video' }
+        de { $VideoLang = $AudioLang; $ALTrackName = 'Deutsch Audio'; $VTrackName = 'Deutsch Video' }
+        en { $VideoLang = $AudioLang; $ALTrackName = 'English Audio'; $VTrackName = 'English Video' }
+        es { $VideoLang = $AudioLang; $ALTrackName = 'Spanish(Latin America) Audio'; $VTrackName = 'Spanish(Latin America) Video' }
+        es-es { $VideoLang = $AudioLang; $ALTrackName = 'Spanish(Spain) Audio'; $VTrackName = 'Spanish(Spain) Video' }
+        fr { $VideoLang = $AudioLang; $ALTrackName = 'French Audio'; $VTrackName = 'French Video' }
+        it { $VideoLang = $AudioLang; $ALTrackName = 'Italian Audio'; $VTrackName = 'Italian Video' }
+        ja { $VideoLang = $AudioLang; $ALTrackName = 'Japanese Audio'; $VTrackName = 'Japanese Video' }
+        pt-br { $VideoLang = $AudioLang; $ALTrackName = 'Português (Brasil) Audio'; $VTrackName = 'Português (Brasil) Video' }
+        pt-pt { $VideoLang = $AudioLang; $ALTrackName = 'Português (Portugal) Audio'; $VTrackName = 'Português (Portugal) Video' }
+        ru { $VideoLang = $AudioLang; $ALTrackName = 'Russian Audio'; $VTrackName = 'Russian Video' }
+        und { $AudioLang = 'und'; $VideoLang = 'und'; $ALTrackName = 'und audio'; $VTrackName = 'und Video' }
+    }
+    switch ($SubtitleLang) {
+        ar { $STTrackName = 'Arabic Sub' }
+        de { $STTrackName = 'Deutsch Sub' }
+        en { $STTrackName = 'English Sub' }
+        es { $STTrackName = 'Spanish(Latin America) Sub' }
+        es-es { $STTrackName = 'Spanish(Spain) Sub' }
+        fr { $STTrackName = 'French Sub' }
+        it { $STTrackName = 'Italian Sub' }
+        ja { $STTrackName = 'Japanese Sub' }
+        pt-br { $STTrackName = 'Português (Brasil) Sub' }
+        pt-pt { $STTrackName = 'Português (Portugal) Sub' }
+        ru { $STTrackName = 'Russian Video' }
+        ja { $STTrackName = 'Japanese Sub' }
+        en { $STTrackName = 'English Sub' }
+        und { $SubtitleLang = 'und'; $STTrackName = 'und sub' }
+    }
     # End reading from XML
     if ($SubFont.Trim() -ne '') {
         $SubFontDir = Join-Path $FontFolder -ChildPath $Subfont
@@ -1184,12 +1197,13 @@ if ($Site) {
         Write-Output "[Setup] $(Get-Timestamp) - SubtitleEdit is false. Continuing."
     }
     $DebugVars = [ordered]@{Site = $SiteName; isDaily = $Daily; UseLogin = $Login; UseCookies = $Cookies; UseArchive = $Archive; SubtitleEdit = $SubtitleEdit; `
-            MKVMerge = $MKVMerge; AudioLang = $AudioLang; SubtitleLang = $SubtitleLang; Filebot = $Filebot; SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; `
-            SiteFolder = $SiteFolder; SiteParentFolder = $SiteParentFolder; SiteSubFolder = $SiteSubFolder; SiteLibraryId = $SiteLibraryId; SiteTemp = $SiteTemp; SiteSrcBase = $SiteSrcBase; SiteSrc = $SiteSrc; SiteHomeBase = $SiteHomeBase; `
-            SiteHome = $SiteHome; SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; SubFontDir = $SubFontDir; `
-            SubType = $SubType; VidType = $VidType; Backup = $SrcBackup; BackupShared = $SrcDriveShared; BackupFont = $SrcDriveSharedFonts; SiteConfigBackup = $SiteConfigBackup; PlexHost = $PlexHost; `
-            PlexToken = $PlexToken; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; ScriptDirectory = $ScriptDirectory; `
-            dlpParams = $dlpParams
+            MKVMerge = $MKVMerge; VTrackName = $VTrackName; AudioLang = $AudioLang; ALTrackName = $ALTrackName; SubtitleLang = $SubtitleLang; STTrackName = $STTrackName; Filebot = $Filebot; `
+            SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; SiteFolder = $SiteFolder; SiteParentFolder = $SiteParentFolder; `
+            SiteSubFolder = $SiteSubFolder; SiteLibraryId = $SiteLibraryId; SiteTemp = $SiteTemp; SiteSrcBase = $SiteSrcBase; SiteSrc = $SiteSrc; SiteHomeBase = $SiteHomeBase; `
+            SiteHome = $SiteHome; SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; `
+            SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; Backup = $SrcBackup; BackupShared = $SrcDriveShared; BackupFont = $SrcDriveSharedFonts; `
+            SiteConfigBackup = $SiteConfigBackup; PlexHost = $PlexHost; PlexToken = $PlexToken; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; `
+            ScriptDirectory = $ScriptDirectory; dlpParams = $dlpParams
     }
     if ($TestScript) {
         Write-Output "[START] $DateTime - $SiteNameRaw - DEBUG Run"
@@ -1201,25 +1215,35 @@ if ($Site) {
         Exit-Script -es
     }
     else {
-        $DebugVarRemove = 'SiteUser' , 'SitePass', 'PlexToken', 'TelegramToken', 'TelegramChatId'
+        $DebugVarRemove = 'SiteUser' , 'SitePass', 'PlexToken', 'TelegramToken', 'TelegramChatId', 'dlpParams'
         foreach ($dbv in $DebugVarRemove) {
             $DebugVars.Remove($dbv)
         }
         if ($Daily) {
             Write-Output "[START] $DateTime - $SiteNameRaw - Daily Run"
+            Write-Output '[START] Debug Vars:'
+            $DebugVars
+            Write-Output '[START] Series Drive Overrides:'
+            $OverrideSeriesList | Sort-Object orSrcdrive, orSeriesName | Format-Table
+            # Create folders
+            Write-Output '[START] Creating'
+            $CreateFolders = $TempDrive, $SrcDrive, $BackupDrive, $SrcBackup, $SiteConfigBackup, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
+            foreach ($c in $CreateFolders) {
+                New-Folder $c
+            }
         }
         else {
             Write-Output "[START] $DateTime - $SiteNameRaw - Manual Run"
-        }
-        Write-Output '[START] Debug Vars:'
-        $DebugVars
-        Write-Output '[START] Series Drive Overrides:'
-        $OverrideSeriesList | Sort-Object orSrcdrive, orSeriesName | Format-Table
-        # Create folders
-        Write-Output '[START] Creating'
-        $CreateFolders = $TempDrive, $SrcDrive, $BackupDrive, $SrcBackup, $SiteConfigBackup, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
-        foreach ($c in $CreateFolders) {
-            New-Folder $c
+            Write-Output '[START] Debug Vars:'
+            $DebugVars
+            Write-Output '[START] Series Drive Overrides:'
+            $OverrideSeriesList | Sort-Object orSrcdrive, orSeriesName | Format-Table
+            # Create folders
+            Write-Output '[START] Creating'
+            $CreateFolders = $TempDrive, $SrcDrive, $BackupDrive, $SrcBackup, $SiteConfigBackup, $SrcDriveShared, $SrcDriveSharedFonts, $DestDrive, $SiteTemp, $SiteSrc, $SiteHome
+            foreach ($c in $CreateFolders) {
+                New-Folder $c
+            }
         }
         # Log cleanup
         Remove-Logfiles
