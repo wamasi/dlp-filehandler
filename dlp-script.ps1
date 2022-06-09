@@ -13,16 +13,15 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Help', Mandatory = $True)]
     [Alias('H')]
     [switch]$Help,
-    [Parameter(Mandatory = $false)]
+    [Parameter(ParameterSetName = 'NewConfig', Mandatory = $True)]
     [Alias('NC')]
     [switch]$NewConfig,
-    [Parameter(Mandatory = $false)]
     [Alias('SU')]
+    [Parameter(ParameterSetName = 'SupportFiles', Mandatory = $True)]
     [switch]$SupportFiles,
-    [Parameter(Mandatory = $false)]
     [Alias('SN')]
     [ValidateScript({ if (Test-Path -Path "$PSScriptRoot\config.xml") {
                 if (([xml](Get-Content -Path "$PSScriptRoot\config.xml")).getElementsByTagName('site').siteName -contains $_ ) {
@@ -37,32 +36,42 @@ param(
                 throw "No valid config.xml found in $PSScriptRoot. Run ($PSScriptRoot\dlp-script.ps1 -nc) for a new config file."
             }
         })]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $True)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $True)]
     [string]$Site,
-    [Parameter(Mandatory = $false)]
     [Alias('D')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$Daily,
-    [Parameter(Mandatory = $false)]
     [Alias('L')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$Login,
-    [Parameter(Mandatory = $false)]
     [Alias('C')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$Cookies,
-    [Parameter(Mandatory = $false)]
     [Alias('A')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$Archive,
-    [Parameter(Mandatory = $false)]
     [Alias('SE')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$SubtitleEdit,
-    [Parameter(Mandatory = $false)]
     [Alias('MK')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$MKVMerge,
-    [Parameter(Mandatory = $false)]
     [Alias('F')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$Filebot,
-    [Parameter(Mandatory = $false)]
     [Alias('ST')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$SendTelegram,
-    [Parameter(Mandatory = $false)]
+    [Alias('AL')]
     [ValidateScript({ if ($_ -in 'ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und') {
                 $true
             }
@@ -71,9 +80,10 @@ param(
                 throw "Value '{0}' is invalid. The following languages are valid: {1}." -f $_, $AudioLangValues
             }
         })]
-    [Alias('AL')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [string]$AudioLang,
-    [Parameter(Mandatory = $false)]
+    [Alias('SL')]
     [ValidateScript({ if ($_ -in 'ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und') {
                 $true
             }
@@ -82,10 +92,11 @@ param(
                 throw "Value '{0}' is invalid. The following languages are valid: {1}." -f $_, $SubtitleLangValues
             }
         })]
-    [Alias('SL')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [string]$SubtitleLang,
-    [Parameter(Mandatory = $false)]
     [Alias('T')]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $true)]
     [switch]$TestScript
 )
 # Timer for script
@@ -117,7 +128,7 @@ function Invoke-ExpressionConsole {
     $SCMArg = "$SCMFunctionParams *>&1"
     $SCMObj = Invoke-Expression $SCMArg
     $SCMobj | Where-Object { $_.length -gt 0 } | ForEach-Object {
-        Write-Host "[$SCMFunctionName] $(Get-TimeStamp) - $_"
+        Write-Output "[$SCMFunctionName] $(Get-TimeStamp) - $_"
     }
 }
 function Test-Lock {
@@ -158,10 +169,10 @@ function New-SuppFiles {
     )
     if (!(Test-Path $SuppFiles -PathType Leaf)) {
         New-Item $SuppFiles -ItemType File | Out-Null
-        Write-Output "$SuppFiles file missing. Creating."
+        Write-Output "[NewSupportFiles] - $(Get-Timestamp) - $SuppFiles file missing. Creating."
     }
     else {
-        Write-Output "$SuppFiles already file exists."
+        Write-Output "[NewSupportFiles] - $(Get-Timestamp) - $SuppFiles file already exists."
     }
 }
 function New-Config {
@@ -170,30 +181,30 @@ function New-Config {
         [string] $Configs
     )
     New-Item $Configs -ItemType File -Force | Out-Null
-    Write-Output "Creating $Configs"
+    Write-Output "[NewConfigFiles] - $(Get-Timestamp) - Creating $Configs"
     if ($Configs -match 'vrv') {
         $vrvconfig | Set-Content $Configs
-        Write-Output "$Configs created with VRV values."
+        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $Configs created with VRV values."
     }
     elseif ($Configs -match 'crunchyroll') {
         $crunchyrollconfig | Set-Content $Configs
-        Write-Output "$Configs created with Crunchyroll values."
+        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $Configs created with Crunchyroll values."
     }
     elseif ($Configs -match 'funimation') {
         $funimationconfig | Set-Content $Configs
-        Write-Output "$Configs created with Funimation values."
+        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $Configs created with Funimation values."
     }
     elseif ($Configs -match 'hidive') {
         $hidiveconfig | Set-Content $Configs
-        Write-Output "$Configs created with Hidive values."
+        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $Configs created with Hidive values."
     }
     elseif ($Configs -match 'paramountplus') {
         $paramountplusconfig | Set-Content $Configs
-        Write-Output "$Configs created with ParamountPlus values."
+        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $Configs created with ParamountPlus values."
     }
     else {
         $defaultconfig | Set-Content $Configs
-        Write-Output "$Configs created with default values."
+        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $Configs created with default values."
     }
 }
 # Delete Tmp/Src/Home folder logic
@@ -407,7 +418,7 @@ function Invoke-Telegram {
     switch ($TelegramNotification.ToLower()) {
         true { $TGRequest = "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html&disable_notification=true" }
         false { $TGRequest = "https://api.telegram.org/bot$($Telegramtoken)/sendMessage?chat_id=$($Telegramchatid)&text=$($STMessage)&parse_mode=html" }
-        Default { Write-Host 'Improper configured value. Accepted values: true/false' }
+        Default { Write-Output 'Improper configured value. Accepted values: true/false' }
     }
     Invoke-WebRequest -Uri $TGRequest | Out-Null
 }
@@ -894,7 +905,6 @@ if ($SupportFiles) {
         $SBC = Join-Path $SharedF -ChildPath "$($SN.SN)_C"
         New-SuppFiles $SBC
         $SCFDCD = $SCF.TrimEnd('\') + '_D'
-        Write-Host $SCFDCD
         $SCFDC = Join-Path $SCFDCD -ChildPath 'yt-dlp.conf'
         New-Config $SCFDC
         Remove-Spaces $SCFDC
