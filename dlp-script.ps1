@@ -1446,20 +1446,16 @@ if ($Site) {
             }
         }
         Write-Output "[VideoList] $(Get-Timestamp) - Total videos downloaded: $VSVTotCount"
+        $VSCompletedFilesListHeaders = @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, `
+        @{Label = 'Subtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, @{Label = 'Drive'; Expression = { $_._VSOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._VSSeriesDirectory } }, `
+        @{Label = 'DestBase'; Expression = { $_._VSDestPathBase } }, @{Label = 'DestPath'; Expression = { $_._VSDestPath } }, @{Label = 'DestPathDirectory'; Expression = { $_._VSDestPathDirectory } }, `
+        @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'MoveCompleted'; Expression = { $_._VSMoveCompleted } }, `
+        @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, @{Label = 'Errored'; Expression = { $_._VSErrored } }
         if ($VSVTotCount -gt 12) {
-            $VSCompletedFilesTable = $VSCompletedFilesList | Sort-Object _VSSeries, _VSEpisode | Format-Table @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, `
-            @{Label = 'Subtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, @{Label = 'Drive'; Expression = { $_._VSOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._VSSeriesDirectory } }, `
-            @{Label = 'DestBase'; Expression = { $_._VSDestPathBase } }, @{Label = 'DestPath'; Expression = { $_._VSDestPath } }, @{Label = 'DestPathDirectory'; Expression = { $_._VSDestPathDirectory } }, `
-            @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'MoveCompleted'; Expression = { $_._VSMoveCompleted } }, `
-            @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, @{Label = 'Errored'; Expression = { $_._VSErrored } } -AutoSize -Wrap
-    
+            $VSCompletedFilesTable = $VSCompletedFilesList | Sort-Object _VSSeries, _VSEpisode | Format-Table $VSCompletedFilesListHeaders -AutoSize -Wrap
         }
         else {
-            $VSCompletedFilesTable = $VSCompletedFilesList | Sort-Object _VSSeries, _VSEpisode | Format-List @{Label = 'Series'; Expression = { $_._VSSeries } }, @{Label = 'Episode'; Expression = { $_._VSEpisode } }, `
-            @{Label = 'Subtitle'; Expression = { $_._VSEpisodeSubtitleBase } }, @{Label = 'Drive'; Expression = { $_._VSOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._VSSeriesDirectory } }, `
-            @{Label = 'DestBase'; Expression = { $_._VSDestPathBase } }, @{Label = 'DestPath'; Expression = { $_._VSDestPath } }, @{Label = 'DestPathDirectory'; Expression = { $_._VSDestPathDirectory } }, `
-            @{Label = 'SECompleted'; Expression = { $_._VSSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._VSMKVCompleted } }, @{Label = 'MoveCompleted'; Expression = { $_._VSMoveCompleted } }, `
-            @{Label = 'FBCompleted'; Expression = { $_._VSFBCompleted } }, @{Label = 'Errored'; Expression = { $_._VSErrored } }
+            $VSCompletedFilesTable = $VSCompletedFilesList | Sort-Object _VSSeries, _VSEpisode | Format-List $VSCompletedFilesListHeaders
         }
     }
     else {
