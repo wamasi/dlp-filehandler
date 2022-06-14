@@ -72,24 +72,27 @@ param(
     [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$SendTelegram,
     [Alias('AL')]
-    [ValidateScript({ if ($_ -in 'ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und') {
+    [ValidateScript({
+            $LangValues = 'ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und'
+            if ($_ -in $LangValues) {
                 $true
             }
             else {
-                $AudioLangValues = ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und') -join ', '
-                throw "Value '{0}' is invalid. The following languages are valid: {1}." -f $_, $AudioLangValues
+                throw "Value '{0}' is invalid. The following languages are valid: {1}." -f $_, $($LangValues -join ', ')
             }
         })]
     [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
     [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [string]$AudioLang,
     [Alias('SL')]
-    [ValidateScript({ if ($_ -in 'ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und') {
+    [ValidateScript({
+            $LangValues = 'ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und'
+            if ($_ -in $LangValues ) {
                 $true
             }
             else {
-                $SubtitleLangValues = ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und') -join ', '
-                throw "Value '{0}' is invalid. The following languages are valid: {1}." -f $_, $SubtitleLangValues
+                
+                throw "Value '{0}' is invalid. The following languages are valid: {1}." -f $_, $($LangValues -join ', ')
             }
         })]
     [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
@@ -115,7 +118,6 @@ function Get-TimeStamp {
 function Get-Time {
     return (Get-Date -Format 'MMddHHmmssfff')
 }
-# Test if file is available to interact with
 function Invoke-ExpressionConsole {
     param (
         [Parameter(Mandatory = $true)]
@@ -131,6 +133,7 @@ function Invoke-ExpressionConsole {
         Write-Output "[$SCMFunctionName] $(Get-TimeStamp) - $_"
     }
 }
+# Test if file is available to interact with
 function Test-Lock {
     Param(
         [parameter(Mandatory = $true)]
@@ -464,7 +467,7 @@ function Invoke-MKVMerge {
             }
             else {
                 Write-Output "[MKVMerge] $(Get-Timestamp) -  Merging as-is. No Font specified for $MKVVidSubtitle and $MKVVidInput files with $SubFontDir."
-                Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "mkvmerge.exe -o `"$MKVVidTempOutput`" --language 0:`"$VideoLang`" --track-name 0:`"$VTrackName`" --language 1:`"$AudioLang`" --track-name 1:`"$ALTrackName`" ( `"$MKVVidInput`" ) --language 0:`"$SubtitleLang`" --track-name 0:`"$STTrackName) ( `"$MKVVidSubtitle`" )"
+                Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "mkvmerge.exe -o `"$MKVVidTempOutput`" --language 0:`"$VideoLang`" --track-name 0:`"$VTrackName`" --language 1:`"$AudioLang`" --track-name 1:`"$ALTrackName`" ( `"$MKVVidInput`" ) --language 0:`"$SubtitleLang`" --track-name 0:`"$STTrackName`" `"$MKVVidSubtitle`""
             }
         }
         Start-Sleep -Seconds 1
@@ -874,9 +877,11 @@ if ($NewConfig) {
         Write-Output "$ConfigPath File Exists."
         
     }
+    exit
 }
 if ($SupportFiles) {
     New-Folder $FontFolder
+    New-Folder $SharedF
     $ConfigPath = Join-Path $ScriptDirectory -ChildPath 'config.xml'
     [xml]$ConfigFile = Get-Content -Path $ConfigPath
     $SNfile = $ConfigFile.configuration.credentials.site | Where-Object { $_.siteName.trim() -ne '' } | Select-Object 'siteName' -ExpandProperty siteName
@@ -884,36 +889,34 @@ if ($SupportFiles) {
         $SN = New-Object -Type PSObject -Property @{
             SN = $_.siteName
         }
-        $SharedF = Join-Path $ScriptDirectory -ChildPath 'shared'
-        New-Folder $SharedF
         $SCC = Join-Path $ScriptDirectory -ChildPath 'sites'
-        New-Folder $SCC
         $SCF = Join-Path $SCC -ChildPath $SN.SN
-        New-Folder $SCF
         $SCDF = $SCF.TrimEnd('\') + '_D'
-        New-Folder $SCDF
+        $SiteSupportFolders = $SCC, $SCF, $SCDF
+        foreach ($F in $SiteSupportFolders) {
+            New-Folder $F
+        }
         $SADF = Join-Path $SharedF -ChildPath "$($SN.SN)_D_A"
-        New-SuppFiles $SADF
         $SBDF = Join-Path $SharedF -ChildPath "$($SN.SN)_D_B"
-        New-SuppFiles $SBDF
         $SBDC = Join-Path $SharedF -ChildPath "$($SN.SN)_D_C"
-        New-SuppFiles $SBDC
         $SAF = Join-Path $SharedF -ChildPath "$($SN.SN)_A"
-        New-SuppFiles $SAF
         $SBF = Join-Path $SharedF -ChildPath "$($SN.SN)_B"
-        New-SuppFiles $SBF
         $SBC = Join-Path $SharedF -ChildPath "$($SN.SN)_C"
-        New-SuppFiles $SBC
+        $SiteSuppFiles = $SADF, $SBDF, $SBDC, $SAF, $SBF, $SBC
+        foreach ($S in $SiteSuppFiles) {
+            New-SuppFiles $S
+        }
         $SCFDCD = $SCF.TrimEnd('\') + '_D'
         $SCFDC = Join-Path $SCFDCD -ChildPath 'yt-dlp.conf'
-        New-Config $SCFDC
-        Remove-Spaces $SCFDC
         $SCFC = Join-Path $SCF -ChildPath 'yt-dlp.conf'
-        New-Config $SCFC
-        Remove-Spaces $SCFC
+        $SiteConfigFiles = $SCFDC , $SCFC
+        foreach ($CF in $SiteConfigFiles) {
+            New-Config $CF
+            Remove-Spaces $CF
+        }
     }
+    exit
 }
-
 if ($Site) {
     if (Test-Path -Path $SubtitleRegex) {
         Write-Output "$(Get-Timestamp) - $DLPScript, $subtitle_regex do exist in $ScriptDirectory folder."
@@ -971,6 +974,7 @@ if ($Site) {
     $Telegramtoken = $ConfigFile.configuration.Telegram.token.tokenId
     $Telegramchatid = $ConfigFile.configuration.Telegram.token.chatid
     $TelegramNotification = $ConfigFile.configuration.Telegram.token.disableNotification
+    $SiteDefaultPath = Join-Path (Split-Path $DestDrive -Qualifier) -ChildPath ($SiteParentFolder + '\' + $SiteSubFolder)
     # Video track title inherits from Audio language code
     if ($AudioLang -eq '' -or $null -eq $AudioLang) {
         $AudioLang = 'und'
@@ -1217,7 +1221,7 @@ if ($Site) {
             MKVMerge = $MKVMerge; VTrackName = $VTrackName; AudioLang = $AudioLang; ALTrackName = $ALTrackName; SubtitleLang = $SubtitleLang; STTrackName = $STTrackName; Filebot = $Filebot; `
             SiteNameRaw = $SiteNameRaw; SiteType = $SiteType; SiteUser = $SiteUser; SitePass = $SitePass; SiteFolder = $SiteFolder; SiteParentFolder = $SiteParentFolder; `
             SiteSubFolder = $SiteSubFolder; SiteLibraryId = $SiteLibraryId; SiteTemp = $SiteTemp; SiteSrcBase = $SiteSrcBase; SiteSrc = $SiteSrc; SiteHomeBase = $SiteHomeBase; `
-            SiteHome = $SiteHome; SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; `
+            SiteHome = $SiteHome; SiteDefaultPath = $SiteDefaultPath; SiteConfig = $SiteConfig; CookieFile = $CookieFile; Archive = $ArchiveFile; Bat = $BatFile; Ffmpeg = $Ffmpeg; SF = $SF; SubFont = $SubFont; `
             SubFontDir = $SubFontDir; SubType = $SubType; VidType = $VidType; Backup = $SrcBackup; BackupShared = $SrcDriveShared; BackupFont = $SrcDriveSharedFonts; `
             SiteConfigBackup = $SiteConfigBackup; PlexHost = $PlexHost; PlexToken = $PlexToken; TelegramToken = $TelegramToken; TelegramChatId = $TelegramChatId; ConfigPath = $ConfigPath; `
             ScriptDirectory = $ScriptDirectory; dlpParams = $dlpParams
@@ -1395,7 +1399,7 @@ if ($Site) {
                 Invoke-Filebot -FBPath $ORDriveList._VSDestPath
             }
         }
-        elseif ((!($Filebot) -and !($MKVMerge) -or (!($Filebot) -and $VSVMKVCount -ne $VSVTotCount))) {
+        elseif (!($Filebot) -and !($MKVMerge) -or (!($Filebot) -and $VSVMKVCount -eq $VSVTotCount)) {
             $MoveManualList = $VSCompletedFilesList | Where-Object { $_._VSMoveCompleted -eq $true } | Select-Object _VSDestPathDirectory, _VSOverridePath -Unique
             foreach ($MMFiles in $MoveManualList) {
                 $MMOverrideDrive = $MMFiles._VSOverridePath
