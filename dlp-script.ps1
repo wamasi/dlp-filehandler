@@ -1063,7 +1063,7 @@ if ($site) {
     }
     $siteShared = Join-Path $scriptDirectory -ChildPath 'shared'
     $srcBackup = Join-Path $backupDrive -ChildPath '_Backup'
-    $srcDriveShared = Join-Path $srcBackup -ChildPath 'shared'
+    $srcBackupDriveShared = Join-Path $srcBackup -ChildPath 'shared'
     $srcDriveSharedFonts = Join-Path $srcBackup -ChildPath 'fonts'
     $dlpParams = 'yt-dlp'
     $dlpArray = @()
@@ -1249,11 +1249,11 @@ if ($site) {
         Write-Output "[Setup] $(Get-Timestamp) - SubtitleEdit is false. Continuing."
     }
     $debugVars = [ordered]@{Site = $siteName; IsDaily = $daily; UseLogin = $login; UseCookies = $cookies; UseArchive = $archive; SubtitleEdit = $subtitleEdit; `
-            MKVMerge = $mkvMerge; videoTrackName = $videoTrackName; AudioLang = $audioLang; audioTrackName = $audioTrackName; SubtitleLang = $subtitleLang; subtitleTrackName = $subtitleTrackName; Filebot = $filebot; `
-            SiteNameRaw = $siteNameRaw; SiteType = $siteType; SiteUser = $siteUser; SitePass = $sitePass; siteFolderIdName = $siteFolderIdName[0]; SiteFolder = $siteFolder; SiteParentFolder = $siteParentFolder; `
+            MKVMerge = $mkvMerge; VideoTrackName = $videoTrackName; AudioLang = $audioLang; AudioTrackName = $audioTrackName; SubtitleLang = $subtitleLang; SubtitleTrackName = $subtitleTrackName; Filebot = $filebot; `
+            SiteNameRaw = $siteNameRaw; SiteType = $siteType; SiteUser = $siteUser; SitePass = $sitePass; SiteFolderIdName = $siteFolderIdName[0]; SiteFolder = $siteFolder; SiteParentFolder = $siteParentFolder; `
             SiteSubFolder = $siteSubFolder; SiteLibraryId = $siteLibraryID; SiteTemp = $siteTemp; SiteSrcBase = $siteSrcBase; SiteSrc = $siteSrc; SiteHomeBase = $siteHomeBase; `
-            SiteHome = $siteHome; SiteDefaultPath = $siteDefaultPath; SiteConfig = $siteConfig; CookieFile = $cookieFile; Archive = $archiveFile; Bat = $batFile; Ffmpeg = $ffmpeg; subFontName = $subFontName; subFontExtension = $subFontExtension; `
-            SubFontDir = $subFontDir; SubType = $subType; VidType = $vidType; Backup = $srcBackup; BackupShared = $srcDriveShared; BackupFont = $srcDriveSharedFonts; `
+            SiteHome = $siteHome; SiteDefaultPath = $siteDefaultPath; SiteConfig = $siteConfig; CookieFile = $cookieFile; Archive = $archiveFile; Bat = $batFile; Ffmpeg = $ffmpeg; SubFontName = $subFontName; SubFontExtension = $subFontExtension; `
+            SubFontDir = $subFontDir; SubType = $subType; VidType = $vidType; Backup = $srcBackup; BackupShared = $srcBackupDriveShared; BackupFont = $srcDriveSharedFonts; `
             SiteConfigBackup = $siteConfigBackup; PlexHost = $plexHost; PlexToken = $plexToken; telegramToken = $telegramToken; TelegramChatId = $telegramChatID; ConfigPath = $configPath; `
             ScriptDirectory = $scriptDirectory; dlpParams = $dlpParams
     }
@@ -1273,29 +1273,19 @@ if ($site) {
         }
         if ($daily) {
             Write-Output "[START] $dateTime - $siteNameRaw - Daily Run"
-            Write-Output '[START] Debug Vars:'
-            $debugVars
-            Write-Output '[START] Series Drive Overrides:'
-            $overrideSeriesList | Sort-Object orSrcdrive, orSeriesName | Format-Table
-            # Create folders
-            Write-Output '[START] Creating'
-            $createFolders = $tempDrive, $srcDrive, $backupDrive, $srcBackup, $siteConfigBackup, $srcDriveShared, $srcDriveSharedFonts, $destDrive, $siteTemp, $siteSrc, $siteHome
-            foreach ($cf in $createFolders) {
-                New-Folder $cf
-            }
         }
         else {
             Write-Output "[START] $dateTime - $siteNameRaw - Manual Run"
-            Write-Output '[START] Debug Vars:'
-            $debugVars
-            Write-Output '[START] Series Drive Overrides:'
-            $overrideSeriesList | Sort-Object orSrcdrive, orSeriesName | Format-Table
-            # Create folders
-            Write-Output '[START] Creating'
-            $createFolders = $tempDrive, $srcDrive, $backupDrive, $srcBackup, $siteConfigBackup, $srcDriveShared, $srcDriveSharedFonts, $destDrive, $siteTemp, $siteSrc, $siteHome
-            foreach ($c in $createFolders) {
-                New-Folder $c
-            }
+        }
+        Write-Output '[START] Debug Vars:'
+        $debugVars
+        Write-Output '[START] Series Drive Overrides:'
+        $overrideSeriesList | Sort-Object orSrcdrive, orSeriesName | Format-Table
+        # Create folders
+        Write-Output '[START] Creating Folders:'
+        $createFolders = $tempDrive, $srcDrive, $backupDrive, $srcBackup, $siteConfigBackup, $srcBackupDriveShared, $srcDriveSharedFonts, $destDrive, $siteTemp, $siteSrc, $siteHome
+        foreach ($cf in $createFolders) {
+            New-Folder $cf
         }
         # Log cleanup
         Remove-Logfiles
@@ -1513,8 +1503,8 @@ if ($site) {
                 Invoke-ExpressionConsole -SCMFN 'FileBackup' -SCMFP "Copy-Item -Path `"$sb`" -Destination `"$siteConfigBackup`" -PassThru -Verbose"
             }
             else {
-                Write-Output "[FileBackup] $(Get-Timestamp) - Copying $sb to $srcDriveShared."
-                Invoke-ExpressionConsole -SCMFN 'FileBackup' -SCMFP "Copy-Item -Path `"$sb`" -Destination `"$srcDriveShared`" -PassThru -Verbose"
+                Write-Output "[FileBackup] $(Get-Timestamp) - Copying $sb to $srcBackupDriveShared."
+                Invoke-ExpressionConsole -SCMFN 'FileBackup' -SCMFP "Copy-Item -Path `"$sb`" -Destination `"$srcBackupDriveShared`" -PassThru -Verbose"
             }
         }
     }
