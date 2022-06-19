@@ -2,14 +2,14 @@
 .Synopsis
    Script to run yt-dlp, mkvmerge, subtitle edit, filebot and a python script for downloading and processing videos
 .EXAMPLE
-   Runs the script using the crunchyroll as a manual run with the defined config using login, cookies, archive file, mkvmerge, and sends out a telegram message
-   D:\_DL\dlp-script.ps1 -sn crunchyroll -l -c -mk -a -st
+   Runs the script using the mySiteHere as a manual run with the defined config using login, cookies, archive file, mkvmerge, and sends out a telegram message
+   D:\_DL\dlp-script.ps1 -sn mySiteHere -l -c -mk -a -st
 .EXAMPLE
-   Runs the script using the crunchyroll as a daily run with the defined config using login, cookies, no archive file, and filebot/plex
-   D:\_DL\dlp-script.ps1 -sn crunchyroll -d -l -c -f
+   Runs the script using the mySiteHere as a daily run with the defined config using login, cookies, no archive file, and filebot/plex
+   D:\_DL\dlp-script.ps1 -sn mySiteHere -d -l -c -f
 .NOTES
-   See https://github.com/wamasi/dlp-filehandler for full details
-   Script was designed to be ran via powershell console on a cronjob. copying and pasting into powershell console will not work.
+   See https://github.com/wamasi/dlp-filehandler for more details
+   Script was designed to be ran via powershell by being called through console on a cronjob or task scheduler. copying and pasting into powershell console will not work.
 #>
 [CmdletBinding()]
 param(
@@ -131,9 +131,9 @@ function Invoke-ExpressionConsole {
         [Alias('SCMFP')]
         [string]$scmFunctionParams
     )
-    $SCMArg = "$scmFunctionParams *>&1"
-    $scmObj = Invoke-Expression $scmArg
-    $scmobj | Where-Object { $_.length -gt 0 } | ForEach-Object {
+    $iecArguement = "$scmFunctionParams *>&1"
+    $iecObject = Invoke-Expression $iecArguement
+    $iecObject | Where-Object { $_.length -gt 0 } | ForEach-Object {
         Write-Output "[$scmFunctionName] $(Get-TimeStamp) - $_"
     }
 }
@@ -144,7 +144,7 @@ function Test-Lock {
         [parameter(Mandatory = $true)]
         $testLockFilename
     )
-    $testLockFile = Get-Item (Resolve-Path $testLockFilename) -Force
+    $testLockFile = Get-Item -Path (Resolve-Path $testLockFilename) -Force
     if ($testLockFile -is [IO.FileInfo]) {
         trap {
             Write-Output "[FileLockCheck] $(Get-Timestamp) - $testLockFile File locked. Waiting."
@@ -164,7 +164,7 @@ function New-Folder {
         [string] $newFolderFullPath
     )
     if (!(Test-Path -Path $newFolderFullPath)) {
-        New-Item -ItemType Directory -Path $newFolderFullPath -Force | Out-Null
+        New-Item -Path $newFolderFullPath -ItemType Directory -Force | Out-Null
         Write-Output "[SetFolder] - $(Get-Timestamp) - $newFolderFullPath missing. Creating."
     }
     else {
@@ -177,8 +177,8 @@ function New-SuppFiles {
         [Parameter(Mandatory = $true)]
         [string] $newSupportFiles
     )
-    if (!(Test-Path $newSupportFiles -PathType Leaf)) {
-        New-Item $newSupportFiles -ItemType File | Out-Null
+    if (!(Test-Path -Path $newSupportFiles -PathType Leaf)) {
+        New-Item -Path $newSupportFiles -ItemType File | Out-Null
         Write-Output "[NewSupportFiles] - $(Get-Timestamp) - $newSupportFiles file missing. Creating."
     }
     else {
@@ -191,30 +191,30 @@ function New-Config {
         [Parameter(Mandatory = $true)]
         [string] $newConfigs
     )
-    New-Item $newConfigs -ItemType File -Force | Out-Null
+    New-Item -Path $newConfigs -ItemType File -Force | Out-Null
     Write-Output "[NewConfigFiles] - $(Get-Timestamp) - Creating $newConfigs"
     if ($newConfigs -match 'vrv') {
-        $vrvConfig | Set-Content $newConfigs
+        $vrvConfig | Set-Content -Value $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with VRV values."
     }
     elseif ($newConfigs -match 'crunchyroll') {
-        $crunchyrollConfig | Set-Content $newConfigs
+        $crunchyrollConfig | Set-Content -Value $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with Crunchyroll values."
     }
     elseif ($newConfigs -match 'funimation') {
-        $funimationConfig | Set-Content $newConfigs
+        $funimationConfig | Set-Content -Value $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with Funimation values."
     }
     elseif ($newConfigs -match 'hidive') {
-        $hidiveConfig | Set-Content $newConfigs
+        $hidiveConfig | Set-Content -Value $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with Hidive values."
     }
     elseif ($newConfigs -match 'paramountplus') {
-        $paramountPlusConfig | Set-Content $newConfigs
+        $paramountPlusConfig | Set-Content -Value $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with ParamountPlus values."
     }
     else {
-        $defaultConfig | Set-Content $newConfigs
+        $defaultConfig | Set-Content -Value $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with default values."
     }
 }
@@ -230,19 +230,19 @@ function Remove-Folders {
         [string]$removeFolderBaseMatch
     )
     if ($removeFolder -eq $siteTemp) {
-        if (($removeFolder -match '\\tmp\\') -and ($removeFolder -match $removeFolderBaseMatch) -and (Test-Path $removeFolder)) {
+        if (($removeFolder -match '\\tmp\\') -and ($removeFolder -match $removeFolderBaseMatch) -and (Test-Path -Path $removeFolder)) {
             Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $removeFolder folders/files."
-            Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Item `"$removeFolder`" -Recurse -Force -Verbose"
+            Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Item -Path `"$removeFolder`" -Recurse -Force -Verbose"
         }
         else {
             Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteTemp($removeFolder) folder already deleted. Nothing to remove."
         }
     }
     else {
-        if (!(Test-Path $removeFolder)) {
+        if (!(Test-Path -Path $removeFolder)) {
             Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($removeFolder) already deleted."
         }
-        elseif ((Test-Path $removeFolder) -and (Get-ChildItem $removeFolder -Recurse -File | Measure-Object).Count -eq 0) {
+        elseif ((Test-Path -Path $removeFolder) -and (Get-ChildItem -Path $removeFolder -Recurse -File | Measure-Object).Count -eq 0) {
             Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($removeFolder) is empty. Deleting folder."
             & $deleteRecursion -deleteRecursionPath $removeFolder
         }
@@ -256,7 +256,7 @@ function Remove-Logfiles {
     # Log cleanup
     $filledLogsLimit = (Get-Date).AddDays(-$filledLogs)
     $emptyLogsLimit = (Get-Date).AddDays(-$emptyLogs)
-    if (!(Test-Path $logFolderBase)) {
+    if (!(Test-Path -Path $logFolderBase)) {
         Write-Output "[LogCleanup] $(Get-Timestamp) - $logFolderBase is missing. Skipping log cleanup."
     }
     else {
@@ -280,10 +280,10 @@ $deleteRecursion = {
     param(
         $deleteRecursionPath
     )
-    foreach ($DeleteRecursionDirectory in Get-ChildItem -Force -LiteralPath $deleteRecursionPath -Directory) {
+    foreach ($DeleteRecursionDirectory in Get-ChildItem -LiteralPath $deleteRecursionPath -Directory -Force) {
         & $deleteRecursion -deleteRecursionPath $DeleteRecursionDirectory.FullName
     }
-    $DRcurrentChildren = Get-ChildItem -Force -LiteralPath $deleteRecursionPath
+    $DRcurrentChildren = Get-ChildItem -LiteralPath $deleteRecursionPath -Force
     $DeleteRecursionEmpty = $DRcurrentChildren -eq $null
     if ($DeleteRecursionEmpty) {
         Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting '${deleteRecursionPath}' folders/files if empty."
@@ -296,7 +296,7 @@ function Remove-Spaces {
         [Parameter(Mandatory = $true)]
         [string] $removeSpacesFile
     )
-    (Get-Content $removeSpacesFile) | Where-Object { -not [String]::IsNullOrWhiteSpace($_) } | Set-Content $removeSpacesFile
+    (Get-Content -Path $removeSpacesFile) | Where-Object { -not [String]::IsNullOrWhiteSpace($_) } | Set-Content -Value $removeSpacesFile
     $removeSpacesContent = [System.IO.File]::ReadAllText($removeSpacesFile)
     $removeSpacesContent = $removeSpacesContent.Trim()
     [System.IO.File]::WriteAllText($removeSpacesFile, $removeSpacesContent)
@@ -304,7 +304,7 @@ function Remove-Spaces {
 
 function Exit-Script {
     param (
-        [alias('ES')]
+        [alias('Exit')]
         [switch]$exitScript
     )
     $scriptStopWatch.Stop()
@@ -322,51 +322,51 @@ function Exit-Script {
     Remove-Logfiles
     Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($scriptStopWatch.Elapsed.ToString())"
     Stop-Transcript
-    ((Get-Content $logFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content $logFile
-    Remove-Spaces $logFile
+    ((Get-Content -Path $logFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content -Value $logFile
+    Remove-Spaces -removeSpacesFile $logFile
     if ($exitScript -and !($testScript)) {
-        $logTemp = Join-Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
+        $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
         New-Item -Path $logTemp -ItemType File | Out-Null
-        $asciiLogo | Out-File $logTemp -Width 9999
-        Get-Content $logFile -ReadCount 5000 | ForEach-Object {
-            $_ | Add-Content "$logTemp"
+        $asciiLogo | Out-File -FilePath $logTemp -Width 9999
+        Get-Content -Path $logFile -ReadCount 5000 | ForEach-Object {
+            $_ | Add-Content -Value "$logTemp"
         }
-        Remove-Item $logFile
-        Rename-Item $logTemp -NewName $logFile
+        Remove-Item -Path $logFile
+        Rename-Item -Path $logTemp -NewName $logFile
         exit
     }
     elseif ($testScript) {
-        $logTemp = Join-Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
+        $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
         New-Item -Path $logTemp -ItemType File | Out-Null
-        $asciiLogo | Out-File $logTemp -Width 9999
-        Get-Content $logFile -ReadCount 5000 | ForEach-Object {
-            $_ | Add-Content "$logTemp"
+        $asciiLogo | Out-File -FilePath$logTemp -Width 9999
+        Get-Content -Path $logFile -ReadCount 5000 | ForEach-Object {
+            $_ | Add-Content -Value "$logTemp"
         }
-        Remove-Item $logFile
+        Remove-Item -Path $logFile
         Rename-Item -Path $logTemp -NewName "$dateTime-DEBUG.log"
         exit
     }
     else {
         if ($vsvTotCount -gt 0) {
-            $logTemp = Join-Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
+            $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
             New-Item -Path $logTemp -ItemType File | Out-Null
-            $asciiLogo | Out-File $logTemp -Width 9999
-            $vsCompletedFilesTable | Out-File $logTemp -Width 9999 -Append
-            Get-Content $logFile -ReadCount 5000 | ForEach-Object {
-                $_ | Add-Content "$logTemp"
+            $asciiLogo | Out-File -FilePath$logTemp -Width 9999
+            $vsCompletedFilesTable | Out-File -FilePath$logTemp -Width 9999 -Append
+            Get-Content -Path $logFile -ReadCount 5000 | ForEach-Object {
+                $_ | Add-Content -Value "$logTemp"
             }
-            Remove-Item $logFile
-            Rename-Item $logTemp -NewName "$dateTime-Total-$vsvTotCount.log"
+            Remove-Item -Path $logFile
+            Rename-Item -Path $logTemp -NewName "$dateTime-Total-$vsvTotCount.log"
         }
         else {
-            $logTemp = Join-Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
+            $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
             New-Item -Path $logTemp -ItemType File | Out-Null
-            $asciiLogo | Out-File $logTemp -Width 9999
-            Get-Content $logFile -ReadCount 5000 | ForEach-Object {
-                $_ | Add-Content "$logTemp"
+            $asciiLogo | Out-File -FilePath$logTemp -Width 9999
+            Get-Content -Path $logFile -ReadCount 5000 | ForEach-Object {
+                $_ | Add-Content -Value "$logTemp"
             }
-            Remove-Item $logFile
-            Rename-Item $logTemp -NewName $logFile
+            Remove-Item -Path $logFile
+            Rename-Item -Path $logTemp -NewName $logFile
         }
     }
 }
@@ -488,7 +488,7 @@ function Invoke-MKVMerge {
         }
         Start-Sleep -Seconds 1
     }
-    While (!(Test-Path $mkvVidTempOutput -ErrorAction SilentlyContinue)) {
+    While (!(Test-Path -Path $mkvVidTempOutput -ErrorAction SilentlyContinue)) {
         Start-Sleep 1.5
     }
     While ($True) {
@@ -541,7 +541,7 @@ function Invoke-Filebot {
         $filebotOverrideDrive = $filebotFiles._vsOverridePath
         if ($siteParentFolder.trim() -ne '' -or $siteSubFolder.trim() -ne '') {
             $FilebotRootFolder = $filebotOverrideDrive + $siteParentFolder
-            $filebotParams = Join-Path (Join-Path $FilebotRootFolder -ChildPath $siteSubFolder) -ChildPath $filebotArgument
+            $filebotParams = Join-Path -Path (Join-Path -Path $FilebotRootFolder -ChildPath $siteSubFolder) -ChildPath $filebotArgument
             Write-Output "[Filebot] $(Get-Timestamp) - Files found($filebotVidInput). Renaming video and moving files to final folder. Using path($filebotParams)."
             Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$filebotVidInput`" -r --db TheTVDB -non-strict --format `"$filebotParams`" --apply date tags clean --log info"
             if (!($mkvMerge)) {
@@ -557,7 +557,7 @@ function Invoke-Filebot {
                 Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$filebotSubInput`" -r --db TheTVDB -non-strict --format `"$filebotArgument`" --apply date tags clean --log info"
             }
         }
-        if (!(Test-Path $filebotVidInput)) {
+        if (!(Test-Path -Path $filebotVidInput)) {
             Write-Output "[Filebot] $(Get-Timestamp) - Setting file($filebotVidInput) as completed."
             Set-VideoStatus -svsKey '_vsEpisodeRaw' -svsValue $filebotVidBaseName -svsFP
         }
@@ -628,11 +628,11 @@ class VideoStatus {
 
 # Start of script Variable setup
 $scriptDirectory = $PSScriptRoot
-$dlpScript = Join-Path $scriptDirectory -ChildPath 'dlp-script.ps1'
-$subtitleRegex = Join-Path $scriptDirectory -ChildPath 'subtitle_regex.py'
-$configPath = Join-Path $scriptDirectory -ChildPath 'config.xml'
-$sharedFolder = Join-Path $scriptDirectory -ChildPath 'shared'
-$fontFolder = Join-Path $scriptDirectory -ChildPath 'fonts'
+$dlpScript = Join-Path -Path $scriptDirectory -ChildPath 'dlp-script.ps1'
+$subtitleRegex = Join-Path -Path $scriptDirectory -ChildPath 'subtitle_regex.py'
+$configPath = Join-Path -Path $scriptDirectory -ChildPath 'config.xml'
+$sharedFolder = Join-Path -Path $scriptDirectory -ChildPath 'shared'
+$fontFolder = Join-Path -Path $scriptDirectory -ChildPath 'fonts'
 $xmlConfig = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -686,7 +686,7 @@ $xmlConfig = @'
     </Telegram>
     <credentials>
         <!-- Where you store the Site name, username/password, plexlibraryid, folder in library, and a custom font used to embed into video/sub
-            <site sitename="Crunchyroll">
+            <site sitename="MySiteHere">
                 <username>MyUserName</username>
                 <password>MyPassword</password>
                 <plexlibraryid>4</plexlibraryid>
@@ -878,20 +878,19 @@ $asciiLogo = @'
 ######   #######  ##                ##       ######   #######  #######  ##   ##  ##   ##  ##   ##  ######   #######  #######  ##   ##
 _____________________________________________________________________________________________________________________________________
 '@
-if (!(Test-Path "$scriptDirectory\config.xml" -PathType Leaf)) {
-    New-Item "$scriptDirectory\config.xml" -ItemType File -Force
+if (!(Test-Path -Path "$scriptDirectory\config.xml" -PathType Leaf)) {
+    New-Item -Path "$scriptDirectory\config.xml" -ItemType File -Force
 }
 if ($help) {
     Show-Markdown -Path "$scriptDirectory\README.md" -UseBrowser
     exit
 }
 if ($newConfig) {
-    if (!(Test-Path $configPath -PathType Leaf) -or [String]::IsNullOrWhiteSpace((Get-Content $configPath))) {
+    if (!(Test-Path -Path $configPath -PathType Leaf) -or [String]::IsNullOrWhiteSpace((Get-Content -Path $configPath))) {
         
-        New-Item $configPath -ItemType File -Force
+        New-Item -Path $configPath -ItemType File -Force
         Write-Output "$configPath File Created successfully."
-            
-        $xmlConfig | Set-Content $configPath
+        $xmlConfig | Set-Content -Value $configPath
     }
     else {
         Write-Output "$configPath File Exists."
@@ -902,37 +901,37 @@ if ($newConfig) {
 if ($supportFiles) {
     New-Folder $fontFolder
     New-Folder $sharedFolder
-    $configPath = Join-Path $scriptDirectory -ChildPath 'config.xml'
+    $configPath = Join-Path -Path $scriptDirectory -ChildPath 'config.xml'
     [xml]$configFile = Get-Content -Path $configPath
     $sitenameXML = $configFile.configuration.credentials.site | Where-Object { $_.siteName.trim() -ne '' } | Select-Object 'siteName' -ExpandProperty siteName
     $sitenameXML | ForEach-Object {
         $sn = New-Object -Type PSObject -Property @{
             sn = $_.siteName
         }
-        $scc = Join-Path $scriptDirectory -ChildPath 'sites'
-        $scf = Join-Path $scc -ChildPath $sn.SN
+        $scc = Join-Path -Path $scriptDirectory -ChildPath 'sites'
+        $scf = Join-Path -Path $scc -ChildPath $sn.SN
         $scdf = $scf.TrimEnd('\') + '_D'
         $siteSupportFolders = $scc, $scf, $scdf
         foreach ($F in $siteSupportFolders) {
             New-Folder $F
         }
-        $sadf = Join-Path $sharedFolder -ChildPath "$($sn.SN)_D_A"
-        $sbdf = Join-Path $sharedFolder -ChildPath "$($sn.SN)_D_B"
-        $sbdc = Join-Path $sharedFolder -ChildPath "$($sn.SN)_D_C"
-        $saf = Join-Path $sharedFolder -ChildPath "$($sn.SN)_A"
-        $sbf = Join-Path $sharedFolder -ChildPath "$($sn.SN)_B"
-        $sbc = Join-Path $sharedFolder -ChildPath "$($sn.SN)_C"
+        $sadf = Join-Path -Path $sharedFolder -ChildPath "$($sn.SN)_D_A"
+        $sbdf = Join-Path -Path $sharedFolder -ChildPath "$($sn.SN)_D_B"
+        $sbdc = Join-Path -Path $sharedFolder -ChildPath "$($sn.SN)_D_C"
+        $saf = Join-Path -Path $sharedFolder -ChildPath "$($sn.SN)_A"
+        $sbf = Join-Path -Path $sharedFolder -ChildPath "$($sn.SN)_B"
+        $sbc = Join-Path -Path $sharedFolder -ChildPath "$($sn.SN)_C"
         $siteSuppFiles = $sadf, $sbdf, $sbdc, $saf, $sbf, $sbc
         foreach ($S in $siteSuppFiles) {
-            New-SuppFiles $S
+            New-SuppFiles -newSupportFiles $S
         }
         $scfDCD = $scf.TrimEnd('\') + '_D'
-        $scfDC = Join-Path $scfDCD -ChildPath 'yt-dlp.conf'
-        $scfC = Join-Path $scf -ChildPath 'yt-dlp.conf'
+        $scfDC = Join-Path -Path $scfDCD -ChildPath 'yt-dlp.conf'
+        $scfC = Join-Path -Path $scf -ChildPath 'yt-dlp.conf'
         $siteConfigFiles = $scfDC , $scfC
         foreach ($cf in $siteConfigFiles) {
-            New-Config $cf
-            Remove-Spaces $cf
+            New-Config -newConfigs $cf
+            Remove-Spaces -removeSpacesFile $cf
         }
     }
     exit
@@ -950,7 +949,7 @@ if ($site) {
     $time = Get-Time
     $site = $site.ToLower()
     # Reading from XML
-    $configPath = Join-Path $scriptDirectory -ChildPath 'config.xml'
+    $configPath = Join-Path -Path $scriptDirectory -ChildPath 'config.xml'
     [xml]$configFile = Get-Content -Path $configPath
     #$siteParams = $configFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'plexlibraryid', 'parentfolder', 'subfolder', 'font' -First 1
     $siteParams = $configFile.configuration.credentials.site | Where-Object { $_.siteName -ne '' -or $_.sitename -ne $null } | Select-Object 'siteName', 'username', 'password', 'plexlibraryid', 'parentfolder', 'subfolder', 'font'
@@ -966,22 +965,22 @@ if ($site) {
     $siteFolderIdName = $SiteNameList | Where-Object { $_ -eq $site }
     $siteName = $siteNameParams.siteName.ToLower()
     $siteNameRaw = $siteNameParams.siteName
-    $siteFolderDirectory = Join-Path $scriptDirectory -ChildPath 'sites'
+    $siteFolderDirectory = Join-Path -Path $scriptDirectory -ChildPath 'sites'
     if ($daily) {
         $siteType = $siteName + '_D'
-        $siteFolder = Join-Path $siteFolderDirectory -ChildPath $siteType
-        $logFolderBase = Join-Path $siteFolder -ChildPath 'log'
-        $logFolderBaseDate = Join-Path $logFolderBase -ChildPath $date
-        $logFile = Join-Path $logFolderBaseDate -ChildPath "$dateTime.log"
+        $siteFolder = Join-Path -Path $siteFolderDirectory -ChildPath $siteType
+        $logFolderBase = Join-Path -Path $siteFolder -ChildPath 'log'
+        $logFolderBaseDate = Join-Path -Path $logFolderBase -ChildPath $date
+        $logFile = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime.log"
         Start-Transcript -Path $logFile -UseMinimalHeader
         Write-Output "[Setup] $(Get-Timestamp) - $siteNameRaw"
     }
     else {
         $siteType = $siteName
-        $siteFolder = Join-Path $siteFolderDirectory -ChildPath $siteType
-        $logFolderBase = Join-Path $siteFolder -ChildPath 'log'
-        $logFolderBaseDate = Join-Path $logFolderBase -ChildPath $date
-        $logFile = Join-Path $logFolderBaseDate -ChildPath "$dateTime.log"
+        $siteFolder = Join-Path -Path $siteFolderDirectory -ChildPath $siteType
+        $logFolderBase = Join-Path -Path $siteFolder -ChildPath 'log'
+        $logFolderBaseDate = Join-Path -Path $logFolderBase -ChildPath $date
+        $logFile = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime.log"
         Start-Transcript -Path $logFile -UseMinimalHeader
         Write-Output "[Setup] $(Get-Timestamp) - $siteNameRaw"
     }
@@ -1005,7 +1004,7 @@ if ($site) {
     $telegramToken = $configFile.configuration.Telegram.token.tokenId
     $telegramChatID = $configFile.configuration.Telegram.token.chatid
     $telegramNotification = $configFile.configuration.Telegram.token.disableNotification
-    $siteDefaultPath = Join-Path (Split-Path $destDrive -Qualifier) -ChildPath ($siteParentFolder + '\' + $siteSubFolder)
+    $siteDefaultPath = Join-Path -Path (Split-Path $destDrive -Qualifier) -ChildPath ($siteParentFolder + '\' + $siteSubFolder)
     # Video track title inherits from Audio language code
     if ($audioLang -eq '' -or $null -eq $audioLang) {
         $audioLang = 'und'
@@ -1045,14 +1044,14 @@ if ($site) {
     }
     # End reading from XML
     if ($subFontExtension.Trim() -ne '') {
-        $subFontDir = Join-Path $fontFolder -ChildPath $subFontExtension
-        if (Test-Path $subFontDir) {
+        $subFontDir = Join-Path -Path $fontFolder -ChildPath $subFontExtension
+        if (Test-Path -Path $subFontDir) {
             $subFontName = [System.Io.Path]::GetFileNameWithoutExtension($subFontExtension)
             Write-Output "[Setup] $(Get-Timestamp) - $subFontExtension set for $siteName."
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - $subFontExtension specified in $configFile is missing from $fontFolder. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
     }
     else {
@@ -1061,26 +1060,26 @@ if ($site) {
         $subFontExtension = 'None'
         Write-Output "[Setup] $(Get-Timestamp) - $subFontExtension - No font set for $siteName."
     }
-    $siteShared = Join-Path $scriptDirectory -ChildPath 'shared'
-    $srcBackup = Join-Path $backupDrive -ChildPath '_Backup'
-    $srcBackupDriveShared = Join-Path $srcBackup -ChildPath 'shared'
-    $srcDriveSharedFonts = Join-Path $srcBackup -ChildPath 'fonts'
+    $siteShared = Join-Path -Path $scriptDirectory -ChildPath 'shared'
+    $srcBackup = Join-Path -Path $backupDrive -ChildPath '_Backup'
+    $srcBackupDriveShared = Join-Path -Path $srcBackup -ChildPath 'shared'
+    $srcDriveSharedFonts = Join-Path -Path $srcBackup -ChildPath 'fonts'
     $dlpParams = 'yt-dlp'
     $dlpArray = @()
     if ($daily) {
-        $siteTempBase = Join-Path $tempDrive -ChildPath $siteFolderIdName[0]
+        $siteTempBase = Join-Path -Path $tempDrive -ChildPath $siteFolderIdName[0]
         $siteTempBaseMatch = $siteTempBase.Replace('\', '\\')
-        $siteTemp = Join-Path $siteTempBase -ChildPath $time
-        $siteSrcBase = Join-Path $srcDrive -ChildPath $siteFolderIdName[0]
+        $siteTemp = Join-Path -Path $siteTempBase -ChildPath $time
+        $siteSrcBase = Join-Path -Path $srcDrive -ChildPath $siteFolderIdName[0]
         $siteSrcBaseMatch = $siteSrcBase.Replace('\', '\\')
-        $siteSrc = Join-Path $siteSrcBase -ChildPath $time
-        $siteHomeBase = Join-Path (Join-Path $destDrive -ChildPath "_$siteSubFolder") -ChildPath $siteFolderIdName[0]
+        $siteSrc = Join-Path -Path $siteSrcBase -ChildPath $time
+        $siteHomeBase = Join-Path -Path (Join-Path -Path $destDrive -ChildPath "_$siteSubFolder") -ChildPath $siteFolderIdName[0]
         $siteHomeBaseMatch = $siteHomeBase.Replace('\', '\\')
-        $siteHome = Join-Path $siteHomeBase -ChildPath $time
-        $siteConfig = Join-Path $siteFolder -ChildPath 'yt-dlp.conf'
+        $siteHome = Join-Path -Path -Path $siteHomeBase -ChildPath $time
+        $siteConfig = Join-Path -Path -Path $siteFolder -ChildPath 'yt-dlp.conf'
         if ($srcDrive -eq $tempDrive) {
             Write-Output "[Setup] $(Get-Timestamp) - Src($srcDrive) and Temp($tempDrive) Directories cannot be the same"
-            Exit-Script -es
+            Exit-Script -Exit
         }
         if ((Test-Path -Path $siteConfig)) {
             Write-Output "[Setup] $(Get-Timestamp) - $siteConfig file found. Continuing."
@@ -1089,19 +1088,19 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - $siteConfig does not exist. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
     }
     else {
-        $siteTempBase = Join-Path $tempDrive -ChildPath "$($siteFolderIdName[0])M"
+        $siteTempBase = Join-Path -Path $tempDrive -ChildPath "$($siteFolderIdName[0])M"
         $siteTempBaseMatch = $siteTempBase.Replace('\', '\\')
-        $siteTemp = Join-Path $siteTempBase -ChildPath $time
-        $siteSrcBase = Join-Path $srcDrive -ChildPath "$($siteFolderIdName[0])M"
+        $siteTemp = Join-Path -Path $siteTempBase -ChildPath $time
+        $siteSrcBase = Join-Path -Path $srcDrive -ChildPath "$($siteFolderIdName[0])M"
         $siteSrcBaseMatch = $siteSrcBase.Replace('\', '\\')
-        $siteSrc = Join-Path $siteSrcBase -ChildPath $time
-        $siteHomeBase = Join-Path (Join-Path $destDrive -ChildPath '_M') -ChildPath $siteFolderIdName[0]
+        $siteSrc = Join-Path -Path $siteSrcBase -ChildPath $time
+        $siteHomeBase = Join-Path -Path (Join-Path -Path $destDrive -ChildPath '_M') -ChildPath $siteFolderIdName[0]
         $siteHomeBaseMatch = $siteHomeBase.Replace('\', '\\')
-        $siteHome = Join-Path $siteHomeBase -ChildPath $time
+        $siteHome = Join-Path -Path $siteHomeBase -ChildPath $time
         $siteConfig = $siteFolder + '\yt-dlp.conf'
         if ((Test-Path -Path $siteConfig)) {
             Write-Output "[Setup] $(Get-Timestamp) - $siteConfig file found. Continuing."
@@ -1110,11 +1109,11 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - $siteConfig does not exist. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
     }
-    $siteConfigBackup = Join-Path (Join-Path $srcBackup -ChildPath 'sites') -ChildPath $siteType
-    $cookieFile = Join-Path $siteShared -ChildPath "$($siteType)_C"
+    $siteConfigBackup = Join-Path -Path (Join-Path -Path $srcBackup -ChildPath 'sites') -ChildPath $siteType
+    $cookieFile = Join-Path -Path $siteShared -ChildPath "$($siteType)_C"
     if ($login) {
         if ($siteUser -and $sitePass) {
             Write-Output "[Setup] $(Get-Timestamp) - Login is true and SiteUser/Password is filled. Continuing."
@@ -1128,7 +1127,7 @@ if ($site) {
                 }
                 else {
                     Write-Output "[Setup] $(Get-Timestamp) - $cookieFile does not exist. Exiting."
-                    Exit-Script -es
+                    Exit-Script -Exit
                 }
             }
             else {
@@ -1138,7 +1137,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - Login is true and Username/Password is Empty. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
     }
     else {
@@ -1149,7 +1148,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - $cookieFile does not exist. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
     }
     if ($ffmpeg) {
@@ -1159,27 +1158,27 @@ if ($site) {
     }
     else {
         Write-Output "[Setup] $(Get-Timestamp) - FFMPEG: $ffmpeg missing. Exiting."
-        Exit-Script -es
+        Exit-Script -Exit
     }
-    $batFile = Join-Path $siteShared -ChildPath "$($siteType)_B"
+    $batFile = Join-Path -Path $siteShared -ChildPath "$($siteType)_B"
     if ((Test-Path -Path $batFile)) {
         Write-Output "[Setup] $(Get-Timestamp) - $batFile file found. Continuing."
-        if (![String]::IsNullOrWhiteSpace((Get-Content $batFile))) {
+        if (![String]::IsNullOrWhiteSpace((Get-Content -Path $batFile))) {
             Write-Output "[Setup] $(Get-Timestamp) - $batFile not empty. Continuing."
             $dlpParams = $dlpParams + " -a $batFile"
             $dlpArray += "`"-a`"", "`"$batFile`""
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - $batFile is empty. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
     }
     else {
         Write-Output "[Setup] $(Get-Timestamp) - BAT: $batFile missing. Exiting."
-        Exit-Script -es
+        Exit-Script -Exit
     }
     if ($archive) {
-        $archiveFile = Join-Path $siteShared -ChildPath "$($siteType)_A"
+        $archiveFile = Join-Path -Path $siteShared -ChildPath "$($siteType)_A"
         if ((Test-Path -Path $archiveFile)) {
             Write-Output "[Setup] $(Get-Timestamp) - $archiveFile file found. Continuing."
             $dlpParams = $dlpParams + " --download-archive $archiveFile"
@@ -1187,7 +1186,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - Archive file missing. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
     }
     else {
@@ -1205,12 +1204,12 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - VidType(mkv) is missing. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
     }
     else {
         Write-Output "[Setup] $(Get-Timestamp) - --remux-video parameter is missing. Exiting."
-        Exit-Script -es
+        Exit-Script -Exit
     }
     if ($subtitleEdit -or $mkvMerge) {
         if (Select-String -Path $siteConfig '--write-subs' -SimpleMatch -Quiet) {
@@ -1218,7 +1217,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
         $subtitleType = Select-String -Path $siteConfig -Pattern '--convert-subs.*' | Select-Object -First 1
         if ($null -ne $subtitleType) {
@@ -1229,12 +1228,12 @@ if ($site) {
             }
             else {
                 Write-Output "[Setup] $(Get-Timestamp) - Subtype(ass) is missing. Exiting."
-                Exit-Script -es
+                Exit-Script -Exit
             }
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - --convert-subs parameter is missing. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
         $writeSub = Select-String -Path $siteConfig -Pattern '--write-subs.*' | Select-Object -First 1
         if ($null -ne $writeSub) {
@@ -1242,7 +1241,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - SubSubWrite is missing. Exiting."
-            Exit-Script -es
+            Exit-Script -Exit
         }
     }
     else {
@@ -1264,11 +1263,11 @@ if ($site) {
         Write-Output 'dlpArray:'
         $dlpArray
         Write-Output "[END] $dateTime - Debugging enabled. Exiting."
-        Exit-Script -es
+        Exit-Script -Exit
     }
     else {
-        $DebugVarRemove = 'SiteUser' , 'SitePass', 'PlexToken', 'telegramToken', 'TelegramChatId', 'dlpParams'
-        foreach ($dbv in $DebugVarRemove) {
+        $debugVarsRemove = 'SiteUser' , 'SitePass', 'PlexToken', 'telegramToken', 'TelegramChatId', 'dlpParams'
+        foreach ($dbv in $debugVarsRemove) {
             $debugVars.Remove($dbv)
         }
         if ($daily) {
@@ -1293,24 +1292,24 @@ if ($site) {
     # yt-dlp
     & yt-dlp.exe $dlpArray *>&1 | Out-Host
     # Post-processing
-    if ((Get-ChildItem $siteSrc -Recurse -Force -File -Include "$vidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
-        Get-ChildItem $siteSrc -Recurse -Include "$vidType" | Sort-Object LastWriteTime | Select-Object -Unique | Get-Unique | ForEach-Object {
+    if ((Get-ChildItem -Path $siteSrc -Recurse -Force -File -Include "$vidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
+        Get-ChildItem -Path $siteSrc -Recurse -Include "$vidType" | Sort-Object LastWriteTime | Select-Object -Unique | Get-Unique | ForEach-Object {
             $vsSite = $siteNameRaw
             $vsSeries = (Get-Culture).TextInfo.ToTitleCase(("$(Split-Path (Split-Path $_ -Parent) -Leaf)").Replace('_', ' ').Replace('-', ' ')) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
             $vsEpisode = (Get-Culture).TextInfo.ToTitleCase( ($_.BaseName.Replace('_', ' ').Replace('-', ' '))) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
             $vsSeriesDirectory = $_.DirectoryName
             $vsEpisodeRaw = $_.BaseName
-            $vsEpisodeTemp = Join-Path $vsSeriesDirectory -ChildPath "$($vsEpisodeRaw).temp$($_.Extension)"
+            $vsEpisodeTemp = Join-Path -Path $vsSeriesDirectory -ChildPath "$($vsEpisodeRaw).temp$($_.Extension)"
             $vsEpisodePath = $_.FullName
-            $vsEpisodeSubtitle = (Get-ChildItem $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object -First 1 ).FullName
+            $vsEpisodeSubtitle = (Get-ChildItem -Path $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object -First 1 ).FullName
             $vsOverridePath = $overrideSeriesList | Where-Object { $_.orSeriesName.ToLower() -eq $vsSeries.ToLower() } | Select-Object -ExpandProperty orSrcdrive
             if ($null -ne $vsOverridePath) {
-                $vsDestPath = Join-Path $vsOverridePath -ChildPath $siteHome.Substring(3)
-                $vsDestPathBase = Join-Path $vsOverridePath -ChildPath $siteHomeBase.Substring(3)
+                $vsDestPath = Join-Path -Path $vsOverridePath -ChildPath $siteHome.Substring(3)
+                $vsDestPathBase = Join-Path -Path $vsOverridePath -ChildPath $siteHomeBase.Substring(3)
                 $vsEpisodeFBPath = $vsEpisodePath.Replace($siteSrc, $vsDestPath)
                 $vsDestPathDirectory = Split-Path $vsEpisodeFBPath -Parent
                 if ($vsEpisodeSubtitle -ne '') {
-                    $vsEpisodeSubtitleBase = (Get-ChildItem $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object -First 1 ).Name
+                    $vsEpisodeSubtitleBase = (Get-ChildItem -Path $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object -First 1 ).Name
                     $vsEpisodeSubFBPath = $vsEpisodeSubtitle.Replace($siteSrc, $vsDestPath)
                 }
                 else {
@@ -1325,7 +1324,7 @@ if ($site) {
                 $vsDestPathDirectory = Split-Path $vsEpisodeFBPath -Parent
                 $vsOverridePath = [System.IO.path]::GetPathRoot($vsDestPath)
                 if ($vsEpisodeSubtitle -ne '') {
-                    $vsEpisodeSubtitleBase = (Get-ChildItem $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object -First 1 ).Name
+                    $vsEpisodeSubtitleBase = (Get-ChildItem -Path $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object -First 1 ).Name
                     $vsEpisodeSubFBPath = $vsEpisodeSubtitle.Replace($siteSrc, $vsDestPath)
                 }
                 else {
@@ -1397,12 +1396,12 @@ if ($site) {
             Write-Output "[FileMoving] $(Get-Timestamp) - All files had matching subtitle file"
             foreach ($orDriveList in $overrideDriveList) {
                 Write-Output "[FileMoving] $(Get-Timestamp) - $($orDriveList._vsSeriesDirectory) contains files. Moving to $($orDriveList._vsDestPath)."
-                if (!(Test-Path $orDriveList._vsDestPath)) {
+                if (!(Test-Path -Path $orDriveList._vsDestPath)) {
                     Invoke-ExpressionConsole -SCMFN 'FileMoving' -SCMFP "New-Folder `"$($orDriveList._vsDestPath)`" -Verbose"
                 }
                 Write-Output "[FileMoving] $(Get-Timestamp) - Moving $($orDriveList._vsSeriesDirectory) to $($orDriveList._vsDestPath)."
                 Invoke-ExpressionConsole -SCMFN 'FileMoving' -SCMFP "Move-Item -Path `"$($orDriveList._vsSeriesDirectory)`" -Destination `"$($orDriveList._vsDestPath)`" -Force -Verbose"
-                if (!(Test-Path $orDriveList._vsSeriesDirectory)) {
+                if (!(Test-Path -Path $orDriveList._vsSeriesDirectory)) {
                     Write-Output "[FileMoving] $(Get-Timestamp) - Move completed for $($orDriveList._vsSeriesDirectory)."
                     Set-VideoStatus -svsKey '_vsSeriesDirectory' -svsValue $orDriveList._vsSeriesDirectory -svsMove
                     
@@ -1425,7 +1424,7 @@ if ($site) {
             foreach ($mmFiles in $moveManualList) {
                 $mmOverrideDrive = $mmFiles._vsOverridePath
                 $moveRootDirectory = $mmOverrideDrive + $siteParentFolder
-                $moveFolder = Join-Path $moveRootDirectory -ChildPath $siteSubFolder
+                $moveFolder = Join-Path -Path $moveRootDirectory -ChildPath $siteSubFolder
                 Write-Output "[FileMoving] $(Get-Timestamp) -  Moving $($mmFiles._vsDestPathDirectory) to $moveFolder."
                 Invoke-ExpressionConsole -SCMFN 'FileMoving' -SCMFP "Move-Item -Path `"$($mmFiles._vsDestPathDirectory)`" -Destination `"$moveFolder`" -Force -Verbose"
             }
