@@ -1075,8 +1075,8 @@ if ($site) {
         $siteSrc = Join-Path -Path $siteSrcBase -ChildPath $time
         $siteHomeBase = Join-Path -Path (Join-Path -Path $destDrive -ChildPath "_$siteSubFolder") -ChildPath $siteFolderIdName[0]
         $siteHomeBaseMatch = $siteHomeBase.Replace('\', '\\')
-        $siteHome = Join-Path -Path -Path $siteHomeBase -ChildPath $time
-        $siteConfig = Join-Path -Path -Path $siteFolder -ChildPath 'yt-dlp.conf'
+        $siteHome = Join-Path -Path $siteHomeBase -ChildPath $time
+        $siteConfig = Join-Path -Path $siteFolder -ChildPath 'yt-dlp.conf'
         if ($srcDrive -eq $tempDrive) {
             Write-Output "[Setup] $(Get-Timestamp) - Src($srcDrive) and Temp($tempDrive) Directories cannot be the same"
             Exit-Script -Exit
