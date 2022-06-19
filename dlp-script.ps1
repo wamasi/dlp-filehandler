@@ -164,11 +164,11 @@ function New-Folder {
         [string] $newFolderFullPath
     )
     if (!(Test-Path -Path $newFolderFullPath)) {
-        New-Item -Path $newFolderFullPath -ItemType Directory -Force | Out-Null
-        Write-Output "[SetFolder] - $(Get-Timestamp) - $newFolderFullPath missing. Creating."
+        New-Item -Path $newFolderFullPath -ItemType Directory -Force -Verbose
+        Write-Output "$newFolderFullPath missing. Creating."
     }
     else {
-        Write-Output "[SetFolder] - $(Get-Timestamp) - $newFolderFullPath already exists."
+        Write-Output "$newFolderFullPath already exists."
     }
 }
 
@@ -179,10 +179,10 @@ function New-SuppFiles {
     )
     if (!(Test-Path -Path $newSupportFiles -PathType Leaf)) {
         New-Item -Path $newSupportFiles -ItemType File | Out-Null
-        Write-Output "[NewSupportFiles] - $(Get-Timestamp) - $newSupportFiles file missing. Creating."
+        Write-Output "$newSupportFiles file missing. Creating."
     }
     else {
-        Write-Output "[NewSupportFiles] - $(Get-Timestamp) - $newSupportFiles file already exists."
+        Write-Output "$newSupportFiles file already exists."
     }
 }
 
@@ -191,31 +191,31 @@ function New-Config {
         [Parameter(Mandatory = $true)]
         [string] $newConfigs
     )
-    New-Item -Path $newConfigs -ItemType File -Force | Out-Null
-    Write-Output "[NewConfigFiles] - $(Get-Timestamp) - Creating $newConfigs"
+    Write-Output "Creating $newConfigs"
+    New-Item -Path $newConfigs -ItemType File -Force
     if ($newConfigs -match 'vrv') {
         $vrvConfig | Set-Content -Path $newConfigs
-        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with VRV values."
+        Write-Output "$newConfigs created with VRV values."
     }
     elseif ($newConfigs -match 'crunchyroll') {
         $crunchyrollConfig | Set-Content -Path $newConfigs
-        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with Crunchyroll values."
+        Write-Output "$newConfigs created with Crunchyroll values."
     }
     elseif ($newConfigs -match 'funimation') {
         $funimationConfig | Set-Content -Path $newConfigs
-        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with Funimation values."
+        Write-Output "$newConfigs created with Funimation values."
     }
     elseif ($newConfigs -match 'hidive') {
         $hidiveConfig | Set-Content -Path $newConfigs
-        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with Hidive values."
+        Write-Output "$newConfigs created with Hidive values."
     }
     elseif ($newConfigs -match 'paramountplus') {
         $paramountPlusConfig | Set-Content -Path $newConfigs
-        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with ParamountPlus values."
+        Write-Output "$newConfigs created with ParamountPlus values."
     }
     else {
         $defaultConfig | Set-Content -Path $newConfigs
-        Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with default values."
+        Write-Output "$newConfigs created with default values."
     }
 }
 
@@ -231,23 +231,23 @@ function Remove-Folders {
     )
     if ($removeFolder -eq $siteTemp) {
         if (($removeFolder -match '\\tmp\\') -and ($removeFolder -match $removeFolderBaseMatch) -and (Test-Path -Path $removeFolder)) {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting $removeFolder folders/files."
-            Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Item -Path `"$removeFolder`" -Recurse -Force -Verbose"
+            Write-Output "Force deleting $removeFolder folders/files."
+            Remove-Item -Path $removeFolder -Recurse -Force -Verbose
         }
         else {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - SiteTemp($removeFolder) folder already deleted. Nothing to remove."
+            Write-Output "SiteTemp($removeFolder) folder already deleted. Nothing to remove."
         }
     }
     else {
         if (!(Test-Path -Path $removeFolder)) {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($removeFolder) already deleted."
+            Write-Output "Folder($removeFolder) already deleted."
         }
         elseif ((Test-Path -Path $removeFolder) -and (Get-ChildItem -Path $removeFolder -Recurse -File | Measure-Object).Count -eq 0) {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($removeFolder) is empty. Deleting folder."
+            Write-Output "Folder($removeFolder) is empty. Deleting folder."
             & $deleteRecursion -deleteRecursionPath $removeFolder
         }
         else {
-            Write-Output "[FolderCleanup] $(Get-Timestamp) - Folder($removeFolder) contains files. Manual attention needed."
+            Write-Output "Folder($removeFolder) contains files. Manual attention needed."
         }
     }
 }
@@ -257,20 +257,30 @@ function Remove-Logfiles {
     $filledLogsLimit = (Get-Date).AddDays(-$filledLogs)
     $emptyLogsLimit = (Get-Date).AddDays(-$emptyLogs)
     if (!(Test-Path -Path $logFolderBase)) {
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $logFolderBase is missing. Skipping log cleanup."
+        Write-Output "$logFolderBase is missing. Skipping log cleanup."
     }
     else {
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $logFolderBase found. Starting Filledlog($filledLogs days) cleanup."
-        Get-ChildItem -Path $logFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.FullName -ne $logFile -and $_.CreationTime -lt $filledLogsLimit } | `
-            ForEach-Object {
-            $removeLog = $_.FullName
-            Invoke-ExpressionConsole -SCMFN 'LogCleanup' -SCMFP "`"$removeLog`" | Remove-Item -Recurse -Force -Verbose"
+        Write-Output "$logFolderBase found. Starting Filledlog($filledLogs days) cleanup."
+        $filledLogFiles = Get-ChildItem -Path $logFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.FullName -ne $logFile -and $_.CreationTime -lt $filledLogsLimit }
+        if (($filledLogFiles | Measure-Object).Count -gt 0) {
+            foreach ($f in $filledLogFiles ) {
+                $removeLog = $f.FullName
+                $removeLog | Remove-Item -Recurse -Force -Verbose
+            }
         }
-        Write-Output "[LogCleanup] $(Get-Timestamp) - $logFolderBase found. Starting emptylog($emptyLogs days) cleanup."
-        Get-ChildItem -Path $logFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-Total-.*' -and $_.FullName -ne $logFile -and $_.CreationTime -lt $emptyLogsLimit } | `
-            ForEach-Object {
-            $removeLog = $_.FullName
-            Invoke-ExpressionConsole -SCMFN 'LogCleanup' -SCMFP "`"$removeLog`" | Remove-Item -Recurse -Force -Verbose"
+        else {
+            Write-Output "No filled logs to remove in $logFolderBase"
+        }
+        Write-Output "$logFolderBase found. Starting emptylog($emptyLogs days) cleanup."
+        $emptyLogFiles = Get-ChildItem -Path $logFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-Total-.*' -and $_.FullName -ne $logFile -and $_.CreationTime -lt $emptyLogsLimit }
+        if (($emptyLogFiles | Measure-Object).Count -gt 0) {
+            foreach ($e in $emptyLogFiles ) {
+                $removeLog = $e.FullName
+                $removeLog | Remove-Item -Recurse -Force -Verbose
+            }
+        }
+        else {
+            Write-Output "No empty logs to remove in $logFolderBase"
         }
         & $deleteRecursion -deleteRecursionPath $logFolderBase
     }
@@ -286,8 +296,8 @@ $deleteRecursion = {
     $DRcurrentChildren = Get-ChildItem -LiteralPath $deleteRecursionPath -Force
     $DeleteRecursionEmpty = $DRcurrentChildren -eq $null
     if ($DeleteRecursionEmpty) {
-        Write-Output "[FolderCleanup] $(Get-Timestamp) - Force deleting '${deleteRecursionPath}' folders/files if empty."
-        Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Item -Force -LiteralPath `"$deleteRecursionPath`" -Verbose"
+        Write-Output "Force deleting '${deleteRecursionPath}' folders/files if empty."
+        Remove-Item -LiteralPath $deleteRecursionPath -Force -Verbose
     }
 }
 
@@ -309,17 +319,17 @@ function Exit-Script {
     )
     $scriptStopWatch.Stop()
     # Cleanup folders
-    Remove-Folders -removeFolder $siteTemp -removeFolderMatch '\\tmp\\' -removeFolderBaseMatch $siteTempBaseMatch
-    Remove-Folders -removeFolder $siteSrc -removeFolderMatch '\\src\\' -removeFolderBaseMatch $siteSrcBaseMatch
-    Remove-Folders -removeFolder $siteHome -removeFolderMatch '\\tmp\\' -removeFolderBaseMatch $siteHomeBaseMatch
+    Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($siteTemp)`" -removeFolderMatch `"\\tmp\\`" -removeFolderBaseMatch `"$($siteTempBaseMatch)`""
+    Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($siteSrc)`" -removeFolderMatch `"\\src\\`" -removeFolderBaseMatch `"$($siteSrcBaseMatch)`""
+    Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($siteHome)`" -removeFolderMatch `"\\tmp\\`" -removeFolderBaseMatch `"$($siteHomeBaseMatch)`""
     if ($overrideDriveList.count -gt 0) {
         foreach ($orDriveList in $overrideDriveList) {
             $orDriveListBaseMatch = ($orDriveList._vsDestPathBase).Replace('\', '\\')
-            Remove-Folders -removeFolder $orDriveList._vsDestPath -removeFolderMatch '\\tmp\\' -removeFolderBaseMatch $orDriveListBaseMatch
+            Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($orDriveList._vsDestPath)`" -removeFolderMatch `"\\tmp\\`" -removeFolderBaseMatch `"$($orDriveListBaseMatch)`""
         }
     }
     # Cleanup Log Files
-    Remove-Logfiles
+    Invoke-ExpressionConsole -SCMFN 'LogCleanup' -SCMFP 'Remove-Logfiles'
     Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($scriptStopWatch.Elapsed.ToString())"
     Stop-Transcript
     ((Get-Content -Path $logFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content -Path $logFile
@@ -737,6 +747,7 @@ $defaultConfig = @'
 --sub-format 'vtt/srt'
 --convert-subs 'ass'
 --write-subs
+--embed-chapters
 --embed-metadata
 --embed-thumbnail
 --convert-thumbnails 'png'
@@ -761,6 +772,7 @@ $vrvConfig = @'
 --sub-format 'ass/srt/vtt'
 --convert-subs 'ass'
 --write-subs
+--embed-chapters
 --embed-metadata
 --embed-thumbnail
 --convert-thumbnails 'png'
@@ -785,6 +797,7 @@ $crunchyrollConfig = @'
 --sub-format 'ass/srt/vtt'
 --convert-subs 'ass'
 --write-subs
+--embed-chapters
 --embed-metadata
 --embed-thumbnail
 --convert-thumbnails 'png'
@@ -810,6 +823,7 @@ $funimationConfig = @'
 --sub-format 'ass/srt/vtt'
 --convert-subs 'ass'
 --write-subs
+--embed-chapters
 --embed-metadata
 --embed-thumbnail
 --convert-thumbnails 'png'
@@ -836,6 +850,7 @@ $hidiveConfig = @'
 --sub-format 'ass/srt/vtt'
 --convert-subs 'ass'
 --write-subs
+--embed-chapters
 --embed-metadata
 --embed-thumbnail
 --convert-thumbnails 'png'
@@ -860,6 +875,7 @@ $paramountPlusConfig = @'
 --sub-format 'ass/srt/vtt'
 --convert-subs 'ass'
 --write-subs
+--embed-chapters
 --embed-metadata
 --embed-thumbnail
 --convert-thumbnails 'png'
@@ -899,8 +915,10 @@ if ($newConfig) {
     exit
 }
 if ($supportFiles) {
-    New-Folder $fontFolder
-    New-Folder $sharedFolder
+    $suppFileFolders = $fontFolder, $sharedFolder
+    foreach ($sff in $suppFileFolders) {
+        Invoke-ExpressionConsole -SCMFN 'SupportFolders' -SCMFP "New-Folder -newFolderFullPath `"$sff`""
+    }
     $configPath = Join-Path -Path $scriptDirectory -ChildPath 'config.xml'
     [xml]$configFile = Get-Content -Path $configPath
     $sitenameXML = $configFile.configuration.credentials.site | Where-Object { $_.siteName.trim() -ne '' } | Select-Object 'siteName' -ExpandProperty siteName
@@ -913,7 +931,7 @@ if ($supportFiles) {
         $scdf = $scf.TrimEnd('\') + '_D'
         $siteSupportFolders = $scc, $scf, $scdf
         foreach ($F in $siteSupportFolders) {
-            New-Folder $F
+            Invoke-ExpressionConsole -SCMFN 'SiteFolders' -SCMFP "New-Folder -newFolderFullPath `"$F`""
         }
         $sadf = Join-Path -Path $sharedFolder -ChildPath "$($sn.SN)_D_A"
         $sbdf = Join-Path -Path $sharedFolder -ChildPath "$($sn.SN)_D_B"
@@ -923,14 +941,16 @@ if ($supportFiles) {
         $sbc = Join-Path -Path $sharedFolder -ChildPath "$($sn.SN)_C"
         $siteSuppFiles = $sadf, $sbdf, $sbdc, $saf, $sbf, $sbc
         foreach ($S in $siteSuppFiles) {
-            New-SuppFiles -newSupportFiles $S
+            Invoke-ExpressionConsole -SCMFN 'SiteFiles' -SCMFP "New-SuppFiles -newSupportFiles `"$S`""
         }
         $scfDCD = $scf.TrimEnd('\') + '_D'
         $scfDC = Join-Path -Path $scfDCD -ChildPath 'yt-dlp.conf'
         $scfC = Join-Path -Path $scf -ChildPath 'yt-dlp.conf'
         $siteConfigFiles = $scfDC , $scfC
         foreach ($cf in $siteConfigFiles) {
-            New-Config -newConfigs $cf
+            
+            Invoke-ExpressionConsole -SCMFN 'SiteConfigs' -SCMFP "New-Config -newConfigs `"$cf`""
+            
             Remove-Spaces -removeSpacesFile $cf
         }
     }
@@ -1284,10 +1304,10 @@ if ($site) {
         Write-Output '[START] Creating Folders:'
         $createFolders = $tempDrive, $srcDrive, $backupDrive, $srcBackup, $siteConfigBackup, $srcBackupDriveShared, $srcDriveSharedFonts, $destDrive, $siteTemp, $siteSrc, $siteHome
         foreach ($cf in $createFolders) {
-            New-Folder $cf
+            Invoke-ExpressionConsole -SCMFN 'START' -SCMFP "New-Folder -newFolderFullPath `"$cf`""
         }
         # Log cleanup
-        Remove-Logfiles
+        Invoke-ExpressionConsole -SCMFN 'LogCleanup' -SCMFP 'Remove-Logfiles'
     }
     # yt-dlp
     & yt-dlp.exe $dlpArray *>&1 | Out-Host
@@ -1397,7 +1417,7 @@ if ($site) {
             foreach ($orDriveList in $overrideDriveList) {
                 Write-Output "[FileMoving] $(Get-Timestamp) - $($orDriveList._vsSeriesDirectory) contains files. Moving to $($orDriveList._vsDestPath)."
                 if (!(Test-Path -Path $orDriveList._vsDestPath)) {
-                    Invoke-ExpressionConsole -SCMFN 'FileMoving' -SCMFP "New-Folder `"$($orDriveList._vsDestPath)`" -Verbose"
+                    Invoke-ExpressionConsole -SCMFN 'FileMoving' -SCMFP "New-Folder -newFolderFullPath `"$($orDriveList._vsDestPath)`" -Verbose"
                 }
                 Write-Output "[FileMoving] $(Get-Timestamp) - Moving $($orDriveList._vsSeriesDirectory) to $($orDriveList._vsDestPath)."
                 Invoke-ExpressionConsole -SCMFN 'FileMoving' -SCMFP "Move-Item -Path `"$($orDriveList._vsSeriesDirectory)`" -Destination `"$($orDriveList._vsDestPath)`" -Force -Verbose"
