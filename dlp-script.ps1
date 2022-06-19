@@ -194,27 +194,27 @@ function New-Config {
     New-Item -Path $newConfigs -ItemType File -Force | Out-Null
     Write-Output "[NewConfigFiles] - $(Get-Timestamp) - Creating $newConfigs"
     if ($newConfigs -match 'vrv') {
-        $vrvConfig | Set-Content -Value $newConfigs
+        $vrvConfig | Set-Content -Path $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with VRV values."
     }
     elseif ($newConfigs -match 'crunchyroll') {
-        $crunchyrollConfig | Set-Content -Value $newConfigs
+        $crunchyrollConfig | Set-Content -Path $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with Crunchyroll values."
     }
     elseif ($newConfigs -match 'funimation') {
-        $funimationConfig | Set-Content -Value $newConfigs
+        $funimationConfig | Set-Content -Path $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with Funimation values."
     }
     elseif ($newConfigs -match 'hidive') {
-        $hidiveConfig | Set-Content -Value $newConfigs
+        $hidiveConfig | Set-Content -Path $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with Hidive values."
     }
     elseif ($newConfigs -match 'paramountplus') {
-        $paramountPlusConfig | Set-Content -Value $newConfigs
+        $paramountPlusConfig | Set-Content -Path $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with ParamountPlus values."
     }
     else {
-        $defaultConfig | Set-Content -Value $newConfigs
+        $defaultConfig | Set-Content -Path $newConfigs
         Write-Output "[NewConfigFiles] - $(Get-Timestamp) - $newConfigs created with default values."
     }
 }
@@ -296,7 +296,7 @@ function Remove-Spaces {
         [Parameter(Mandatory = $true)]
         [string] $removeSpacesFile
     )
-    (Get-Content -Path $removeSpacesFile) | Where-Object { -not [String]::IsNullOrWhiteSpace($_) } | Set-Content -Value $removeSpacesFile
+    (Get-Content $removeSpacesFile) | Where-Object { -not [String]::IsNullOrWhiteSpace($_) } | Set-Content -Path $removeSpacesFile
     $removeSpacesContent = [System.IO.File]::ReadAllText($removeSpacesFile)
     $removeSpacesContent = $removeSpacesContent.Trim()
     [System.IO.File]::WriteAllText($removeSpacesFile, $removeSpacesContent)
@@ -322,14 +322,14 @@ function Exit-Script {
     Remove-Logfiles
     Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($scriptStopWatch.Elapsed.ToString())"
     Stop-Transcript
-    ((Get-Content -Path $logFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content -Value $logFile
+    ((Get-Content -Path $logFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content -Path $logFile
     Remove-Spaces -removeSpacesFile $logFile
     if ($exitScript -and !($testScript)) {
         $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
         New-Item -Path $logTemp -ItemType File | Out-Null
         $asciiLogo | Out-File -FilePath $logTemp -Width 9999
         Get-Content -Path $logFile -ReadCount 5000 | ForEach-Object {
-            $_ | Add-Content -Value "$logTemp"
+            $_ | Add-Content "$logTemp"
         }
         Remove-Item -Path $logFile
         Rename-Item -Path $logTemp -NewName $logFile
@@ -338,9 +338,9 @@ function Exit-Script {
     elseif ($testScript) {
         $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
         New-Item -Path $logTemp -ItemType File | Out-Null
-        $asciiLogo | Out-File -FilePath$logTemp -Width 9999
+        $asciiLogo | Out-File -FilePath $logTemp -Width 9999
         Get-Content -Path $logFile -ReadCount 5000 | ForEach-Object {
-            $_ | Add-Content -Value "$logTemp"
+            $_ | Add-Content -Path "$logTemp"
         }
         Remove-Item -Path $logFile
         Rename-Item -Path $logTemp -NewName "$dateTime-DEBUG.log"
@@ -350,10 +350,10 @@ function Exit-Script {
         if ($vsvTotCount -gt 0) {
             $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
             New-Item -Path $logTemp -ItemType File | Out-Null
-            $asciiLogo | Out-File -FilePath$logTemp -Width 9999
-            $vsCompletedFilesTable | Out-File -FilePath$logTemp -Width 9999 -Append
-            Get-Content -Path $logFile -ReadCount 5000 | ForEach-Object {
-                $_ | Add-Content -Value "$logTemp"
+            $asciiLogo | Out-File -FilePath $logTemp -Width 9999
+            $vsCompletedFilesTable | Out-File -FilePath $logTemp -Width 9999 -Append
+            Get-Content $logFile -ReadCount 5000 | ForEach-Object {
+                $_ | Add-Content -Path $logTemp
             }
             Remove-Item -Path $logFile
             Rename-Item -Path $logTemp -NewName "$dateTime-Total-$vsvTotCount.log"
@@ -361,9 +361,9 @@ function Exit-Script {
         else {
             $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
             New-Item -Path $logTemp -ItemType File | Out-Null
-            $asciiLogo | Out-File -FilePath$logTemp -Width 9999
-            Get-Content -Path $logFile -ReadCount 5000 | ForEach-Object {
-                $_ | Add-Content -Value "$logTemp"
+            $asciiLogo | Out-File -FilePath $logTemp -Width 9999
+            Get-Content $logFile -ReadCount 5000 | ForEach-Object {
+                $_ | Add-Content -Path $logTemp
             }
             Remove-Item -Path $logFile
             Rename-Item -Path $logTemp -NewName $logFile
@@ -890,7 +890,7 @@ if ($newConfig) {
         
         New-Item -Path $configPath -ItemType File -Force
         Write-Output "$configPath File Created successfully."
-        $xmlConfig | Set-Content -Value $configPath
+        $xmlConfig | Set-Content -Path $configPath
     }
     else {
         Write-Output "$configPath File Exists."
