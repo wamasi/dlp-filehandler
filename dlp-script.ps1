@@ -133,7 +133,7 @@ function Invoke-ExpressionConsole {
     )
     $iecArguement = "$scmFunctionParams *>&1"
     $iecObject = Invoke-Expression $iecArguement
-    $iecObject | Where-Object { $_.length -gt 0 } | ForEach-Object {
+    $iecObject -split "`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
         Write-Output "[$scmFunctionName] $(Get-TimeStamp) - $_"
     }
 }
@@ -448,7 +448,10 @@ function Invoke-Telegram {
         false { $telegramRequest = "https://api.telegram.org/bot$($telegramToken)/sendMessage?chat_id=$($telegramChatID)&text=$($sendTelegramMessage)&parse_mode=html" }
         Default { Write-Output 'Improper configured value. Accepted values: true/false' }
     }
+    Invoke-ExpressionConsole -scmFunctionName 'Telegram' -scmFunctionParams "Write-Output `"$sendTelegramMessage`""
+    $ProgressPreference = 'SilentlyContinue'
     Invoke-WebRequest -Uri $telegramRequest | Out-Null
+    $ProgressPreference = 'Continue'
 }
 
 # Run MKVMerge process
@@ -492,7 +495,7 @@ function Invoke-MKVMerge {
                 break
             }
             else {
-                Write-Output "[MKVMerge] $(Get-Timestamp) -  Merging as-is. No Font specified for $mkvVidSubtitle and $mkvVidInput files with $subFontDir."
+                Write-Output "[MKVMerge] $(Get-Timestamp) - Merging as-is. No Font specified for $mkvVidSubtitle and $mkvVidInput files with $subFontDir."
                 Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "mkvmerge.exe -o `"$mkvVidTempOutput`" --language 0:`"$videoLang`" --track-name 0:`"$videoTrackName`" --language 1:`"$audioLang`" --track-name 1:`"$audioTrackName`" ( `"$mkvVidInput`" ) --language 0:`"$subtitleLang`" --track-name 0:`"$subtitleTrackName`" `"$mkvVidSubtitle`""
             }
         }
@@ -886,6 +889,17 @@ $paramountPlusConfig = @'
 -f 'bv*[height>=1080]+ba/b[height>=1080] / bv*+ba/w / b'
 -o '%(series).110s/S%(season_number)sE%(episode_number)s - %(title).120s.%(ext)s'
 '@
+$testTelegramMessage = @'
+<b>Site:</b> TestSite
+<strong>Series:</strong> TestSeries1
+<strong>Episode:</strong>
+S1E1 TestSeries - TestingEpisode
+
+<strong>Series:</strong> TestSeries2
+<strong>Episode:</strong>
+S2E3 TestSeries2- TestingEpisode
+Test Message.
+'@
 $asciiLogo = @'
 ######   ##       #######           #######  ######   ##       #######  ##   ##  #######  ###  ##  ######   ##       #######  #######
      ##  ##            ##                      ##     ##                ##   ##       ##  #### ##       ##  ##                     ##
@@ -948,9 +962,7 @@ if ($supportFiles) {
         $scfC = Join-Path -Path $scf -ChildPath 'yt-dlp.conf'
         $siteConfigFiles = $scfDC , $scfC
         foreach ($cf in $siteConfigFiles) {
-            
             Invoke-ExpressionConsole -SCMFN 'SiteConfigs' -SCMFP "New-Config -newConfigs `"$cf`""
-            
             Remove-Spaces -removeSpacesFile $cf
         }
     }
@@ -1282,6 +1294,9 @@ if ($site) {
         $overrideSeriesList
         Write-Output 'dlpArray:'
         $dlpArray
+        if ($sendTelegram) {
+            Invoke-Telegram -sendTelegramMessage $testTelegramMessage
+        }
         Write-Output "[END] $dateTime - Debugging enabled. Exiting."
         Exit-Script -Exit
     }
@@ -1339,7 +1354,7 @@ if ($site) {
             }
             else {
                 $vsDestPath = $siteHome
-                $vsDestPathBase = $siteHomeBase  #_vsDestPathDirectory = $vsDestPathDirectory
+                $vsDestPathBase = $siteHomeBase
                 $vsEpisodeFBPath = $vsEpisodePath.Replace($siteSrc, $vsDestPath)
                 $vsDestPathDirectory = Split-Path $vsEpisodeFBPath -Parent
                 $vsOverridePath = [System.IO.path]::GetPathRoot($vsDestPath)
@@ -1369,8 +1384,6 @@ if ($site) {
     }
     $vsvTotCount = ($vsCompletedFilesList | Measure-Object).Count
     $vsvErrorCount = ($vsCompletedFilesList | Where-Object { $_._vsErrored -eq $true } | Measure-Object).Count
-    Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $vsvTotCount"
-    Write-Output "[VideoList] $(Get-Timestamp) - Errored Files: $vsvErrorCount"
     # SubtitleEdit, MKVMerge, Filebot
     if ($vsvTotCount -gt 0) {
         # Subtitle Edit
@@ -1445,7 +1458,7 @@ if ($site) {
                 $mmOverrideDrive = $mmFiles._vsOverridePath
                 $moveRootDirectory = $mmOverrideDrive + $siteParentFolder
                 $moveFolder = Join-Path -Path $moveRootDirectory -ChildPath $siteSubFolder
-                Write-Output "[FileMoving] $(Get-Timestamp) -  Moving $($mmFiles._vsDestPathDirectory) to $moveFolder."
+                Write-Output "[FileMoving] $(Get-Timestamp) - Moving $($mmFiles._vsDestPathDirectory) to $moveFolder."
                 Invoke-ExpressionConsole -SCMFN 'FileMoving' -SCMFP "Move-Item -Path `"$($mmFiles._vsDestPathDirectory)`" -Destination `"$moveFolder`" -Force -Verbose"
             }
         }
@@ -1456,7 +1469,9 @@ if ($site) {
         if ($plexHost -and $plexToken -and $siteLibraryID ) {
             Write-Output "[PLEX] $(Get-Timestamp) - Updating Plex Library."
             $plexUrl = "$plexHost/library/sections/$siteLibraryID/refresh?X-Plex-Token=$plexToken"
+            $ProgressPreference = 'SilentlyContinue'
             Invoke-WebRequest -Uri $plexUrl | Out-Null
+            $ProgressPreference = 'Continue'
         }
         else {
             Write-Output "[PLEX] $(Get-Timestamp) - Not using Plex."
@@ -1471,13 +1486,11 @@ if ($site) {
                     if (($vsvFBCount -gt 0 -and $vsvMKVCount -gt 0 -and $vsvFBCount -eq $vsvMKVCount) -or (!($filebot) -and $mkvMerge -and $vsvMKVCount -gt 0)) {
                         Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $siteHome. Success."
                         $tm += 'All files added to PLEX.'
-                        Write-Output $tm
                         Invoke-Telegram -sendTelegramMessage $tm
                     }
                     else {
                         Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $siteHome. Failure."
                         $tm += 'Not all files added to PLEX.'
-                        Write-Output $tm
                         Invoke-Telegram -sendTelegramMessage $tm
                     }
                 }
@@ -1485,11 +1498,11 @@ if ($site) {
             else {
                 Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $siteHome."
                 $tm += 'Added files to folders.'
-                Write-Output $tm
                 Invoke-Telegram -sendTelegramMessage $tm
             }
         }
-        Write-Output "[VideoList] $(Get-Timestamp) - Total videos downloaded: $vsvTotCount"
+        Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $vsvTotCount"
+        Write-Output "[VideoList] $(Get-Timestamp) - Errored Files: $vsvErrorCount"
         $vsCompletedFilesListHeaders = @{Label = 'Series'; Expression = { $_._vsSeries } }, @{Label = 'Episode'; Expression = { $_._vsEpisode } }, `
         @{Label = 'Subtitle'; Expression = { $_._vsEpisodeSubtitleBase } }, @{Label = 'Drive'; Expression = { $_._vsOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._vsSeriesDirectory } }, `
         @{Label = 'DestBase'; Expression = { $_._vsDestPathBase } }, @{Label = 'DestPath'; Expression = { $_._vsDestPath } }, @{Label = 'DestPathDirectory'; Expression = { $_._vsDestPathDirectory } }, `
