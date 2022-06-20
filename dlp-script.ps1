@@ -230,12 +230,12 @@ function Remove-Folders {
         [string]$removeFolderBaseMatch
     )
     if ($removeFolder -eq $siteTemp) {
-        if (($removeFolder -match '\\tmp\\') -and ($removeFolder -match $removeFolderBaseMatch) -and (Test-Path -Path $removeFolder)) {
+        if (($removeFolder -match $removeFolderBaseMatch) -and (Test-Path -Path $removeFolder)) {
             Write-Output "Force deleting $removeFolder folders/files."
             Remove-Item -Path $removeFolder -Recurse -Force -Verbose
         }
         else {
-            Write-Output "SiteTemp($removeFolder) folder already deleted. Nothing to remove."
+            Write-Output "SiteTemp($removeFolder) already deleted."
         }
     }
     else {
@@ -261,7 +261,7 @@ function Remove-Logfiles {
     }
     else {
         Write-Output "$logFolderBase found. Starting Filledlog($filledLogs days) cleanup."
-        $filledLogFiles = Get-ChildItem -Path $logFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-Total-.*' -and $_.FullName -ne $logFile -and $_.CreationTime -lt $filledLogsLimit }
+        $filledLogFiles = Get-ChildItem -Path $logFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-T.*' -and $_.FullName -ne $logFile -and $_.CreationTime -lt $filledLogsLimit }
         if (($filledLogFiles | Measure-Object).Count -gt 0) {
             foreach ($f in $filledLogFiles ) {
                 $removeLog = $f.FullName
@@ -272,7 +272,7 @@ function Remove-Logfiles {
             Write-Output "No filled logs to remove in $logFolderBase"
         }
         Write-Output "$logFolderBase found. Starting emptylog($emptyLogs days) cleanup."
-        $emptyLogFiles = Get-ChildItem -Path $logFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-Total-.*' -and $_.FullName -ne $logFile -and $_.CreationTime -lt $emptyLogsLimit }
+        $emptyLogFiles = Get-ChildItem -Path $logFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-T.*' -and $_.FullName -ne $logFile -and $_.CreationTime -lt $emptyLogsLimit }
         if (($emptyLogFiles | Measure-Object).Count -gt 0) {
             foreach ($e in $emptyLogFiles ) {
                 $removeLog = $e.FullName
@@ -313,19 +313,15 @@ function Remove-Spaces {
 }
 
 function Exit-Script {
-    param (
-        [alias('Exit')]
-        [switch]$exitScript
-    )
     $scriptStopWatch.Stop()
     # Cleanup folders
-    Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($siteTemp)`" -removeFolderMatch `"\\tmp\\`" -removeFolderBaseMatch `"$($siteTempBaseMatch)`""
-    Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($siteSrc)`" -removeFolderMatch `"\\src\\`" -removeFolderBaseMatch `"$($siteSrcBaseMatch)`""
-    Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($siteHome)`" -removeFolderMatch `"\\tmp\\`" -removeFolderBaseMatch `"$($siteHomeBaseMatch)`""
+    Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($siteTemp)`" -removeFolderBaseMatch `"$($siteTempBaseMatch)`""
+    Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($siteSrc)`" -removeFolderBaseMatch `"$($siteSrcBaseMatch)`""
+    Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($siteHome)`" -removeFolderBaseMatch `"$($siteHomeBaseMatch)`""
     if ($overrideDriveList.count -gt 0) {
         foreach ($orDriveList in $overrideDriveList) {
             $orDriveListBaseMatch = ($orDriveList._vsDestPathBase).Replace('\', '\\')
-            Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($orDriveList._vsDestPath)`" -removeFolderMatch `"\\tmp\\`" -removeFolderBaseMatch `"$($orDriveListBaseMatch)`""
+            Invoke-ExpressionConsole -SCMFN 'FolderCleanup' -SCMFP "Remove-Folders -removeFolder `"$($orDriveList._vsDestPath)`" -removeFolderBaseMatch `"$($orDriveListBaseMatch)`""
         }
     }
     # Cleanup Log Files
@@ -334,51 +330,26 @@ function Exit-Script {
     Stop-Transcript
     ((Get-Content -Path $logFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content -Path $logFile
     Remove-Spaces -removeSpacesFile $logFile
-    if ($exitScript -and !($testScript)) {
-        $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
-        New-Item -Path $logTemp -ItemType File | Out-Null
-        $asciiLogo | Out-File -FilePath $logTemp -Width 9999
-        Get-Content -Path $logFile -ReadCount 5000 | ForEach-Object {
-            $_ | Add-Content "$logTemp"
-        }
-        Remove-Item -Path $logFile
-        Rename-Item -Path $logTemp -NewName $logFile
-        exit
+    $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
+    New-Item -Path $logTemp -ItemType File | Out-Null
+    $asciiLogo | Out-File -FilePath $logTemp -Width 9999
+    if ($vsvTotCount -gt 0) {
+        $vsCompletedFilesTable | Out-File -FilePath $logTemp -Width 9999 -Append
+    }
+    Get-Content $logFile -ReadCount 5000 | ForEach-Object {
+        $_ | Add-Content -Path $logTemp
+    }
+    Remove-Item -Path $logFile
+    if ($vsvTotCount -gt 0) {
+        Rename-Item -Path $logTemp -NewName "$dateTime-T$vsvTotCount-E$vsvErrorCount.log"
     }
     elseif ($testScript) {
-        $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
-        New-Item -Path $logTemp -ItemType File | Out-Null
-        $asciiLogo | Out-File -FilePath $logTemp -Width 9999
-        Get-Content -Path $logFile -ReadCount 5000 | ForEach-Object {
-            $_ | Add-Content -Path "$logTemp"
-        }
-        Remove-Item -Path $logFile
         Rename-Item -Path $logTemp -NewName "$dateTime-DEBUG.log"
-        exit
     }
     else {
-        if ($vsvTotCount -gt 0) {
-            $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
-            New-Item -Path $logTemp -ItemType File | Out-Null
-            $asciiLogo | Out-File -FilePath $logTemp -Width 9999
-            $vsCompletedFilesTable | Out-File -FilePath $logTemp -Width 9999 -Append
-            Get-Content $logFile -ReadCount 5000 | ForEach-Object {
-                $_ | Add-Content -Path $logTemp
-            }
-            Remove-Item -Path $logFile
-            Rename-Item -Path $logTemp -NewName "$dateTime-Total-$vsvTotCount.log"
-        }
-        else {
-            $logTemp = Join-Path -Path $logFolderBaseDate -ChildPath "$dateTime-Temp.log"
-            New-Item -Path $logTemp -ItemType File | Out-Null
-            $asciiLogo | Out-File -FilePath $logTemp -Width 9999
-            Get-Content $logFile -ReadCount 5000 | ForEach-Object {
-                $_ | Add-Content -Path $logTemp
-            }
-            Remove-Item -Path $logFile
-            Rename-Item -Path $logTemp -NewName $logFile
-        }
+        Rename-Item -Path $logTemp -NewName $logFile
     }
+    exit
 }
 
 # Update SE/MKV/FB true false
@@ -898,6 +869,7 @@ S1E1 TestSeries - TestingEpisode
 <strong>Series:</strong> TestSeries2
 <strong>Episode:</strong>
 S2E3 TestSeries2- TestingEpisode
+
 Test Message.
 '@
 $asciiLogo = @'
@@ -908,6 +880,7 @@ $asciiLogo = @'
 ######   #######  ##                ##       ######   #######  #######  ##   ##  ##   ##  ##   ##  ######   #######  #######  ##   ##
 _____________________________________________________________________________________________________________________________________
 '@
+
 if (!(Test-Path -Path "$scriptDirectory\config.xml" -PathType Leaf)) {
     New-Item -Path "$scriptDirectory\config.xml" -ItemType File -Force
 }
@@ -1083,7 +1056,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - $subFontExtension specified in $configFile is missing from $fontFolder. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
     }
     else {
@@ -1111,7 +1084,7 @@ if ($site) {
         $siteConfig = Join-Path -Path $siteFolder -ChildPath 'yt-dlp.conf'
         if ($srcDrive -eq $tempDrive) {
             Write-Output "[Setup] $(Get-Timestamp) - Src($srcDrive) and Temp($tempDrive) Directories cannot be the same"
-            Exit-Script -Exit
+            Exit-Script
         }
         if ((Test-Path -Path $siteConfig)) {
             Write-Output "[Setup] $(Get-Timestamp) - $siteConfig file found. Continuing."
@@ -1120,7 +1093,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - $siteConfig does not exist. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
     }
     else {
@@ -1141,7 +1114,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - $siteConfig does not exist. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
     }
     $siteConfigBackup = Join-Path -Path (Join-Path -Path $srcBackup -ChildPath 'sites') -ChildPath $siteType
@@ -1159,7 +1132,7 @@ if ($site) {
                 }
                 else {
                     Write-Output "[Setup] $(Get-Timestamp) - $cookieFile does not exist. Exiting."
-                    Exit-Script -Exit
+                    Exit-Script
                 }
             }
             else {
@@ -1169,7 +1142,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - Login is true and Username/Password is Empty. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
     }
     else {
@@ -1180,7 +1153,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - $cookieFile does not exist. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
     }
     if ($ffmpeg) {
@@ -1190,7 +1163,7 @@ if ($site) {
     }
     else {
         Write-Output "[Setup] $(Get-Timestamp) - FFMPEG: $ffmpeg missing. Exiting."
-        Exit-Script -Exit
+        Exit-Script
     }
     $batFile = Join-Path -Path $siteShared -ChildPath "$($siteType)_B"
     if ((Test-Path -Path $batFile)) {
@@ -1202,12 +1175,12 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - $batFile is empty. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
     }
     else {
         Write-Output "[Setup] $(Get-Timestamp) - BAT: $batFile missing. Exiting."
-        Exit-Script -Exit
+        Exit-Script
     }
     if ($archive) {
         $archiveFile = Join-Path -Path $siteShared -ChildPath "$($siteType)_A"
@@ -1218,7 +1191,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - Archive file missing. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
     }
     else {
@@ -1236,12 +1209,12 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - VidType(mkv) is missing. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
     }
     else {
         Write-Output "[Setup] $(Get-Timestamp) - --remux-video parameter is missing. Exiting."
-        Exit-Script -Exit
+        Exit-Script
     }
     if ($subtitleEdit -or $mkvMerge) {
         if (Select-String -Path $siteConfig '--write-subs' -SimpleMatch -Quiet) {
@@ -1249,7 +1222,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
         $subtitleType = Select-String -Path $siteConfig -Pattern '--convert-subs.*' | Select-Object -First 1
         if ($null -ne $subtitleType) {
@@ -1260,12 +1233,12 @@ if ($site) {
             }
             else {
                 Write-Output "[Setup] $(Get-Timestamp) - Subtype(ass) is missing. Exiting."
-                Exit-Script -Exit
+                Exit-Script
             }
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - --convert-subs parameter is missing. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
         $writeSub = Select-String -Path $siteConfig -Pattern '--write-subs.*' | Select-Object -First 1
         if ($null -ne $writeSub) {
@@ -1273,7 +1246,7 @@ if ($site) {
         }
         else {
             Write-Output "[Setup] $(Get-Timestamp) - SubSubWrite is missing. Exiting."
-            Exit-Script -Exit
+            Exit-Script
         }
     }
     else {
@@ -1297,8 +1270,7 @@ if ($site) {
         if ($sendTelegram) {
             Invoke-Telegram -sendTelegramMessage $testTelegramMessage
         }
-        Write-Output "[END] $dateTime - Debugging enabled. Exiting."
-        Exit-Script -Exit
+        Exit-Script
     }
     else {
         $debugVarsRemove = 'SiteUser' , 'SitePass', 'PlexToken', 'telegramToken', 'TelegramChatId', 'dlpParams'
@@ -1316,7 +1288,6 @@ if ($site) {
         Write-Output '[START] Series Drive Overrides:'
         $overrideSeriesList | Sort-Object orSrcdrive, orSeriesName | Format-Table
         # Create folders
-        Write-Output '[START] Creating Folders:'
         $createFolders = $tempDrive, $srcDrive, $backupDrive, $srcBackup, $siteConfigBackup, $srcBackupDriveShared, $srcDriveSharedFonts, $destDrive, $siteTemp, $siteSrc, $siteHome
         foreach ($cf in $createFolders) {
             Invoke-ExpressionConsole -SCMFN 'START' -SCMFP "New-Folder -newFolderFullPath `"$cf`""
