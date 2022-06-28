@@ -244,7 +244,7 @@ function Remove-Folders {
         }
         elseif ((Test-Path -Path $removeFolder) -and (Get-ChildItem -Path $removeFolder -Recurse -File | Measure-Object).Count -eq 0) {
             Write-Output "Folder($removeFolder) is empty. Deleting folder."
-            & $deleteRecursion -deleteRecursionPath $removeFolder
+            & $DeleteRecursion -deleteRecursionPath $removeFolder
         }
         else {
             Write-Output "Folder($removeFolder) contains files. Manual attention needed."
@@ -282,20 +282,20 @@ function Remove-Logfiles {
         else {
             Write-Output "No empty logs to remove in $logFolderBase"
         }
-        & $deleteRecursion -deleteRecursionPath $logFolderBase
+        & $DeleteRecursion -deleteRecursionPath $logFolderBase
     }
 }
 
-$deleteRecursion = {
+$DeleteRecursion = {
     param(
         $deleteRecursionPath
     )
     foreach ($DeleteRecursionDirectory in Get-ChildItem -LiteralPath $deleteRecursionPath -Directory -Force) {
-        & $deleteRecursion -deleteRecursionPath $DeleteRecursionDirectory.FullName
+        & $DeleteRecursion -deleteRecursionPath $DeleteRecursionDirectory.FullName
     }
-    $DRcurrentChildren = Get-ChildItem -LiteralPath $deleteRecursionPath -Force
-    $DeleteRecursionEmpty = $DRcurrentChildren -eq $null
-    if ($DeleteRecursionEmpty) {
+    $drCurrentChildren = Get-ChildItem -LiteralPath $deleteRecursionPath -Force
+    $deleteRecursionEmpty = $drCurrentChildren -eq $null
+    if ($deleteRecursionEmpty) {
         Write-Output "Force deleting '${deleteRecursionPath}' folders/files if empty."
         Remove-Item -LiteralPath $deleteRecursionPath -Force -Verbose
     }
@@ -943,10 +943,10 @@ if ($supportFiles) {
 }
 if ($site) {
     if (Test-Path -Path $subtitleRegex) {
-        Write-Output "$(Get-Timestamp) - $dlpScript, $subtitle_regex do exist in $scriptDirectory folder."
+        Write-Output "[SETUP] $(Get-Timestamp) - $dlpScript, $subtitle_regex do exist in $scriptDirectory folder."
     }
     else {
-        Write-Output "$(Get-Timestamp) - subtitle_regex.py does not exist or was not found in $scriptDirectory folder. Exiting."
+        Write-Output "[SETUP] $(Get-Timestamp) - subtitle_regex.py does not exist or was not found in $scriptDirectory folder. Exiting."
         Exit
     }
     $date = Get-Day
@@ -956,7 +956,6 @@ if ($site) {
     # Reading from XML
     $configPath = Join-Path -Path $scriptDirectory -ChildPath 'config.xml'
     [xml]$configFile = Get-Content -Path $configPath
-    #$siteParams = $configFile.configuration.credentials.site | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object 'siteName', 'username', 'password', 'plexlibraryid', 'parentfolder', 'subfolder', 'font' -First 1
     $siteParams = $configFile.configuration.credentials.site | Where-Object { $_.siteName -ne '' -or $_.sitename -ne $null } | Select-Object 'siteName', 'username', 'password', 'plexlibraryid', 'parentfolder', 'subfolder', 'font'
     $siteNameParams = $siteParams | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object * -First 1
     $siteNameCount = 0
