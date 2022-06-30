@@ -1370,7 +1370,6 @@ if ($site) {
     # yt-dlp
     & yt-dlp.exe $dlpArray *>&1 | Out-Host
     # Post-processing
-    $siteSrc = 'D:\src\C1M\0627201355143-TEST - Copy'
     $totalDownloaded = (Get-ChildItem -Path $siteSrc -Recurse -Force -File -Include "$vidType" | Select-Object * | Measure-Object).Count
     if ($totalDownloaded -gt 0) {
         Get-ChildItem -Path $siteSrc -Recurse -Include "$vidType" | Sort-Object LastWriteTime | Select-Object -Unique | Get-Unique | ForEach-Object {
