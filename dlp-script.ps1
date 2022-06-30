@@ -592,7 +592,7 @@ function Invoke-Filebot {
             Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$filebotVidInput`" -r --db TheTVDB -non-strict --format `"$filebotParams`" --apply date tags clean --log info"
             if (!($mkvMerge)) {
                 $filebotSubInput | ForEach-Object {
-                    $filebotSubParams = $filebotArgument
+                    $filebotSubParams = $filebotParams
                     $osp = $_ | Where-Object { $_.key -eq 'overrideSubPath' } | Select-Object -ExpandProperty value
                     $StLang = Get-SubtitleLanguage -subFiles $osp
                     $filebotSubParams = $filebotSubParams + "{'.$($StLang[0])'}"
@@ -602,7 +602,7 @@ function Invoke-Filebot {
             }
         }
         else {
-            Write-Output "[Filebot] $(Get-Timestamp) - Files found($filebotVidInput). ParentFolder or Subfolder path not specified. Renaming files in place."
+            Write-Output "[Filebot] $(Get-Timestamp) - Files found($filebotVidInput). ParentFolder or Subfolder path not specified. Renaming files in place  using path($filebotArgument)."
             $filebotSubInput | ForEach-Object {
                 Write-Output "[Filebot] $(Get-Timestamp) - Files found($osp). ParentFolder or Subfolder path not specified. Renaming files in place."
                 Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$osp`" -r --db TheTVDB -non-strict --format `"$filebotArgument`" --apply date tags clean --log info"
@@ -613,7 +613,8 @@ function Invoke-Filebot {
                     $osp = $_ | Where-Object { $_.key -eq 'overrideSubPath' } | Select-Object -ExpandProperty value
                     $StLang = Get-SubtitleLanguage -subFiles $osp
                     $filebotSubParams = $filebotSubParams + "{'.$($StLang[0])'}"
-                    Write-Output "[Filebot] $(Get-Timestamp) - Files found($osp). Renaming subtitle and moving files to final folder. Using path($filebotSubParams)."
+                    $filebotSubParams
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found($osp). Renaming subtitle($($StLang[0])) and renaming files in place using path($filebotSubParams)."
                     Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$osp`" -r --db TheTVDB -non-strict --format `"$filebotSubParams`" --apply date tags clean --log info"
                 }
             }
@@ -1288,41 +1289,36 @@ if ($site) {
         Write-Output "[Setup] $(Get-Timestamp) - --remux-video parameter is missing. Exiting."
         Exit-Script
     }
-    if ($subtitleEdit -or $mkvMerge) {
-        if (Select-String -Path $siteConfig '--write-subs' -SimpleMatch -Quiet) {
-            Write-Output "[Setup] $(Get-Timestamp) - SubtitleEdit or MKVMerge is true and --write-subs is in config. Continuing."
+    if (Select-String -Path $siteConfig '--write-subs' -SimpleMatch -Quiet) {
+        Write-Output "[Setup] $(Get-Timestamp) - SubtitleEdit or MKVMerge is true and --write-subs is in config. Continuing."
+    }
+    else {
+        Write-Output "[Setup] $(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting."
+        Exit-Script
+    }
+    $subtitleType = Select-String -Path $siteConfig -Pattern '--convert-subs.*' | Select-Object -First 1
+    if ($null -ne $subtitleType) {
+        $subType = '*.' + ($subtitleType -split ' ')[1]
+        $subType = $subType.Replace("'", '').Replace('"', '')
+        if ($subType -eq '*.ass') {
+            Write-Output "[Setup] $(Get-Timestamp) - Using $subType. Continuing."
         }
         else {
-            Write-Output "[Setup] $(Get-Timestamp) - SubtitleEdit is true and --write-subs is not in config. Exiting."
-            Exit-Script
-        }
-        $subtitleType = Select-String -Path $siteConfig -Pattern '--convert-subs.*' | Select-Object -First 1
-        if ($null -ne $subtitleType) {
-            $subType = '*.' + ($subtitleType -split ' ')[1]
-            $subType = $subType.Replace("'", '').Replace('"', '')
-            if ($subType -eq '*.ass') {
-                Write-Output "[Setup] $(Get-Timestamp) - Using $subType. Continuing."
-            }
-            else {
-                Write-Output "[Setup] $(Get-Timestamp) - Subtype(ass) is missing. Exiting."
-                Exit-Script
-            }
-        }
-        else {
-            Write-Output "[Setup] $(Get-Timestamp) - --convert-subs parameter is missing. Exiting."
-            Exit-Script
-        }
-        $writeSub = Select-String -Path $siteConfig -Pattern '--write-subs.*' | Select-Object -First 1
-        if ($null -ne $writeSub) {
-            Write-Output "[Setup] $(Get-Timestamp) - --write-subs is in config. Continuing."
-        }
-        else {
-            Write-Output "[Setup] $(Get-Timestamp) - SubSubWrite is missing. Exiting."
+            Write-Output "[Setup] $(Get-Timestamp) - Subtype(ass) is missing. Exiting."
             Exit-Script
         }
     }
     else {
-        Write-Output "[Setup] $(Get-Timestamp) - SubtitleEdit is false. Continuing."
+        Write-Output "[Setup] $(Get-Timestamp) - --convert-subs parameter is missing. Exiting."
+        Exit-Script
+    }
+    $writeSub = Select-String -Path $siteConfig -Pattern '--write-subs.*' | Select-Object -First 1
+    if ($null -ne $writeSub) {
+        Write-Output "[Setup] $(Get-Timestamp) - --write-subs is in config. Continuing."
+    }
+    else {
+        Write-Output "[Setup] $(Get-Timestamp) - SubSubWrite is missing. Exiting."
+        Exit-Script
     }
     $debugVars = [ordered]@{Site = $siteName; IsDaily = $daily; UseLogin = $login; UseCookies = $cookies; UseArchive = $archive; SubtitleEdit = $subtitleEdit; `
             MKVMerge = $mkvMerge; VideoTrackName = $videoTrackName; AudioLang = $audioLang; AudioTrackName = $audioTrackName; SubtitleLang = $subtitleLang; SubtitleTrackName = $subtitleTrackName; Filebot = $filebot; `
@@ -1396,7 +1392,7 @@ if ($site) {
                 $vsOverridePath = [System.IO.path]::GetPathRoot($vsDestPath)
                 
             }
-            Get-ChildItem -Path $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object Name, FullName, BaseName -Unique | ForEach-Object {
+            Get-ChildItem -Path $siteSrc -Recurse -Include $subType | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object Name, FullName, BaseName -Unique | ForEach-Object {
                 [System.Collections.ArrayList]$episodeSubtitles = @{}
                 $origSubPath = $_.FullName
                 $subtitleBase = $_.name
@@ -1417,7 +1413,6 @@ if ($site) {
         }
         $vsCompletedFilesList | Select-Object -ExpandProperty _vsEpisodeSubtitle | ForEach-Object {
             $seSubtitle = $_ | Where-Object { $_.key -eq 'origSubPath' } | Select-Object -ExpandProperty value
-            Write-Host "test $seSubtitle"
             if ($null -eq $seSubtitle) {
                 Set-VideoStatus -svsKey '_vsEpisodeRaw' -svsValue $vsEpisodeRaw -svsER
             }
