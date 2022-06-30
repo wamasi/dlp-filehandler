@@ -125,11 +125,11 @@ Telegram (optional)
 |-Site|-sn/-SN|Tells the script what site its working with|Hardcoded acceptable values. Reads from root\config.xml file for list of applicable values|
 |-Daily|-d/-D|Will use different yt-dlp configs and files and temp/home folder structure.| If -D = true then it will use the \_D suffix named files.|
 |-Archive|-a/-A|Will tell yt-dlp command to use or not use archive file.| If -A = true then it will use the \_A suffix named files.|
-|-Login|-l/-L|Tells yt-dlp command to use credentials stored in config xml.| If -L = false then it will use the \_C suffix named files.|
-|-Cookies|-c/-C|Uses cookie file in yt-dlp param even if `-Login = True`.| Optional switch.|
-|-Filebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml.| Outputs file with \{ plex.tail \}|
+|-Login|-l/-L|Tells yt-dlp command to use credentials stored in config xml.| uses stored credentials for site in `config.xml`.|
+|-Cookies|-c/-C|Uses cookie file in yt-dlp param even if `-Login = True`.| Optional switch will use the \_C suffix named files with browser cookies.|
+|-Filebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml.| Outputs file with \{n}\{'Season '+s00}\{n\} - \{s00e00\} - \{t\}|
 |-MKVMerge|-mk/-MK|Tells script to run `subtitle_regex.py` and `MKVMerge` against video and subtitle files to edit and embed subtitle if available| Expects presence of `.mkv` and `.ass` file.|
 |-SubtitleEdit|-se/-SE|Tells script to run `SubetitleEdit` to fix common problems with `.srt` files if they are present.| Expects presence of `.ass` subtitle file.|
 |-SendTelegram|-st/-ST|If Telegram `token` and `chatid` filled out in `config.xml` will send out message to chat group with out of new videos.| |
 | -AudioLang| -al/AL| Sets audio and video track to a given language code ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -AL ja |
-| -SubtitleLang| -sl/SL| Sets subtitle track to a given language code ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -SL en |
+| -SubtitleLang| -sl/SL| Sets default subtitle track to a given language code for track that matches ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -SL en |

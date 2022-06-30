@@ -389,6 +389,27 @@ function Set-VideoStatus {
     }
 }
 
+# Looks at language code in filename to match a pair of vars
+function Get-SubtitleLanguage {
+    param ($subFiles)
+    switch -Regex ($subFiles) {
+        '\.ar\.' { $stLang = 'ar'; $stTrackName = 'Arabic Sub' }
+        '\.de\.' { $stLang = 'de'; $stTrackName = 'Deutsch Sub' }
+        '\.en.*\.' { $stLang = 'en'; $stTrackName = 'English Sub' }
+        '\.es\.' { $stLang = 'es'; $stTrackName = 'Spanish(Latin America) Sub' }
+        '\.es-es\.' { $stLang = 'es-es'; $stTrackName = 'Spanish(Spain) Sub' }
+        '\.fr\.' { $stLang = 'fr'; $stTrackName = 'French Sub' }
+        '\.it\.' { $stLang = 'it'; $stTrackName = 'Italian Sub' }
+        '\.ja\.' { $stLang = 'ja'; $stTrackName = 'Japanese Sub' }
+        '\.pt-br\.' { $stLang = 'pt-br'; $stTrackName = 'Português (Brasil) Sub' }
+        '\.pt-pt\.' { $stLang = 'pt-pt'; $stTrackName = 'Português (Portugal) Sub' }
+        '\.ru\.' { $stLang = 'ru'; $stTrackName = 'Russian Video' }
+        default { $stLang = 'und'; $stTrackName = 'und sub' }
+    }
+    $return = @($stLang, $stTrackName)
+    return $return
+}
+
 # Getting list of Site, Series, and Episodes for Telegram messages
 function Get-SiteSeriesEpisode {
     $seriesEpisodeList = $vsCompletedFilesList | Group-Object -Property _vsSite, _vsSeries |
@@ -433,41 +454,65 @@ function Invoke-MKVMerge {
         [parameter(Mandatory = $true)]
         [string]$mkvVidBaseName,
         [parameter(Mandatory = $true)]
-        [string]$mkvVidSubtitle,
+        [array]$mkvVidSubtitle,
         [parameter(Mandatory = $true)]
         [string]$mkvVidTempOutput
     )
-    Write-Output "[MKVMerge] $(Get-Timestamp) - Video = $videoLang/$videoTrackName - Audio Language = $audioLang/$audioTrackName - Subtitle = $subtitleLang/$subtitleTrackName."
-    Write-Output "[MKVMerge] $(Get-Timestamp) - Replacing Styling in $mkvVidSubtitle."
-    While ($True) {
-        if ((Test-Lock $mkvVidSubtitle) -eq $True) {
-            continue
-        }
-        else {
-            if ($subFontName -ne 'None') {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - Python - Regex through $mkvVidSubtitle file with $subFontName."
-                Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "python `"$subtitleRegex`" `"$mkvVidSubtitle`" `"$subFontName`""
-                break
+    Write-Output "[MKVMerge] $(Get-Timestamp) - Default Video = $videoLang/$videoTrackName - Default Audio Language = $audioLang/$audioTrackName - Default Subtitle = $subtitleLang/$subtitleTrackName."
+    $mkvVidSubtitle | ForEach-Object {
+        $sp = $_ | Where-Object { $_.key -eq 'origSubPath' } | Select-Object -ExpandProperty value
+        While ($True) {
+            if ((Test-Lock $sp) -eq $True) {
+                continue
             }
             else {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - No Font specified for $mkvVidSubtitle file."
+                if ($subFontName -ne 'None') {
+                    Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - Python - Regex through $sp file with $subFontName."
+                    Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "python `"$subtitleRegex`" `"$sp`" `"$subFontName`""
+                    break
+                }
+                else {
+                    Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - No Font specified for $sp file."
+                }
             }
+            Start-Sleep -Seconds 1
         }
-        Start-Sleep -Seconds 1
     }
     While ($True) {
-        if ((Test-Lock $mkvVidInput) -eq $True -and (Test-Lock $mkvVidSubtitle) -eq $True) {
+        if ((Test-Lock $mkvVidInput) -eq $True) {
             continue
         }
         else {
+            $sblist = ''
+            $mkvCMD = ''
+            $mkvVidSubtitle | ForEach-Object {
+                $sp = $_ | Where-Object { $_.key -eq 'origSubPath' } | Select-Object -ExpandProperty value
+                $sb = $_ | Where-Object { $_.key -eq 'subtitleBase' } | Select-Object -ExpandProperty value
+                $StLang = Get-SubtitleLanguage -subFiles $sp
+                # foreach sub/sublang add to mkv command to run in mkvmerge
+                # if sublang defined then that will set track to default.
+                if ($stLang[0] -match $subtitleLang) {
+                    $subLangCode = $stLang[0]
+                    $subTrackName = $stLang[1]
+                    $mkvCMD += "--language 0:`"$subLangCode`" --track-name 0:`"$subTrackName`" ( `"$sp`" ) "
+                }
+                else {
+                    $subLangCode = $stLang[0]
+                    $subTrackName = $stLang[1]
+                    $mkvCMD += "--language 0:`"$subLangCode`" --track-name 0:`"$subTrackName`" --default-track-flag 0:no ( `"$sp`" ) "
+                }
+                $sblist += Join-String $sb ', '
+            }
             if ($subFontDir -ne 'None') {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - Combining $mkvVidSubtitle and $mkvVidInput files with $subFontDir."
-                Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "mkvmerge.exe -o `"$mkvVidTempOutput`" --language 0:`"$videoLang`" --track-name 0:`"$videoTrackName`" --language 1:`"$audioLang`" --track-name 1:`"$audioTrackName`" ( `"$mkvVidInput`" ) --language 0:`"$subtitleLang`" --track-name 0:`"$subtitleTrackName`" `"$mkvVidSubtitle`" --attach-file `"$subFontDir`" --attachment-mime-type application/x-truetype-font"
+                $sblist
+                $mkvCMD
+                Write-Output "[MKVMerge] $(Get-Timestamp) - Combining $sblist and $mkvVidInput files with $subFontDir."
+                Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "mkvmerge.exe -o `"$mkvVidTempOutput`" --language 0:`"$videoLang`" --track-name 0:`"$videoTrackName`" --language 1:`"$audioLang`" --track-name 1:`"$audioTrackName`" ( `"$mkvVidInput`" ) $mkvCMD --attach-file `"$subFontDir`" --attachment-mime-type application/x-truetype-font"
                 break
             }
             else {
-                Write-Output "[MKVMerge] $(Get-Timestamp) - Merging as-is. No Font specified for $mkvVidSubtitle and $mkvVidInput files with $subFontDir."
-                Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "mkvmerge.exe -o `"$mkvVidTempOutput`" --language 0:`"$videoLang`" --track-name 0:`"$videoTrackName`" --language 1:`"$audioLang`" --track-name 1:`"$audioTrackName`" ( `"$mkvVidInput`" ) --language 0:`"$subtitleLang`" --track-name 0:`"$subtitleTrackName`" `"$mkvVidSubtitle`""
+                Write-Output "[MKVMerge] $(Get-Timestamp) - Merging as-is. No Font specified for $sblist and $mkvVidInput files with $subFontDir."
+                Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "mkvmerge.exe -o `"$mkvVidTempOutput`" --language 0:`"$videoLang`" --track-name 0:`"$videoTrackName`" --language 1:`"$audioLang`" --track-name 1:`"$audioTrackName`" ( `"$mkvVidInput`" ) $mkvCMD"
             }
         }
         Start-Sleep -Seconds 1
@@ -476,12 +521,26 @@ function Invoke-MKVMerge {
         Start-Sleep 1.5
     }
     While ($True) {
-        if (((Test-Lock $mkvVidInput) -eq $True) -and ((Test-Lock $mkvVidSubtitle) -eq $True ) -and ((Test-Lock $mkvVidTempOutput) -eq $True)) {
+        if (((Test-Lock $mkvVidInput) -eq $True) -and ((Test-Lock $mkvVidTempOutput) -eq $True)) {
             continue
         }
         else {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - Removing $mkvVidInput file."
             Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "Remove-Item -Path `"$mkvVidInput`" -Verbose"
-            Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "Remove-Item -Path `"$mkvVidSubtitle`" -Verbose"
+            $mkvVidSubtitle | ForEach-Object {
+                $sp = $_ | Where-Object { $_.key -eq 'origSubPath' } | Select-Object -ExpandProperty value
+                While ($True) {
+                    if ((Test-Lock $sp) -eq $True) {
+                        continue
+                    }
+                    else {
+                        Write-Output "[MKVMerge] $(Get-Timestamp) - Removing $sp file."
+                        Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "Remove-Item -Path `"$sp`" -Verbose"
+                        break
+                    }
+                    Start-Sleep -Seconds 1
+                }
+            }
             break
         }
         Start-Sleep -Seconds 1
@@ -491,6 +550,7 @@ function Invoke-MKVMerge {
             continue
         }
         else {
+            Write-Output "[MKVMerge] $(Get-Timestamp) - Renaming $mkvVidTempOutput to $mkvVidInput."
             Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "Rename-Item -Path `"$mkvVidTempOutput`" -NewName `"$mkvVidInput`" -Verbose"
             break
         }
@@ -517,28 +577,45 @@ function Invoke-Filebot {
         [string]$filebotPath
     )
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to rename and move to final folder."
-    $filebotVideoList = $vsCompletedFilesList | Where-Object { $_._vsDestPath -eq $filebotPath } | Select-Object _vsDestPath, _vsEpisodeFBPath, _vsEpisodeRaw, _vsEpisodeSubFBPath, _vsOverridePath
+    $filebotVideoList = $vsCompletedFilesList | Where-Object { $_._vsDestPath -eq $filebotPath } | Select-Object _vsDestPath, _vsEpisodeFBPath, _vsEpisodeRaw, _vsEpisodeSubtitle, _vsOverridePath #_vsEpisodeSubFBPath
+    
     foreach ($filebotFiles in $filebotVideoList) {
         $filebotVidInput = $filebotFiles._vsEpisodeFBPath
-        $filebotSubInput = $filebotFiles._vsEpisodeSubFBPath
+        $filebotSubInput = $filebotFiles._vsEpisodeSubtitle
         $filebotVidBaseName = $filebotFiles._vsEpisodeRaw
         $filebotOverrideDrive = $filebotFiles._vsOverridePath
         if ($siteParentFolder.trim() -ne '' -or $siteSubFolder.trim() -ne '') {
             $FilebotRootFolder = $filebotOverrideDrive + $siteParentFolder
             $filebotParams = Join-Path -Path (Join-Path -Path $FilebotRootFolder -ChildPath $siteSubFolder) -ChildPath $filebotArgument
+            $filebotSubParams = $filebotParams + "{'.'+lang.ISO2}"
             Write-Output "[Filebot] $(Get-Timestamp) - Files found($filebotVidInput). Renaming video and moving files to final folder. Using path($filebotParams)."
             Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$filebotVidInput`" -r --db TheTVDB -non-strict --format `"$filebotParams`" --apply date tags clean --log info"
             if (!($mkvMerge)) {
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found($filebotSubInput). Renaming subtitle and moving files to final folder. Using path($filebotParams)."
-                Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$filebotSubInput`" -r --db TheTVDB -non-strict --format `"$filebotParams`" --apply date tags clean --log info"
+                $filebotSubInput | ForEach-Object {
+                    $filebotSubParams = $filebotArgument
+                    $osp = $_ | Where-Object { $_.key -eq 'overrideSubPath' } | Select-Object -ExpandProperty value
+                    $StLang = Get-SubtitleLanguage -subFiles $osp
+                    $filebotSubParams = $filebotSubParams + "{'.$($StLang[0])'}"
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found($osp). Renaming subtitle and moving files to final folder. Using path($filebotSubParams)."
+                    Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$osp`" -r --db TheTVDB -non-strict --format `"$filebotSubParams`" --apply date tags clean --log info"
+                }
             }
         }
         else {
             Write-Output "[Filebot] $(Get-Timestamp) - Files found($filebotVidInput). ParentFolder or Subfolder path not specified. Renaming files in place."
-            Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$filebotVidInput`" -r --db TheTVDB -non-strict --format `"$filebotArgument`" --apply date tags clean --log info"
+            $filebotSubInput | ForEach-Object {
+                Write-Output "[Filebot] $(Get-Timestamp) - Files found($osp). ParentFolder or Subfolder path not specified. Renaming files in place."
+                Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$osp`" -r --db TheTVDB -non-strict --format `"$filebotArgument`" --apply date tags clean --log info"
+            }
             if (!($mkvMerge)) {
-                Write-Output "[Filebot] $(Get-Timestamp) - Files found($filebotSubInput). Renaming subtitle and moving files to final folder. Using path($filebotParams)."
-                Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$filebotSubInput`" -r --db TheTVDB -non-strict --format `"$filebotArgument`" --apply date tags clean --log info"
+                $filebotSubInput | ForEach-Object {
+                    $filebotSubParams = $filebotArgument
+                    $osp = $_ | Where-Object { $_.key -eq 'overrideSubPath' } | Select-Object -ExpandProperty value
+                    $StLang = Get-SubtitleLanguage -subFiles $osp
+                    $filebotSubParams = $filebotSubParams + "{'.$($StLang[0])'}"
+                    Write-Output "[Filebot] $(Get-Timestamp) - Files found($osp). Renaming subtitle and moving files to final folder. Using path($filebotSubParams)."
+                    Invoke-ExpressionConsole -SCMFN 'Filebot' -SCMFP "filebot -rename `"$osp`" -r --db TheTVDB -non-strict --format `"$filebotSubParams`" --apply date tags clean --log info"
+                }
             }
         }
         if (!(Test-Path -Path $filebotVidInput)) {
@@ -568,10 +645,8 @@ class VideoStatus {
     [string]$_vsEpisodeRaw
     [string]$_vsEpisodeTemp
     [string]$_vsEpisodePath
-    [string]$_vsEpisodeSubtitle
-    [string]$_vsEpisodeSubtitleBase
+    [array]$_vsEpisodeSubtitle
     [string]$_vsEpisodeFBPath
-    [string]$_vsEpisodeSubFBPath
     [string]$_vsOverridePath
     [string]$_vsDestPathDirectory
     [string]$_vsDestPath
@@ -582,9 +657,9 @@ class VideoStatus {
     [bool]$_vsFBCompleted
     [bool]$_vsErrored
     
-    VideoStatus([string]$vsSite, [string]$vsSeries, [string]$vsEpisode, [string]$vsSeriesDirectory, [string]$vsEpisodeRaw, [string]$vsEpisodeTemp, [string]$vsEpisodePath, [string]$vsEpisodeSubtitle, `
-            [string]$vsEpisodeSubtitleBase, [string]$vsEpisodeFBPath, [string]$vsEpisodeSubFBPath, [string]$vsOverridePath, [string]$vsDestPathDirectory, [string]$vsDestPath, [string]$vsDestPathBase, `
-            [bool]$vsSECompleted, [bool]$vsMKVCompleted, [bool]$vsMoveCompleted, [bool]$vsFBCompleted, [bool]$vsErrored) {
+    VideoStatus([string]$vsSite, [string]$vsSeries, [string]$vsEpisode, [string]$vsSeriesDirectory, [string]$vsEpisodeRaw, [string]$vsEpisodeTemp, [string]$vsEpisodePath, [array]$vsEpisodeSubtitle, `
+            [string]$vsEpisodeFBPath, [string]$vsOverridePath, [string]$vsDestPathDirectory, [string]$vsDestPath, [string]$vsDestPathBase, [bool]$vsSECompleted, [bool]$vsMKVCompleted, `
+            [bool]$vsMoveCompleted, [bool]$vsFBCompleted, [bool]$vsErrored) {
         $this._vsSite = $vsSite
         $this._vsSeries = $vsSeries
         $this._vsEpisode = $vsEpisode
@@ -593,9 +668,7 @@ class VideoStatus {
         $this._vsEpisodeTemp = $vsEpisodeTemp
         $this._vsEpisodePath = $vsEpisodePath
         $this._vsEpisodeSubtitle = $vsEpisodeSubtitle
-        $this._vsEpisodeSubtitleBase = $vsEpisodeSubtitleBase
         $this._vsEpisodeFBPath = $vsEpisodeFBPath
-        $this._vsEpisodeSubFBPath = $vsEpisodeSubFBPath
         $this._vsOverridePath = $vsOverridePath
         $this._vsDestPathDirectory = $vsDestPathDirectory
         $this._vsDestPath = $vsDestPath
@@ -1297,30 +1370,24 @@ if ($site) {
     # yt-dlp
     & yt-dlp.exe $dlpArray *>&1 | Out-Host
     # Post-processing
-    if ((Get-ChildItem -Path $siteSrc -Recurse -Force -File -Include "$vidType" | Select-Object -First 1 | Measure-Object).Count -gt 0) {
+    $siteSrc = 'D:\src\C1M\0627201355143-TEST - Copy'
+    $totalDownloaded = (Get-ChildItem -Path $siteSrc -Recurse -Force -File -Include "$vidType" | Select-Object * | Measure-Object).Count
+    if ($totalDownloaded -gt 0) {
         Get-ChildItem -Path $siteSrc -Recurse -Include "$vidType" | Sort-Object LastWriteTime | Select-Object -Unique | Get-Unique | ForEach-Object {
+            [System.Collections.ArrayList]$vsEpisodeSubtitle = @{}
             $vsSite = $siteNameRaw
             $vsSeries = (Get-Culture).TextInfo.ToTitleCase(("$(Split-Path (Split-Path $_ -Parent) -Leaf)").Replace('_', ' ').Replace('-', ' ')) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
+            $vsOverridePath = $overrideSeriesList | Where-Object { $_.orSeriesName.ToLower() -eq $vsSeries.ToLower() } | Select-Object -ExpandProperty orSrcdrive
             $vsEpisode = (Get-Culture).TextInfo.ToTitleCase( ($_.BaseName.Replace('_', ' ').Replace('-', ' '))) | ForEach-Object { $_.trim() -Replace '\s+', ' ' }
             $vsSeriesDirectory = $_.DirectoryName
             $vsEpisodeRaw = $_.BaseName
             $vsEpisodeTemp = Join-Path -Path $vsSeriesDirectory -ChildPath "$($vsEpisodeRaw).temp$($_.Extension)"
             $vsEpisodePath = $_.FullName
-            $vsEpisodeSubtitle = (Get-ChildItem -Path $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object -First 1 ).FullName
-            $vsOverridePath = $overrideSeriesList | Where-Object { $_.orSeriesName.ToLower() -eq $vsSeries.ToLower() } | Select-Object -ExpandProperty orSrcdrive
             if ($null -ne $vsOverridePath) {
                 $vsDestPath = Join-Path -Path $vsOverridePath -ChildPath $siteHome.Substring(3)
                 $vsDestPathBase = Join-Path -Path $vsOverridePath -ChildPath $siteHomeBase.Substring(3)
                 $vsEpisodeFBPath = $vsEpisodePath.Replace($siteSrc, $vsDestPath)
                 $vsDestPathDirectory = Split-Path $vsEpisodeFBPath -Parent
-                if ($vsEpisodeSubtitle -ne '') {
-                    $vsEpisodeSubtitleBase = (Get-ChildItem -Path $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object -First 1 ).Name
-                    $vsEpisodeSubFBPath = $vsEpisodeSubtitle.Replace($siteSrc, $vsDestPath)
-                }
-                else {
-                    $vsEpisodeSubtitleBase = ''
-                    $vsEpisodeSubFBPath = ''
-                }
             }
             else {
                 $vsDestPath = $siteHome
@@ -1328,23 +1395,31 @@ if ($site) {
                 $vsEpisodeFBPath = $vsEpisodePath.Replace($siteSrc, $vsDestPath)
                 $vsDestPathDirectory = Split-Path $vsEpisodeFBPath -Parent
                 $vsOverridePath = [System.IO.path]::GetPathRoot($vsDestPath)
-                if ($vsEpisodeSubtitle -ne '') {
-                    $vsEpisodeSubtitleBase = (Get-ChildItem -Path $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object -First 1 ).Name
-                    $vsEpisodeSubFBPath = $vsEpisodeSubtitle.Replace($siteSrc, $vsDestPath)
+                
+            }
+            Get-ChildItem -Path $siteSrc -Recurse -File -Include "$subType" | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object Name, FullName, BaseName -Unique | ForEach-Object {
+                [System.Collections.ArrayList]$episodeSubtitles = @{}
+                $origSubPath = $_.FullName
+                $subtitleBase = $_.name
+                if ($null -ne $vsOverridePath) {
+                    $overrideSubPath = $origSubPath.Replace($siteSrc, $vsDestPath)
                 }
                 else {
-                    $vsEpisodeSubtitleBase = ''
-                    $vsEpisodeSubFBPath = ''
+                    $overrideSubPath = $origSubPath
                 }
+                $episodeSubtitles = @{ subtitleBase = $subtitleBase; origSubPath = $origSubPath; overrideSubPath = $overrideSubPath }
+                [void]$vsEpisodeSubtitle.Add($episodeSubtitles)
             }
             foreach ($i in $_) {
-                $VideoStatus = [VideoStatus]::new($vsSite, $vsSeries, $vsEpisode, $vsSeriesDirectory, $vsEpisodeRaw, $vsEpisodeTemp, $vsEpisodePath, $vsEpisodeSubtitle, $vsEpisodeSubtitleBase, $vsEpisodeFBPath, `
-                        $vsEpisodeSubFBPath, $vsOverridePath, $vsDestPathDirectory, $vsDestPath, $vsDestPathBase, $vsSECompleted, $vsMKVCompleted, $vsMoveCompleted, $vsFBCompleted, $vsErrored)
+                $VideoStatus = [VideoStatus]::new($vsSite, $vsSeries, $vsEpisode, $vsSeriesDirectory, $vsEpisodeRaw, $vsEpisodeTemp, $vsEpisodePath, $vsEpisodeSubtitle, `
+                        $vsEpisodeFBPath, $vsOverridePath, $vsDestPathDirectory, $vsDestPath, $vsDestPathBase, $vsSECompleted, $vsMKVCompleted, $vsMoveCompleted, $vsFBCompleted, $vsErrored)
                 [void]$vsCompletedFilesList.Add($VideoStatus)
             }
         }
-        $vsCompletedFilesList | Select-Object _vsEpisodeSubtitle | ForEach-Object {
-            if (($_._vsEpisodeSubtitle.Trim() -eq '') -or ($null -eq $_._vsEpisodeSubtitle)) {
+        $vsCompletedFilesList | Select-Object -ExpandProperty _vsEpisodeSubtitle | ForEach-Object {
+            $seSubtitle = $_ | Where-Object { $_.key -eq 'origSubPath' } | Select-Object -ExpandProperty value
+            Write-Host "test $seSubtitle"
+            if ($null -eq $seSubtitle) {
                 Set-VideoStatus -svsKey '_vsEpisodeRaw' -svsValue $vsEpisodeRaw -svsER
             }
         }
@@ -1352,14 +1427,15 @@ if ($site) {
     else {
         Write-Output "[VideoList] $(Get-Timestamp) - No files to process."
     }
+    $vsCompletedFilesList
     $vsvTotCount = ($vsCompletedFilesList | Measure-Object).Count
     $vsvErrorCount = ($vsCompletedFilesList | Where-Object { $_._vsErrored -eq $true } | Measure-Object).Count
     # SubtitleEdit, MKVMerge, Filebot
     if ($vsvTotCount -gt 0) {
         # Subtitle Edit
         if ($subtitleEdit) {
-            $vsCompletedFilesList | Select-Object _vsEpisodeSubtitle | Where-Object { $_._vsErrored -ne $true } | ForEach-Object {
-                $seSubtitle = $_._vsEpisodeSubtitle
+            $vsCompletedFilesList | Where-Object { $_._vsErrored -ne $true } | Select-Object -ExpandProperty _vsEpisodeSubtitle | ForEach-Object {
+                $seSubtitle = $_ | Where-Object { $_.key -eq 'origSubPath' } | Select-Object -ExpandProperty value
                 Write-Output "[SubtitleEdit] $(Get-Timestamp) - Fixing $seSubtitle subtitle."
                 While ($True) {
                     if ((Test-Lock $seSubtitle) -eq $True) {
@@ -1415,7 +1491,7 @@ if ($site) {
             Write-Output "[FileMoving] $(Get-Timestamp) - $siteSrc contains file(s) with error(s). Not moving files."
         }
         # Filebot
-        $filebotOverrideDriveList = $vsCompletedFilesList | Where-Object { $_._vsMKVCompleted -eq $true -and $_._vsErrored -eq $false } | Select-Object _vsDestPath -Unique
+        $filebotOverrideDriveList = $vsCompletedFilesList | Where-Object { $_._vsErrored -eq $false } | Select-Object _vsDestPath -Unique
         if (($filebot -and $vsvMKVCount -eq $vsvTotCount) -or ($filebot -and !($mkvMerge))) {
             foreach ($fbORDriveList in $filebotOverrideDriveList) {
                 Write-Output "[Filebot] $(Get-Timestamp) - Renaming files in $($fbORDriveList._vsDestPath)."
