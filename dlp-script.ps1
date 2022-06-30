@@ -487,7 +487,6 @@ function Invoke-MKVMerge {
             $mkvCMD = ''
             $mkvVidSubtitle | ForEach-Object {
                 $sp = $_ | Where-Object { $_.key -eq 'origSubPath' } | Select-Object -ExpandProperty value
-                $sb = $_ | Where-Object { $_.key -eq 'subtitleBase' } | Select-Object -ExpandProperty value
                 $StLang = Get-SubtitleLanguage -subFiles $sp
                 # foreach sub/sublang add to mkv command to run in mkvmerge
                 # if sublang defined then that will set track to default.
@@ -501,11 +500,10 @@ function Invoke-MKVMerge {
                     $subTrackName = $stLang[1]
                     $mkvCMD += "--language 0:`"$subLangCode`" --track-name 0:`"$subTrackName`" --default-track-flag 0:no ( `"$sp`" ) "
                 }
-                $sblist += Join-String $sb ', '
             }
+            $mkvCMD = $mkvCMD.TrimEnd()
             if ($subFontDir -ne 'None') {
-                $sblist
-                $mkvCMD
+                Write-Output "[MKVMerge] $(Get-Timestamp) - MKV subtitle params: `"$mkvCMD`""
                 Write-Output "[MKVMerge] $(Get-Timestamp) - Combining $sblist and $mkvVidInput files with $subFontDir."
                 Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "mkvmerge.exe -o `"$mkvVidTempOutput`" --language 0:`"$videoLang`" --track-name 0:`"$videoTrackName`" --language 1:`"$audioLang`" --track-name 1:`"$audioTrackName`" ( `"$mkvVidInput`" ) $mkvCMD --attach-file `"$subFontDir`" --attachment-mime-type application/x-truetype-font"
                 break
@@ -1544,12 +1542,12 @@ if ($site) {
         Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $vsvTotCount"
         Write-Output "[VideoList] $(Get-Timestamp) - Errored Files: $vsvErrorCount"
         $vsCompletedFilesListHeaders = @{Label = 'Series'; Expression = { $_._vsSeries } }, @{Label = 'Episode'; Expression = { $_._vsEpisode } }, `
-        @{Label = 'Subtitle'; Expression = { $_._vsEpisodeSubtitleBase } }, @{Label = 'Drive'; Expression = { $_._vsOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._vsSeriesDirectory } }, `
+        @{Label = 'Subtitle'; Expression = { $_._vsEpisodeSubtitle.value } }, @{Label = 'Drive'; Expression = { $_._vsOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._vsSeriesDirectory } }, `
         @{Label = 'DestBase'; Expression = { $_._vsDestPathBase } }, @{Label = 'DestPath'; Expression = { $_._vsDestPath } }, @{Label = 'DestPathDirectory'; Expression = { $_._vsDestPathDirectory } }, `
         @{Label = 'SECompleted'; Expression = { $_._vsSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._vsMKVCompleted } }, @{Label = 'MoveCompleted'; Expression = { $_._vsMoveCompleted } }, `
         @{Label = 'FBCompleted'; Expression = { $_._vsFBCompleted } }, @{Label = 'Errored'; Expression = { $_._vsErrored } }
         if ($vsvTotCount -gt 12) {
-            $vsCompletedFilesTable = $vsCompletedFilesList | Sort-Object _vsSeries, _vsEpisode | Format-Table $vsCompletedFilesListHeaders -AutoSize -Wrap
+            $vsCompletedFilesTable = $vsCompletedFilesList | Sort-Object _vsSeries, _vsEpisode | Format-Table $vsCompletedFilesListHeaders
         }
         else {
             $vsCompletedFilesTable = $vsCompletedFilesList | Sort-Object _vsSeries, _vsEpisode | Format-List $vsCompletedFilesListHeaders
