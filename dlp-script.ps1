@@ -368,6 +368,8 @@ function Set-VideoStatus {
         [parameter(Mandatory = $false)]
         [switch]$svsFP,
         [parameter(Mandatory = $false)]
+        [array]$svsSub,
+        [parameter(Mandatory = $false)]
         [switch]$svsER
     )
     $vsCompletedFilesList | Where-Object { $_.$svsKey -eq $svsValue } | ForEach-Object {
@@ -382,6 +384,9 @@ function Set-VideoStatus {
         }
         if ($svsFP) {
             $_._vsFBCompleted = $svsFP
+        }
+        if ($svsSub) {
+            $_._vsEpisodeSubtitle = $svsSub
         }
         if ($svsER) {
             $_._vsErrored = $svsER
@@ -1419,7 +1424,6 @@ if ($site) {
     else {
         Write-Output "[VideoList] $(Get-Timestamp) - No files to process."
     }
-    $vsCompletedFilesList
     $vsvTotCount = ($vsCompletedFilesList | Measure-Object).Count
     $vsvErrorCount = ($vsCompletedFilesList | Where-Object { $_._vsErrored -eq $true } | Measure-Object).Count
     # SubtitleEdit, MKVMerge, Filebot
@@ -1541,17 +1545,23 @@ if ($site) {
         }
         Write-Output "[VideoList] $(Get-Timestamp) - Total Files: $vsvTotCount"
         Write-Output "[VideoList] $(Get-Timestamp) - Errored Files: $vsvErrorCount"
-        $vsCompletedFilesListHeaders = @{Label = 'Series'; Expression = { $_._vsSeries } }, @{Label = 'Episode'; Expression = { $_._vsEpisode } }, 
+        $vsCompletedFilesList | Select-Object * | ForEach-Object {
+            $Vid = $_._vsEpisodeRaw
+            $removedVals = $_ | Select-Object -ExpandProperty _vsEpisodeSubtitle | ForEach-Object {
+                ($_ | Where-Object { $_.name -notin 'origSubPath', 'overrideSubPath' })
+            }
+            Set-VideoStatus -svsKey '_vsEpisodeRaw' -svsValue $Vid -svsFP $removedVals
+        }
+        $vsCompletedFilesListHeadersStatus = @{Label = 'Series'; Expression = { $_._vsSeries } }, @{Label = 'Episode'; Expression = { $_._vsEpisode } }, 
         @{Label = 'SECompleted'; Expression = { $_._vsSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._vsMKVCompleted } }, @{Label = 'MoveCompleted'; Expression = { $_._vsMoveCompleted } }, `
-        @{Label = 'FBCompleted'; Expression = { $_._vsFBCompleted } }, @{Label = 'Errored'; Expression = { $_._vsErrored } }, @{Label = 'Subtitle'; Expression = { $_._vsEpisodeSubtitle.value } }, `
+        @{Label = 'FBCompleted'; Expression = { $_._vsFBCompleted } }, @{Label = 'Errored'; Expression = { $_._vsErrored } }
+
+        $vsCompletedFilesListHeadersFiles = @{Label = 'Series'; Expression = { $_._vsSeries } }, @{Label = 'Episode'; Expression = { $_._vsEpisode } }, `
         @{Label = 'Drive'; Expression = { $_._vsOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._vsSeriesDirectory } }, @{Label = 'DestBase'; Expression = { $_._vsDestPathBase } }, `
-        @{Label = 'DestPath'; Expression = { $_._vsDestPath } }, @{Label = 'DestPathDirectory'; Expression = { $_._vsDestPathDirectory } }
-        if ($vsvTotCount -gt 12) {
-            $vsCompletedFilesTable = $vsCompletedFilesList | Sort-Object _vsSeries, _vsEpisode | Format-Table $vsCompletedFilesListHeaders -Expand CoreOnly
-        }
-        else {
-            $vsCompletedFilesTable = $vsCompletedFilesList | Sort-Object _vsSeries, _vsEpisode | Format-List $vsCompletedFilesListHeaders -Expand CoreOnly
-        }
+        @{Label = 'DestPath'; Expression = { $_._vsDestPath } }, @{Label = 'DestPathDirectory'; Expression = { $_._vsDestPathDirectory } }, @{Label = 'Subtitle'; Expression = { ($_._vsEpisodeSubtitle.value | Join-String -Separator "`r`n") } }
+
+        $vsCompletedFilesTable = $vsCompletedFilesList | Sort-Object _vsSeries, _vsEpisode | Format-Table $vsCompletedFilesListHeadersStatus -AutoSize -Wrap
+        $vsCompletedFilesTable += $vsCompletedFilesList | Sort-Object _vsSeries, _vsEpisode | Format-Table $vsCompletedFilesListHeadersFiles -AutoSize -Wrap
     }
     else {
         Write-Output "[VideoList] $(Get-Timestamp) - No files downloaded. Skipping other defined steps."
