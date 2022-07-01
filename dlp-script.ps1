@@ -1548,9 +1548,9 @@ if ($site) {
         $vsCompletedFilesList | Select-Object * | ForEach-Object {
             $Vid = $_._vsEpisodeRaw
             $removedVals = $_ | Select-Object -ExpandProperty _vsEpisodeSubtitle | ForEach-Object {
-                ($_ | Where-Object { $_.name -notin 'origSubPath', 'overrideSubPath' })
+                $_ | Where-Object { $_.name -notin 'origSubPath', 'overrideSubPath' }
             }
-            Set-VideoStatus -svsKey '_vsEpisodeRaw' -svsValue $Vid -svsFP $removedVals
+            Set-VideoStatus -svsKey '_vsEpisodeRaw' -svsValue $Vid -svsSub $removedVals
         }
         $vsCompletedFilesListHeadersStatus = @{Label = 'Series'; Expression = { $_._vsSeries } }, @{Label = 'Episode'; Expression = { $_._vsEpisode } }, 
         @{Label = 'SECompleted'; Expression = { $_._vsSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._vsMKVCompleted } }, @{Label = 'MoveCompleted'; Expression = { $_._vsMoveCompleted } }, `
