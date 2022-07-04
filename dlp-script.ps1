@@ -28,8 +28,8 @@ param(
                     $true
                 }
                 else {
-                    $validSites = (([xml](Get-Content -Path "$PSScriptRoot\config.xml")).getElementsByTagName('site').siteName) -join ', '
-                    throw "The following Sites are valid: $validSites"
+                    $validSites = (([xml](Get-Content -Path "$PSScriptRoot\config.xml")).getElementsByTagName('site').siteName) -join "`r`n"
+                    throw "The following Sites are valid:`r`n$validSites"
                 }
             }
             else {
@@ -73,12 +73,12 @@ param(
     [switch]$sendTelegram,
     [Alias('AL')]
     [ValidateScript({
-            $langValues = 'ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und'
+            $langValues = 'ar', 'de', 'en', 'es', 'es-la', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und'
             if ($_ -in $langValues) {
                 $true
             }
             else {
-                throw "Value '{0}' is invalid. The following languages are valid: {1}." -f $_, $($langValues -join ', ')
+                throw "Value '{0}' is invalid. The following languages are valid:`r`n{1}" -f $_, $($langValues -join "`r`n")
             }
         })]
     [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
@@ -86,13 +86,13 @@ param(
     [string]$audioLang,
     [Alias('SL')]
     [ValidateScript({
-            $langValues = 'ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und'
+            $langValues = 'ar', 'de', 'en', 'es', 'es-la', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und'
             if ($_ -in $langValues ) {
                 $true
             }
             else {
                 
-                throw "Value '{0}' is invalid. The following languages are valid: {1}." -f $_, $($langValues -join ', ')
+                throw "Value '{0}' is invalid. The following languages are valid:`r`n{1}" -f $_, $($langValues -join "`r`n")
             }
         })]
     [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
@@ -398,17 +398,17 @@ function Set-VideoStatus {
 function Get-SubtitleLanguage {
     param ($subFiles)
     switch -Regex ($subFiles) {
-        '\.ar\.' { $stLang = 'ar'; $stTrackName = 'Arabic Sub' }
-        '\.de\.' { $stLang = 'de'; $stTrackName = 'Deutsch Sub' }
-        '\.en.*\.' { $stLang = 'en'; $stTrackName = 'English Sub' }
-        '\.es\.' { $stLang = 'es'; $stTrackName = 'Spanish(Latin America) Sub' }
-        '\.es-es\.' { $stLang = 'es-es'; $stTrackName = 'Spanish(Spain) Sub' }
-        '\.fr\.' { $stLang = 'fr'; $stTrackName = 'French Sub' }
-        '\.it\.' { $stLang = 'it'; $stTrackName = 'Italian Sub' }
-        '\.ja\.' { $stLang = 'ja'; $stTrackName = 'Japanese Sub' }
+        '\.ar.*\.' { $stLang = 'ar'; $stTrackName = 'Arabic Sub' }
+        '\.de.*\.' { $stLang = 'de'; $stTrackName = 'Deutsch Sub' }
+        '\.en.*\.|\.en-US\.' { $stLang = 'en'; $stTrackName = 'English Sub' }
+        '\.es-la\.' { $stLang = 'es'; $stTrackName = 'Spanish(Latin America) Sub' }
+        '\.es-es\.|\.es.' { $stLang = 'es-es'; $stTrackName = 'Spanish(Spain) Sub' }
+        '\.fr.*\.' { $stLang = 'fr'; $stTrackName = 'French Sub' }
+        '\.it.*\.' { $stLang = 'it'; $stTrackName = 'Italian Sub' }
+        '\.ja.*\.' { $stLang = 'ja'; $stTrackName = 'Japanese Sub' }
         '\.pt-br\.' { $stLang = 'pt-br'; $stTrackName = 'Português (Brasil) Sub' }
-        '\.pt-pt\.' { $stLang = 'pt-pt'; $stTrackName = 'Português (Portugal) Sub' }
-        '\.ru\.' { $stLang = 'ru'; $stTrackName = 'Russian Video' }
+        '\.pt-pt\.|\.pt\.' { $stLang = 'pt-pt'; $stTrackName = 'Português (Portugal) Sub' }
+        '\.ru.*\.' { $stLang = 'ru'; $stTrackName = 'Russian Video' }
         default { $stLang = 'und'; $stTrackName = 'und sub' }
     }
     $return = @($stLang, $stTrackName)
@@ -580,10 +580,10 @@ function Invoke-Filebot {
         [string]$filebotPath
     )
     Write-Output "[Filebot] $(Get-Timestamp) - Looking for files to rename and move to final folder."
-    $filebotVideoList = $vsCompletedFilesList | Where-Object { $_._vsDestPath -eq $filebotPath } | Select-Object _vsDestPath, _vsEpisodeFBPath, _vsEpisodeRaw, _vsEpisodeSubtitle, _vsOverridePath #_vsEpisodeSubFBPath
+    $filebotVideoList = $vsCompletedFilesList | Where-Object { $_._vsDestPath -eq $filebotPath } | Select-Object _vsDestPath, _vsDestPathVideo, _vsEpisodeRaw, _vsEpisodeSubtitle, _vsOverridePath
     
     foreach ($filebotFiles in $filebotVideoList) {
-        $filebotVidInput = $filebotFiles._vsEpisodeFBPath
+        $filebotVidInput = $filebotFiles._vsDestPathVideo
         $filebotSubInput = $filebotFiles._vsEpisodeSubtitle
         $filebotVidBaseName = $filebotFiles._vsEpisodeRaw
         $filebotOverrideDrive = $filebotFiles._vsOverridePath
@@ -649,20 +649,20 @@ class VideoStatus {
     [string]$_vsEpisodeRaw
     [string]$_vsEpisodeTemp
     [string]$_vsEpisodePath
-    [array]$_vsEpisodeSubtitle
-    [string]$_vsEpisodeFBPath
     [string]$_vsOverridePath
-    [string]$_vsDestPathDirectory
-    [string]$_vsDestPath
     [string]$_vsDestPathBase
+    [string]$_vsDestPath
+    [string]$_vsDestPathDirectory
+    [string]$_vsDestPathVideo
+    [array]$_vsEpisodeSubtitle
     [bool]$_vsSECompleted
     [bool]$_vsMKVCompleted
     [bool]$_vsMoveCompleted
     [bool]$_vsFBCompleted
     [bool]$_vsErrored
-    
-    VideoStatus([string]$vsSite, [string]$vsSeries, [string]$vsEpisode, [string]$vsSeriesDirectory, [string]$vsEpisodeRaw, [string]$vsEpisodeTemp, [string]$vsEpisodePath, [array]$vsEpisodeSubtitle, `
-            [string]$vsEpisodeFBPath, [string]$vsOverridePath, [string]$vsDestPathDirectory, [string]$vsDestPath, [string]$vsDestPathBase, [bool]$vsSECompleted, [bool]$vsMKVCompleted, `
+
+    VideoStatus([string]$vsSite, [string]$vsSeries, [string]$vsEpisode, [string]$vsSeriesDirectory, [string]$vsEpisodeRaw, [string]$vsEpisodeTemp, [string]$vsEpisodePath, `
+            [string]$vsOverridePath, [string]$vsDestPathBase, [string]$vsDestPath, [string]$vsDestPathDirectory, [string]$vsDestPathVideo, [array]$vsEpisodeSubtitle, [bool]$vsSECompleted, [bool]$vsMKVCompleted, `
             [bool]$vsMoveCompleted, [bool]$vsFBCompleted, [bool]$vsErrored) {
         $this._vsSite = $vsSite
         $this._vsSeries = $vsSeries
@@ -671,12 +671,12 @@ class VideoStatus {
         $this._vsEpisodeRaw = $vsEpisodeRaw
         $this._vsEpisodeTemp = $vsEpisodeTemp
         $this._vsEpisodePath = $vsEpisodePath
-        $this._vsEpisodeSubtitle = $vsEpisodeSubtitle
-        $this._vsEpisodeFBPath = $vsEpisodeFBPath
         $this._vsOverridePath = $vsOverridePath
-        $this._vsDestPathDirectory = $vsDestPathDirectory
-        $this._vsDestPath = $vsDestPath
         $this._vsDestPathBase = $vsDestPathBase
+        $this._vsDestPath = $vsDestPath
+        $this._vsDestPathDirectory = $vsDestPathDirectory
+        $this._vsDestPathVideo = $vsDestPathVideo
+        $this._vsEpisodeSubtitle = $vsEpisodeSubtitle
         $this._vsSECompleted = $vsSECompleted
         $this._vsMKVCompleted = $vsMKVCompleted
         $this._vsMoveCompleted = $vsMoveCompleted
@@ -1097,8 +1097,8 @@ if ($site) {
         ar { $videoLang = $audioLang; $audioTrackName = 'Arabic Audio'; $videoTrackName = 'Arabic Video' }
         de { $videoLang = $audioLang; $audioTrackName = 'Deutsch Audio'; $videoTrackName = 'Deutsch Video' }
         en { $videoLang = $audioLang; $audioTrackName = 'English Audio'; $videoTrackName = 'English Video' }
-        es { $videoLang = $audioLang; $audioTrackName = 'Spanish(Latin America) Audio'; $videoTrackName = 'Spanish(Latin America) Video' }
-        es-es { $videoLang = $audioLang; $audioTrackName = 'Spanish(Spain) Audio'; $videoTrackName = 'Spanish(Spain) Video' }
+        es-la { $videoLang = $audioLang; $audioTrackName = 'Spanish(Latin America) Audio'; $videoTrackName = 'Spanish(Latin America) Video' }
+        es { $videoLang = $audioLang; $audioTrackName = 'Spanish(Spain) Audio'; $videoTrackName = 'Spanish(Spain) Video' }
         fr { $videoLang = $audioLang; $audioTrackName = 'French Audio'; $videoTrackName = 'French Video' }
         it { $videoLang = $audioLang; $audioTrackName = 'Italian Audio'; $videoTrackName = 'Italian Video' }
         ja { $videoLang = $audioLang; $audioTrackName = 'Japanese Audio'; $videoTrackName = 'Japanese Video' }
@@ -1111,17 +1111,15 @@ if ($site) {
         ar { $subtitleTrackName = 'Arabic Sub' }
         de { $subtitleTrackName = 'Deutsch Sub' }
         en { $subtitleTrackName = 'English Sub' }
-        es { $subtitleTrackName = 'Spanish(Latin America) Sub' }
-        es-es { $subtitleTrackName = 'Spanish(Spain) Sub' }
+        es-la { $subtitleTrackName = 'Spanish(Latin America) Sub' }
+        es { $subtitleTrackName = 'Spanish(Spain) Sub' }
         fr { $subtitleTrackName = 'French Sub' }
         it { $subtitleTrackName = 'Italian Sub' }
         ja { $subtitleTrackName = 'Japanese Sub' }
         pt-br { $subtitleTrackName = 'Português (Brasil) Sub' }
         pt-pt { $subtitleTrackName = 'Português (Portugal) Sub' }
         ru { $subtitleTrackName = 'Russian Video' }
-        ja { $subtitleTrackName = 'Japanese Sub' }
-        en { $subtitleTrackName = 'English Sub' }
-        und { $subtitleLang = 'und'; $subtitleTrackName = 'und sub' }
+        und { $subtitleTrackName = 'und sub' }
     }
     # End reading from XML
     if ($subFontExtension.Trim() -ne '') {
@@ -1384,14 +1382,14 @@ if ($site) {
             if ($null -ne $vsOverridePath) {
                 $vsDestPath = Join-Path -Path $vsOverridePath -ChildPath $siteHome.Substring(3)
                 $vsDestPathBase = Join-Path -Path $vsOverridePath -ChildPath $siteHomeBase.Substring(3)
-                $vsEpisodeFBPath = $vsEpisodePath.Replace($siteSrc, $vsDestPath)
-                $vsDestPathDirectory = Split-Path $vsEpisodeFBPath -Parent
+                $vsDestPathVideo = $vsEpisodePath.Replace($siteSrc, $vsDestPath)
+                $vsDestPathDirectory = Split-Path $vsDestPathVideo -Parent
             }
             else {
                 $vsDestPath = $siteHome
                 $vsDestPathBase = $siteHomeBase
-                $vsEpisodeFBPath = $vsEpisodePath.Replace($siteSrc, $vsDestPath)
-                $vsDestPathDirectory = Split-Path $vsEpisodeFBPath -Parent
+                $vsDestPathVideo = $vsEpisodePath.Replace($siteSrc, $vsDestPath)
+                $vsDestPathDirectory = Split-Path $vsDestPathVideo -Parent
                 $vsOverridePath = [System.IO.path]::GetPathRoot($vsDestPath)
                 
             }
@@ -1409,8 +1407,9 @@ if ($site) {
                 [void]$vsEpisodeSubtitle.Add($episodeSubtitles)
             }
             foreach ($i in $_) {
-                $VideoStatus = [VideoStatus]::new($vsSite, $vsSeries, $vsEpisode, $vsSeriesDirectory, $vsEpisodeRaw, $vsEpisodeTemp, $vsEpisodePath, $vsEpisodeSubtitle, `
-                        $vsEpisodeFBPath, $vsOverridePath, $vsDestPathDirectory, $vsDestPath, $vsDestPathBase, $vsSECompleted, $vsMKVCompleted, $vsMoveCompleted, $vsFBCompleted, $vsErrored)
+                $VideoStatus = [VideoStatus]::new($vsSite, $vsSeries, $vsEpisode, $vsSeriesDirectory, $vsEpisodeRaw, $vsEpisodeTemp, $vsEpisodePath, `
+                $vsOverridePath, $vsDestPathBase, $vsDestPath, $vsDestPathDirectory, $vsDestPathVideo, $vsEpisodeSubtitle, $vsSECompleted, $vsMKVCompleted, `
+                $vsMoveCompleted, $vsFBCompleted, $vsErrored)
                 [void]$vsCompletedFilesList.Add($VideoStatus)
             }
         }
@@ -1479,7 +1478,6 @@ if ($site) {
                 if (!(Test-Path -Path $orDriveList._vsSeriesDirectory)) {
                     Write-Output "[FileMoving] $(Get-Timestamp) - Move completed for $($orDriveList._vsSeriesDirectory)."
                     Set-VideoStatus -svsKey '_vsSeriesDirectory' -svsValue $orDriveList._vsSeriesDirectory -svsMove
-                    
                 }
             }
         }
@@ -1552,14 +1550,15 @@ if ($site) {
             }
             Set-VideoStatus -svsKey '_vsEpisodeRaw' -svsValue $Vid -svsSub $removedVals
         }
+        # File status
         $vsCompletedFilesListHeadersStatus = @{Label = 'Series'; Expression = { $_._vsSeries } }, @{Label = 'Episode'; Expression = { $_._vsEpisode } }, 
         @{Label = 'SECompleted'; Expression = { $_._vsSECompleted } }, @{Label = 'MKVCompleted'; Expression = { $_._vsMKVCompleted } }, @{Label = 'MoveCompleted'; Expression = { $_._vsMoveCompleted } }, `
         @{Label = 'FBCompleted'; Expression = { $_._vsFBCompleted } }, @{Label = 'Errored'; Expression = { $_._vsErrored } }
-
+        # File paths
         $vsCompletedFilesListHeadersFiles = @{Label = 'Series'; Expression = { $_._vsSeries } }, @{Label = 'Episode'; Expression = { $_._vsEpisode } }, `
-        @{Label = 'Drive'; Expression = { $_._vsOverridePath } }, @{Label = 'SrcDirectory'; Expression = { $_._vsSeriesDirectory } }, @{Label = 'DestBase'; Expression = { $_._vsDestPathBase } }, `
-        @{Label = 'DestPath'; Expression = { $_._vsDestPath } }, @{Label = 'DestPathDirectory'; Expression = { $_._vsDestPathDirectory } }, @{Label = 'Subtitle'; Expression = { ($_._vsEpisodeSubtitle.value | Join-String -Separator "`r`n") } }
-
+        @{Label = 'SrcDirectory'; Expression = { $_._vsSeriesDirectory } }, @{Label = 'DestDirectory'; Expression = { $_._vsDestPathDirectory } }, `
+        @{Label = 'Subtitle'; Expression = { ($_._vsEpisodeSubtitle.value | Join-String -Separator "`r`n") } }
+        # Output tables
         $vsCompletedFilesTable = $vsCompletedFilesList | Sort-Object _vsSeries, _vsEpisode | Format-Table $vsCompletedFilesListHeadersStatus -AutoSize -Wrap
         $vsCompletedFilesTable += $vsCompletedFilesList | Sort-Object _vsSeries, _vsEpisode | Format-Table $vsCompletedFilesListHeadersFiles -AutoSize -Wrap
     }
