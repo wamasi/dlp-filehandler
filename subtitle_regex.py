@@ -3,28 +3,24 @@ Changing subtitle sytle
 """
 import sys
 import fileinput
-import time
 import regex
 
 subtitle = sys.argv[1]
 subfont = sys.argv[2]
 sf = subfont + ","
 
-# setting font
+# ScriptInfo section, font, outline(note:if borderstlye=1 then this ignored when seeing the subtitle), shadow(note:similar as outline)
+replacements = [(r"(?:^Original Script:)\K(.*)", ""),
+                (r"(?:^Original Translation:)\K(.*)", ""),
+                (r"(?:^Original Editing:)\K(.*)", ""),
+                (r"(?:^Original Timing:)\K(.*)", ""),
+                (r"(?:^Script Updated By:)\K(.*)", ""),
+                (r"(?:^Update Details:)\K(.*)", ""),
+                (r"(?:^!|^;)\K(.*)", ""),
+                (r"(?:^Style: .*?,)\K().*?,", sf),
+                (r"(?:^Style: .*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,)\K(.*?,)", "1,"),
+                (r"(?:^Style: .*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,)\K().*?,", "1,")]
 for font in fileinput.input(subtitle, inplace=True, encoding="utf-8"):
-    font = regex.sub(r"(?:^Style: .*?,)\K().*?,", sf, font.strip())
+    for pat, repl in replacements:
+        font = regex.sub(pat, repl, font.strip())
     print(font.strip())
-time.sleep(1)
-
-# setting text outline to 1
-for outline in fileinput.input(subtitle, inplace=True, encoding="utf-8"):
-    outline = regex.sub(r"(?:^Style: .*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,)\K(.*?,.*?,)", "1,1,", outline.strip())
-    print(outline.strip())
-time.sleep(1)
-
-# setting text shadow to 0
-for shadow in fileinput.input(subtitle, inplace=True, encoding="utf-8"):
-    # setting text shadow to 0
-    shadow = regex.sub(r"(?:^Style: .*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,)\K().*?,", "0,", shadow.strip())
-    print(shadow.strip())
-time.sleep(1)
