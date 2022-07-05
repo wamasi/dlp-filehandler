@@ -1438,7 +1438,7 @@ if ($site) {
                     }
                     else {
                         Write-Output "[SubtitleRegex] $(Get-Timestamp) - Python - Regex through $sp file with $subFontName."
-                        Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "python `"$subtitleRegex`" `"$sp`" `"$subFontName`""
+                        Invoke-ExpressionConsole -SCMFN 'SubtitleRegex' -SCMFP "python `"$subtitleRegex`" `"$sp`" `"$subFontName`""
                         break
                     }
                     Start-Sleep -Seconds 1

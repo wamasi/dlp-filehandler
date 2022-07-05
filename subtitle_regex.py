@@ -17,9 +17,7 @@ replacements = [(r"(?:^Original Script:)\K(.*)", ""),
                 (r"(?:^Script Updated By:)\K(.*)", ""),
                 (r"(?:^Update Details:)\K(.*)", ""),
                 (r"(?:^!|^;)\K(.*)", ""),
-                (r"(?:^Style: .*?,)\K().*?,", sf),
-                (r"(?:^Style: .*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,)\K(.*?,)", "1,"),
-                (r"(?:^Style: .*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,.*?,)\K().*?,", "1,")]
+                (r"(?:^Style: .*?,)\K().*?,", sf)]
 for font in fileinput.input(subtitle, inplace=True, encoding="utf-8"):
     for pat, repl in replacements:
         font = regex.sub(pat, repl, font.strip())
