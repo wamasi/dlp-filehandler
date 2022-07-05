@@ -1446,7 +1446,7 @@ if ($site) {
             }
         }
         else {
-            Write-Output "[SubtitleRegex] $(Get-Timestamp) - No Font specified for $sp file."
+            Write-Output "[SubtitleRegex] $(Get-Timestamp) - No Font specified for subtitle files."
         }
         # MKVMerge
         if ($mkvMerge) {
