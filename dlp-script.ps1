@@ -464,25 +464,6 @@ function Invoke-MKVMerge {
         [string]$mkvVidTempOutput
     )
     Write-Output "[MKVMerge] $(Get-Timestamp) - Default Video = $videoLang/$videoTrackName - Default Audio Language = $audioLang/$audioTrackName - Default Subtitle = $subtitleLang/$subtitleTrackName."
-    $mkvVidSubtitle | ForEach-Object {
-        $sp = $_ | Where-Object { $_.key -eq 'origSubPath' } | Select-Object -ExpandProperty value
-        While ($True) {
-            if ((Test-Lock $sp) -eq $True) {
-                continue
-            }
-            else {
-                if ($subFontName -ne 'None') {
-                    Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - Python - Regex through $sp file with $subFontName."
-                    Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "python `"$subtitleRegex`" `"$sp`" `"$subFontName`""
-                    break
-                }
-                else {
-                    Write-Output "[MKVMerge] $(Get-Timestamp) - [SubtitleRegex] - No Font specified for $sp file."
-                }
-            }
-            Start-Sleep -Seconds 1
-        }
-    }
     While ($True) {
         if ((Test-Lock $mkvVidInput) -eq $True) {
             continue
@@ -1408,8 +1389,8 @@ if ($site) {
             }
             foreach ($i in $_) {
                 $VideoStatus = [VideoStatus]::new($vsSite, $vsSeries, $vsEpisode, $vsSeriesDirectory, $vsEpisodeRaw, $vsEpisodeTemp, $vsEpisodePath, `
-                $vsOverridePath, $vsDestPathBase, $vsDestPath, $vsDestPathDirectory, $vsDestPathVideo, $vsEpisodeSubtitle, $vsSECompleted, $vsMKVCompleted, `
-                $vsMoveCompleted, $vsFBCompleted, $vsErrored)
+                        $vsOverridePath, $vsDestPathBase, $vsDestPath, $vsDestPathDirectory, $vsDestPathVideo, $vsEpisodeSubtitle, $vsSECompleted, $vsMKVCompleted, `
+                        $vsMoveCompleted, $vsFBCompleted, $vsErrored)
                 [void]$vsCompletedFilesList.Add($VideoStatus)
             }
         }
@@ -1447,6 +1428,25 @@ if ($site) {
         }
         else {
             Write-Output "[SubtitleEdit] $(Get-Timestamp) - Not running."
+        }
+        if ($null -ne $subFontName) {
+            $vsCompletedFilesList | Select-Object -ExpandProperty _vsEpisodeSubtitle | ForEach-Object {
+                $sp = $_ | Where-Object { $_.key -eq 'origSubPath' } | Select-Object -ExpandProperty value
+                While ($True) {
+                    if ((Test-Lock $sp) -eq $True) {
+                        continue
+                    }
+                    else {
+                        Write-Output "[SubtitleRegex] $(Get-Timestamp) - Python - Regex through $sp file with $subFontName."
+                        Invoke-ExpressionConsole -SCMFN 'MKVMerge' -SCMFP "python `"$subtitleRegex`" `"$sp`" `"$subFontName`""
+                        break
+                    }
+                    Start-Sleep -Seconds 1
+                }
+            }
+        }
+        else {
+            Write-Output "[SubtitleRegex] $(Get-Timestamp) - No Font specified for $sp file."
         }
         # MKVMerge
         if ($mkvMerge) {
