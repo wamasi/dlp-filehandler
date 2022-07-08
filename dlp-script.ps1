@@ -252,6 +252,7 @@ function Remove-Folders {
     }
 }
 
+# Removing Site log files
 function Remove-Logfiles {
     # Log cleanup
     $filledLogsLimit = (Get-Date).AddDays(-$filledLogs)
@@ -262,7 +263,7 @@ function Remove-Logfiles {
     else {
         Write-Output "$logFolderBase found. Starting Filledlog($filledLogs days) cleanup."
         $filledLogFiles = Get-ChildItem -Path $logFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -match '.*-T.*' -and $_.FullName -ne $logFile -and $_.CreationTime -lt $filledLogsLimit }
-        if (($filledLogFiles | Measure-Object).Count -gt 0) {
+        if ( ($null -ne $filledLogFiles) -and ($filledLogFiles | Measure-Object).Count -gt 0) {
             foreach ($f in $filledLogFiles ) {
                 $removeLog = $f.FullName
                 $removeLog | Remove-Item -Recurse -Force -Verbose
@@ -273,7 +274,7 @@ function Remove-Logfiles {
         }
         Write-Output "$logFolderBase found. Starting emptylog($emptyLogs days) cleanup."
         $emptyLogFiles = Get-ChildItem -Path $logFolderBase -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch '.*-T.*' -and $_.FullName -ne $logFile -and $_.CreationTime -lt $emptyLogsLimit }
-        if (($emptyLogFiles | Measure-Object).Count -gt 0) {
+        if (( $null -ne $emptyLogFiles) -and ($emptyLogFiles | Measure-Object).Count -gt 0) {
             foreach ($e in $emptyLogFiles ) {
                 $removeLog = $e.FullName
                 $removeLog | Remove-Item -Recurse -Force -Verbose
