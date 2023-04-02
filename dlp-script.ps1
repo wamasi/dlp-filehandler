@@ -640,7 +640,6 @@ function Invoke-Filebot {
     }
 }
 
-
 # Update Subtitle files with font name
 function Update-SubtitleFont {
     param (
@@ -666,8 +665,12 @@ function Update-SubtitleFont {
     $styleBlockCSV | ForEach-Object {
         $_.Fontname = $subFontName
     }
+    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - Start of initial updated Lines:"
+    ($styleBlockCSV | Format-Table | Out-String) -split "`n" | Where-Object { $_.Trim() -ne '' } | ForEach-Object {
+        Write-Output "[SubtitleRegex] $(Get-TimeStamp) - $_"
+    }
+    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - End of initial updated Lines:"
 
-    $styleBlockCSV | Format-Table
     $styleBlockToCSV = $styleBlockCSV | ConvertTo-Csv -Delimiter ',' -UseQuotes Never
     $Headrow = $styleBlockToCSV | Select-Object -First 1
     $Header = 'Format: ' + $Headrow
@@ -675,10 +678,15 @@ function Update-SubtitleFont {
         'Style: ' + $_
     }
     $newStrings = @($Header, $rows)
-    $newStrings
+    Write-Output "`n[SubtitleRegex] $(Get-TimeStamp) - Start of final updated Lines:"
+    ($newStrings | Format-Table | Out-String) -split "`n" | Where-Object { $_.Trim() -ne '' } | ForEach-Object {
+        Write-Output "[SubtitleRegex] $(Get-TimeStamp) - $_"
+    }
+    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - End of final updated Lines."
+    
     $startLine = $subtitleContent | Select-String -Pattern 'format:.*' | Select-Object -First 1 | ForEach-Object { $_.LineNumber }
     $endLine = $subtitleContent | Select-String -Pattern 'Style:.*' | Select-Object -Last 1 | ForEach-Object { $_.LineNumber }
-    Write-Host "$startLine to $endLine"
+    Write-Output "[SubtitleRegex] $(Get-Timestamp) - Found lines $startLine to $endLine."
 
     foreach ($line in $subtitleContent) {
         if ($subtitleLineNum -lt $startLine -or $subtitleLineNum -gt $endLine) {
@@ -690,11 +698,9 @@ function Update-SubtitleFont {
         $subtitleLineNum++
     }
 
-    Write-Output "[SubtitleRegex] $(Get-Timestamp) - Updating subtitle fonts."
     Set-Content $SubtitleFilePath $newSubtitleContent
 
     $subtitleContent = Get-Content $SubtitleFilePath
-    # Define the regex patterns and replacement text
     $subtitlePatterns = @{
     
         '(?<=^Original Translation:).*' = ''
@@ -704,13 +710,13 @@ function Update-SubtitleFont {
         '(?<=^Update Details:).*'       = ''
         '(?<=^Original Script:).*'      = ''
     }
-    # Iterate through the regex patterns and replace the matches
     foreach ($pattern in $subtitlePatterns.Keys) {
         $subtitleContent = $subtitleContent | ForEach-Object { $_ -replace $pattern, $subtitlePatterns[$pattern] }
     }
     
-    Write-Output "[SubtitleRegex] $(Get-Timestamp) - Updating subtitle info."
     Set-Content -Path $SubtitleFilePath -Value $subtitleContent
+    Write-Output "[SubtitleRegex] $(Get-Timestamp) - Finished updating subtitle: $SubtitleFilePath."
+    
 }
 
 # Setting up arraylist for MKV and Filebot lists
@@ -762,8 +768,6 @@ class VideoStatus {
 
 # Start of script Variable setup
 $scriptDirectory = $PSScriptRoot
-#$dlpScript = Join-Path -Path $scriptDirectory -ChildPath 'dlp-script.ps1'
-#$subtitleRegex = Join-Path -Path $scriptDirectory -ChildPath 'subtitle_regex.py'
 $configPath = Join-Path -Path $scriptDirectory -ChildPath 'config.xml'
 $sharedFolder = Join-Path -Path $scriptDirectory -ChildPath 'shared'
 $fontFolder = Join-Path -Path $scriptDirectory -ChildPath 'fonts'
@@ -1092,13 +1096,6 @@ if ($supportFiles) {
     exit
 }
 if ($site) {
-    # if (Test-Path -Path $subtitleRegex) {
-    #     Write-Output "[SETUP] $(Get-Timestamp) - $dlpScript, $subtitle_regex do exist in $scriptDirectory folder."
-    # }
-    # else {
-    #     Write-Output "[SETUP] $(Get-Timestamp) - subtitle_regex.py does not exist or was not found in $scriptDirectory folder. Exiting."
-    #     Exit
-    # }
     $date = Get-Day
     $dateTime = Get-TimeStamp
     $time = Get-Time
