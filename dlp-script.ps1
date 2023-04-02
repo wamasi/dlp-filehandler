@@ -652,6 +652,9 @@ function Update-SubtitleFont {
     $subtitleLineNum = 1
     [string]$formatStyleBlock = ''
     $subtitleContent = Get-Content $SubtitleFilePath
+    $startLine = $subtitleContent | Select-String -Pattern 'format:.*' | Select-Object -First 1 | ForEach-Object { $_.LineNumber }
+    $endLine = $subtitleContent | Select-String -Pattern 'Style:.*' | Select-Object -Last 1 | ForEach-Object { $_.LineNumber }
+    Write-Output "[SubtitleRegex] $(Get-Timestamp) - Found lines $startLine to $endLine."
     # format header
     $formatHeader = $subtitleContent | Select-String -Pattern 'Format:.*' | Select-Object -First 1
     $formatStyleBlock += ($formatHeader -Replace ('Format: ', '') -replace (', ', ','))
@@ -665,11 +668,11 @@ function Update-SubtitleFont {
     $styleBlockCSV | ForEach-Object {
         $_.Fontname = $subFontName
     }
-    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - Start of initial updated Lines:"
+    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - Start of initial updated lines:"
     ($styleBlockCSV | Format-Table | Out-String) -split "`n" | Where-Object { $_.Trim() -ne '' } | ForEach-Object {
         Write-Output "[SubtitleRegex] $(Get-TimeStamp) - $_"
     }
-    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - End of initial updated Lines:"
+    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - End of initial updated lines:"
 
     $styleBlockToCSV = $styleBlockCSV | ConvertTo-Csv -Delimiter ',' -UseQuotes Never
     $Headrow = $styleBlockToCSV | Select-Object -First 1
@@ -678,15 +681,11 @@ function Update-SubtitleFont {
         'Style: ' + $_
     }
     $newStrings = @($Header, $rows)
-    Write-Output "`n[SubtitleRegex] $(Get-TimeStamp) - Start of final updated Lines:"
+    Write-Output "`n[SubtitleRegex] $(Get-TimeStamp) - Start of final updated line block to file:"
     ($newStrings | Format-Table | Out-String) -split "`n" | Where-Object { $_.Trim() -ne '' } | ForEach-Object {
         Write-Output "[SubtitleRegex] $(Get-TimeStamp) - $_"
     }
-    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - End of final updated Lines."
-    
-    $startLine = $subtitleContent | Select-String -Pattern 'format:.*' | Select-Object -First 1 | ForEach-Object { $_.LineNumber }
-    $endLine = $subtitleContent | Select-String -Pattern 'Style:.*' | Select-Object -Last 1 | ForEach-Object { $_.LineNumber }
-    Write-Output "[SubtitleRegex] $(Get-Timestamp) - Found lines $startLine to $endLine."
+    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - End of final updated line block to file."
 
     foreach ($line in $subtitleContent) {
         if ($subtitleLineNum -lt $startLine -or $subtitleLineNum -gt $endLine) {
