@@ -2,47 +2,38 @@
 Script used to fetch files with yt-dlp, fix subtitles, embed into video file, rename and move video files into media server folders.
 ## Prerequisites
 
-Windows
+Windows:
 - All file formatting is based on Windows
 
-Powershell 7+
+Powershell 7+:
 - Scripts probably work with earlier versions, but haven't tested them
 
-Python
-- Used for script to regex through subtitle file to edit fonts use
-- https://www.python.org/downloads/
-- Modules used:
-  - sys
-  - fileinput
-  - time
-  - regex
-
-YT-dlp
+yt-dlp:
 - Downloading videos
 - https://github.com/yt-dlp/yt-dlp
   - Read this documenation first to understand how to setup your supporting files
 
-Ffmpeg
+FFMPEG:
 - Video downloader used with yt-dlp, remux, copy and move files with yt-dlp
 - https://github.com/BtbN/FFmpeg-Builds/releases
 
-Aria2c
+Aria2c:
 - Video downloader used with yt-dlp
 - https://github.com/aria2/aria2
 
-Mkvtoolnix
+Mkvtoolnix:
 - Embeds subtitle and fonts
 - https://mkvtoolnix.download/
 
-Filebot
+Filebot:
 - File renamer based on tvdb entries
 - https://www.filebot.net/
 
-Subtitle Edit
+Subtitle Edit:
 - Fixes common subtitle issues like text timings
 - https://www.nikse.dk/SubtitleEdit/
  
-Plex (optional)
+Plex (optional):
 - Media Server
 - https://www.plex.tv/
 - Getting Plex token:
@@ -57,7 +48,7 @@ Plex (optional)
        - Library Id = `key`
           - ex: `key = "1"`
 
-Telegram (optional)
+Telegram (optional):
 - Used to send out a message of videos successfully downloaded to a group chat.
 - Personal account
 - Bot account
@@ -77,7 +68,7 @@ Telegram (optional)
 4. Run: `path\to\dlp-script.ps1 -SU` to generate supporting files
    - Generates
       - `fonts` folder
-        - Place to store custom fonts used in `SubtitleEdit`, `subtitle_regex.py`, and `mkvmerge` to display custom font in subtitle file.
+        - Place to store custom fonts used in `SubtitleEdit` and `mkvmerge` to display custom font in subtitle file.
       - `shared` folder
         - Empty archive, bat, and cookie files.
       - `sites` folder
@@ -93,7 +84,7 @@ Telegram (optional)
       - `dlp-script.ps1` gathers initial variables based on parameters passed into script.
          - Log file is generated and located in `site` folder based on date/datetime
          - Creates base folder structure for `tmp`, `src`, `dest`.
-         - Runs `YT-DLP`, `SubtitleEdit`, `subtitle_regex.py`, `mkvmerge`, `Telegram` command based on parameters
+         - Runs `YT-DLP`, `SubtitleEdit`, `mkvmerge`, `Telegram` command based on parameters
          - Each run puts files in folder based on timestamp of execution.
          - Temp files store in `tmp` location defined in  `config.xml`.
            - Then moved into `src` location defined in `config.xml`
@@ -101,7 +92,7 @@ Telegram (optional)
          - If `SubtitleEdit = True`
             - Will run to fix common issues in subtitle files using SubtitleEdit.
             - If font value is set and file exists:
-               - `subtitle_regex.py` will regex through file to update font name.
+               - `Update-SubtitleFont` will regex through file to update font name and remove .
                - mkvmerge will embed custom font.
             - If file runs into an issue this will be outputted in the log and all files from this run will not be moved to `dest`.
          - Final postprocessed files will be moved from `src` to `dest` location defined in `config.xml`.
@@ -128,7 +119,7 @@ Telegram (optional)
 |-Login|-l/-L|Tells yt-dlp command to use credentials stored in config xml.| uses stored credentials for site in `config.xml`.|
 |-Cookies|-c/-C|Uses cookie file in yt-dlp param even if `-Login = True`.| Optional switch will use the \_C suffix named files with browser cookies.|
 |-Filebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml.| Outputs file with \{n}\{'Season '+s00}\{n\} - \{s00e00\} - \{t\}|
-|-MKVMerge|-mk/-MK|Tells script to run `subtitle_regex.py` and `MKVMerge` against video and subtitle files to edit and embed subtitle if available| Expects presence of `.mkv` and `.ass` file.|
+|-MKVMerge|-mk/-MK|Tells script to run `MKVMerge` against video and subtitle files to edit and embed subtitle if available| Expects presence of `.mkv` and `.ass` file.|
 |-SubtitleEdit|-se/-SE|Tells script to run `SubetitleEdit` to fix common problems with `.srt` files if they are present.| Expects presence of `.ass` subtitle file.|
 |-SendTelegram|-st/-ST|If Telegram `token` and `chatid` filled out in `config.xml` will send out message to chat group with out of new videos.| |
 | -AudioLang| -al/AL| Sets audio and video track to a given language code ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -AL ja |
