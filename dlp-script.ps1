@@ -328,7 +328,7 @@ function Exit-Script {
     }
     # Cleanup Log Files
     Invoke-ExpressionConsole -SCMFN 'LogCleanup' -SCMFP 'Remove-Logfiles'
-    Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($scriptStopWatch.Elapsed.ToString())"
+    Write-Output "[END] $(Get-Timestamp) - Script completed. Total Elapsed Time: $($scriptStopWatch.Elapsed.ToString("dd\:hh\:mm\:ss"))"
     Stop-Transcript
     ((Get-Content -Path $logFile | Select-Object -Skip 5) | Select-Object -SkipLast 4) | Set-Content -Path $logFile
     Remove-Spaces -removeSpacesFile $logFile
@@ -421,18 +421,51 @@ function Get-SubtitleLanguage {
     return $return
 }
 
+# Sending To Discord for new file notifications
+function Invoke-Discord {
+    param (
+        $site,
+        $series,
+        $episode,
+        $icon,
+        $color
+    )
+    [System.Collections.ArrayList]$embedArray = @()
+    $color = $color
+    $title = "**$site**"
+    $description = "**$series**`n`n$episode"
+    $thumbnailObject = [PSCustomObject]@{
+        url = $icon
+    }
+    $embedObject = [PSCustomObject]@{
+        color       = $color
+        title       = $title
+        description = $description
+        thumbnail   = $thumbnailObject
+    }
+    $payload = [PSCustomObject]@{
+        embeds = $embedArray
+    }
+    $embedArray.Add($embedObject) | Out-Null
+    Invoke-RestMethod -Uri $discordHookUrl -Body ($payload | ConvertTo-Json -Depth 4) -Method Post -ContentType 'application/json' | Out-Null
+}
+
 # Sending To telegram for new file notifications
 function Invoke-Telegram {
     Param(
         [Parameter( Mandatory = $true)]
-        [String]$sendTelegramMessage)
+        [String]$sendTelegramMessage
+    )
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $finalMessage = "$sendTelegramMessage"
     switch ($telegramNotification.ToLower()) {
-        true { $telegramRequest = "https://api.telegram.org/bot$($telegramToken)/sendMessage?chat_id=$($telegramChatID)&text=$($sendTelegramMessage)&parse_mode=html&disable_notification=true" }
-        false { $telegramRequest = "https://api.telegram.org/bot$($telegramToken)/sendMessage?chat_id=$($telegramChatID)&text=$($sendTelegramMessage)&parse_mode=html" }
+        true {
+            $telegramRequest = "https://api.telegram.org/bot$($telegramToken)/sendMessage?chat_id=$($telegramChatID)&text=$($finalMessage)&parse_mode=html&disable_notification=true" 
+        }
+        false { $telegramRequest = "https://api.telegram.org/bot$($telegramToken)/sendMessage?chat_id=$($telegramChatID)&text=$($finalMessage)&parse_mode=html" }
         Default { Write-Output 'Improper configured value. Accepted values: true/false' }
     }
-    Invoke-ExpressionConsole -scmFunctionName 'Telegram' -scmFunctionParams "Write-Output `"$sendTelegramMessage`""
+    Invoke-ExpressionConsole -scmFunctionName 'Telegram' -scmFunctionParams "Write-Output `"$finalMessage`""
     $ProgressPreference = 'SilentlyContinue'
     Invoke-WebRequest -Uri $telegramRequest | Out-Null
     $ProgressPreference = 'Continue'
@@ -801,6 +834,14 @@ $xmlConfig = @'
         <!-- Telegram Bot tokenId/ your group ChatId, disable sound notification -->
         <token tokenId="" chatid="" disableNotification="true" />
     </Telegram>
+    <Discord>
+        <!-- Discord webhook url and default icon pointed to static web image />
+        <hook
+            url="" />
+        <icon
+            Default=""
+            Color="8359053" />
+    </Discord>
     <credentials>
         <!-- Where you store the Site name, username/password, plexlibraryid, folder in library, and a custom font used to embed into video/sub
             <site sitename="MySiteHere">
@@ -810,6 +851,9 @@ $xmlConfig = @'
                 <parentfolder>Video</parentfolder>
                 <subfolder>A</subfolder>
                 <font>Marker SD.ttf</font>
+                <icon
+                    url=""
+                    color="" />
             </site>
         -->
         <site sitename="">
@@ -819,6 +863,9 @@ $xmlConfig = @'
             <parentfolder></parentfolder>
             <subfolder></subfolder>
             <font></font>
+            <icon
+                url=""
+                color="" />
         </site>
         <site sitename="">
             <username></username>
@@ -827,6 +874,9 @@ $xmlConfig = @'
             <parentfolder></parentfolder>
             <subfolder></subfolder>
             <font></font>
+            <icon
+                url=""
+                color="" />
         </site>
         <site sitename="">
             <username></username>
@@ -835,6 +885,9 @@ $xmlConfig = @'
             <parentfolder></parentfolder>
             <subfolder></subfolder>
             <font></font>
+            <icon
+                url=""
+                color="" />
         </site>
     </credentials>
 </configuration>
@@ -1071,7 +1124,7 @@ if ($site) {
     # Reading from XML
     $configPath = Join-Path -Path $scriptDirectory -ChildPath 'config.xml'
     [xml]$configFile = Get-Content -Path $configPath
-    $siteParams = $configFile.configuration.credentials.site | Where-Object { $_.siteName -ne '' -or $_.sitename -ne $null } | Select-Object 'siteName', 'username', 'password', 'plexlibraryid', 'parentfolder', 'subfolder', 'font', 'fbtype'
+    $siteParams = $configFile.configuration.credentials.site | Where-Object { $_.siteName -ne '' -or $_.sitename -ne $null } | Select-Object 'siteName', 'username', 'password', 'plexlibraryid', 'parentfolder', 'subfolder', 'font', 'fbtype', 'icon'
     $siteNameParams = $siteParams | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object * -First 1
     $siteNameCount = 0
     $SiteNameList = @()
@@ -1125,6 +1178,18 @@ if ($site) {
         $filebotStructure = $fb.fbArgumentStructure
     }
     $overrideSeriesList = $configFile.configuration.OverrideSeries.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
+    $discordHookUrl = $configFile.configuration.Discord.hook.url
+    $discordIconDefault = $configFile.configuration.Discord.icon.Default
+    $discordColorDefault = $configFile.configuration.Discord.icon.Color
+    if ($($discordSiteIcon.Trim()).length -eq 0) {
+        $discordSiteIcon = $discordIconDefault
+    }
+
+    if ($($discordSiteColor.Trim()).length -eq 0) {
+        $discordSiteColor = $discordColorDefault
+    }
+    $discordSiteIcon = $siteNameParams.icon.url
+    $discordSiteColor = $siteNameParams.icon.color
     $telegramToken = $configFile.configuration.Telegram.token.tokenId
     $telegramChatID = $configFile.configuration.Telegram.token.chatid
     $telegramNotification = $configFile.configuration.Telegram.token.disableNotification
@@ -1591,9 +1656,9 @@ if ($site) {
             Write-Output "[Telegram] $(Get-Timestamp) - Preparing Telegram message."
             Do {
                 # Create a new instance of the Stopwatch
-                $stopwatch = New-Object System.Diagnostics.Stopwatch
+                $msgStopwatch = New-Object System.Diagnostics.Stopwatch
                 # Start the stopwatch
-                $stopwatch.Start()
+                $msgStopwatch.Start()
                 # Set the total time (in seconds) and the occurrence threshold
                 $totalTime = 60
                 $occurrenceThreshold = 20
@@ -1601,7 +1666,7 @@ if ($site) {
                 # Initialize the counter for occurrences
                 $occurrenceCount = 0
                 # Loop until the elapsed time reaches the total time or occurrence threshold is reached
-                while (($stopwatch.Elapsed.TotalSeconds -lt $totalTime) -and ($occurrenceCount -lt $occurrenceTotal)) {
+                while (($msgStopwatch.Elapsed.TotalSeconds -lt $totalTime) -and ($occurrenceCount -lt $occurrenceTotal)) {
                     # Perform the operation and check for the occurrence
                     # Replace the following line with your own logic to count the occurrences
                     if ($plexHost -and $plexToken -and $siteLibraryID) {
@@ -1613,11 +1678,12 @@ if ($site) {
                                     Write-Output "[Telegram] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
                                     $seriesEpisodeList = "<b>Site:</b> $($_._vsSite)`n<strong>Series:</strong> $($_._vsSeries)`n<strong>Episode:</strong> $($_._vsEpisode)"
                                     Invoke-Telegram -sendTelegramMessage $seriesEpisodeList
+                                    Invoke-Discord -site $($_._vsSite) -series $($_._vsSeries) -episode $($_._vsEpisode) -icon $discordSiteIcon -color $discordSiteColor
                                     # Check if the elapsed time exceeds 60 seconds
-                                    if (($stopwatch.Elapsed.TotalSeconds -le 60) -and ($occurrenceCount % 20 -eq 0)) {
+                                    if (($msgStopwatch.Elapsed.TotalSeconds -le 60) -and ($occurrenceCount % 20 -eq 0)) {
                                         # Reset the stopwatch
-                                        $stopwatch.Reset()
-                                        $stopwatch.Start()
+                                        $msgStopwatch.Reset()
+                                        $msgStopwatch.Start()
                                         Write-Output "[Telegram] $(Get-Timestamp) - Sent $occurrenceThreshold messages under $totalTime seconds. Putting it to sleep..."
                                         Start-Sleep -Seconds 5
                                     }
@@ -1631,11 +1697,12 @@ if ($site) {
                                     Write-Output "[Telegram] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
                                     $seriesEpisodeList = "<b>Site:</b> $($_._vsSite)`n<strong>Series:</strong> $($_._vsSeries)`n<strong>Episode:</strong> $($_._vsEpisode)"
                                     Invoke-Telegram -sendTelegramMessage $seriesEpisodeList
+                                    Invoke-Discord -site $($_._vsSite) -series $($_._vsSeries) -episode $($_._vsEpisode) -icon $discordSiteIcon -color $discordSiteColor
                                     # Check if the elapsed time exceeds 60 seconds
-                                    if (($stopwatch.Elapsed.TotalSeconds -le 60) -and ($occurrenceCount % 20 -eq 0)) {
+                                    if (($msgStopwatch.Elapsed.TotalSeconds -le 60) -and ($occurrenceCount % 20 -eq 0)) {
                                         # Reset the stopwatch
-                                        $stopwatch.Reset()
-                                        $stopwatch.Start()
+                                        $msgStopwatch.Reset()
+                                        $msgStopwatch.Start()
                                         Write-Output "[Telegram] $(Get-Timestamp) - Sent $occurrenceThreshold messages under $totalTime seconds. Putting it to sleep..."
                                         Start-Sleep -Seconds 5
                                     }
@@ -1652,11 +1719,12 @@ if ($site) {
                             Write-Output "[Telegram] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
                             $seriesEpisodeList = "<b>Site:</b> $($_._vsSite)`n<strong>Series:</strong> $($_._vsSeries)`n<strong>Episode:</strong> $($_._vsEpisode)"
                             Invoke-Telegram -sendTelegramMessage $seriesEpisodeList
+                            Invoke-Discord -site $($_._vsSite) -series $($_._vsSeries) -episode $($_._vsEpisode) -icon $discordSiteIcon -color $discordSiteColor
                             # Check if the elapsed time exceeds 5 seconds and occurrence is right before a number divisable by 20
-                            if (($stopwatch.Elapsed.TotalSeconds -le 60) -and ($occurrenceCount % 20 -eq 0)) {
+                            if (($msgStopwatch.Elapsed.TotalSeconds -le 60) -and ($occurrenceCount % 20 -eq 0)) {
                                 # Reset the stopwatch
-                                $stopwatch.Reset()
-                                $stopwatch.Start()
+                                $msgStopwatch.Reset()
+                                $msgStopwatch.Start()
                                 Write-Output "[Telegram] $(Get-Timestamp) - Sent $occurrenceThreshold messages under $totalTime seconds. Putting it to sleep..."
                                 Start-Sleep -Seconds 5
                             }
@@ -1665,7 +1733,7 @@ if ($site) {
                     }
                 }
                 # Stop the stopwatch
-                $stopwatch.Stop()
+                $msgStopwatch.Stop()
                 # Check if the occurrence threshold is reached
                 if ($occurrenceCount -ge $occurrenceThreshold) {
                     Write-Output "[Telegram] $(Get-Timestamp) - Reached $occurrenceThreshold occurrences. Putting it to sleep..."
