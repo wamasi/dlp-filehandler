@@ -71,6 +71,10 @@ param(
     [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
     [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$sendTelegram,
+    [Alias('SD')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
+    [switch]$sendDiscord,
     [Alias('AL')]
     [ValidateScript({
             $langValues = 'ar', 'de', 'en', 'es', 'es-la', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und'
@@ -447,6 +451,7 @@ function Invoke-Discord {
         embeds = $embedArray
     }
     $embedArray.Add($embedObject) | Out-Null
+    Invoke-ExpressionConsole -scmFunctionName 'Discord' -scmFunctionParams "Write-Output `"$site`n$series`n$episode`n$icon`n$color`""
     Invoke-RestMethod -Uri $discordHookUrl -Body ($payload | ConvertTo-Json -Depth 4) -Method Post -ContentType 'application/json' | Out-Null
 }
 
@@ -1652,7 +1657,7 @@ if ($site) {
         }
         $vsvFBCount = ($vsCompletedFilesList | Where-Object { $_._vsFBCompleted -eq $true } | Measure-Object).Count
         # Telegram
-        if ($sendTelegram) {
+        if ($sendTelegram -or $sendDiscord) {
             Write-Output "[Telegram] $(Get-Timestamp) - Preparing Telegram message."
             Do {
                 # Create a new instance of the Stopwatch
@@ -1675,11 +1680,16 @@ if ($site) {
                                 Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $siteHome. Success."
                                 $vsCompletedFilesList | ForEach-Object {
                                     $occurrenceCount++
-                                    Write-Output "[Telegram] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
-                                    $seriesEpisodeList = "<b>Site:</b> $($_._vsSite)`n<strong>Series:</strong> $($_._vsSeries)`n<strong>Episode:</strong> $($_._vsEpisode)"
-                                    Invoke-Telegram -sendTelegramMessage $seriesEpisodeList
-                                    Invoke-Discord -site $($_._vsSite) -series $($_._vsSeries) -episode $($_._vsEpisode) -icon $discordSiteIcon -color $discordSiteColor
-                                    # Check if the elapsed time exceeds 60 seconds
+                                    if ($sendTelegram) {
+                                        Write-Output "[Telegram] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
+                                        $seriesEpisodeList = "<b>Site:</b> $($_._vsSite)`n<strong>Series:</strong> $($_._vsSeries)`n<strong>Episode:</strong> $($_._vsEpisode)"
+                                        Invoke-Telegram -sendTelegramMessage $seriesEpisodeList
+                                    }
+                                    if ($sendDiscord) {
+                                        Write-Output "[Discord] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
+                                        Invoke-Discord -site $($_._vsSite) -series $($_._vsSeries) -episode $($_._vsEpisode) -icon $discordSiteIcon -color $discordSiteColor
+                                    }
+                                    # Check if the elapsed time exceeds 5 seconds and occurrence is right before a number divisable by 20
                                     if (($msgStopwatch.Elapsed.TotalSeconds -le 60) -and ($occurrenceCount % 20 -eq 0)) {
                                         # Reset the stopwatch
                                         $msgStopwatch.Reset()
@@ -1694,11 +1704,16 @@ if ($site) {
                                 Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $siteHome. Failure."
                                 $vsCompletedFilesList | ForEach-Object {
                                     $occurrenceCount++
-                                    Write-Output "[Telegram] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
-                                    $seriesEpisodeList = "<b>Site:</b> $($_._vsSite)`n<strong>Series:</strong> $($_._vsSeries)`n<strong>Episode:</strong> $($_._vsEpisode)"
-                                    Invoke-Telegram -sendTelegramMessage $seriesEpisodeList
-                                    Invoke-Discord -site $($_._vsSite) -series $($_._vsSeries) -episode $($_._vsEpisode) -icon $discordSiteIcon -color $discordSiteColor
-                                    # Check if the elapsed time exceeds 60 seconds
+                                    if ($sendTelegram) {
+                                        Write-Output "[Telegram] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
+                                        $seriesEpisodeList = "<b>Site:</b> $($_._vsSite)`n<strong>Series:</strong> $($_._vsSeries)`n<strong>Episode:</strong> $($_._vsEpisode)"
+                                        Invoke-Telegram -sendTelegramMessage $seriesEpisodeList
+                                    }
+                                    if ($sendDiscord) {
+                                        Write-Output "[Discord] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
+                                        Invoke-Discord -site $($_._vsSite) -series $($_._vsSeries) -episode $($_._vsEpisode) -icon $discordSiteIcon -color $discordSiteColor
+                                    }
+                                    # Check if the elapsed time exceeds 5 seconds and occurrence is right before a number divisable by 20
                                     if (($msgStopwatch.Elapsed.TotalSeconds -le 60) -and ($occurrenceCount % 20 -eq 0)) {
                                         # Reset the stopwatch
                                         $msgStopwatch.Reset()
@@ -1716,10 +1731,15 @@ if ($site) {
                         Write-Output "[Telegram] $(Get-Timestamp) - Sending message for files in $siteHome."
                         $vsCompletedFilesList | ForEach-Object {
                             $occurrenceCount++
-                            Write-Output "[Telegram] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
-                            $seriesEpisodeList = "<b>Site:</b> $($_._vsSite)`n<strong>Series:</strong> $($_._vsSeries)`n<strong>Episode:</strong> $($_._vsEpisode)"
-                            Invoke-Telegram -sendTelegramMessage $seriesEpisodeList
-                            Invoke-Discord -site $($_._vsSite) -series $($_._vsSeries) -episode $($_._vsEpisode) -icon $discordSiteIcon -color $discordSiteColor
+                            if ($sendTelegram) {
+                                Write-Output "[Telegram] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
+                                $seriesEpisodeList = "<b>Site:</b> $($_._vsSite)`n<strong>Series:</strong> $($_._vsSeries)`n<strong>Episode:</strong> $($_._vsEpisode)"
+                                Invoke-Telegram -sendTelegramMessage $seriesEpisodeList
+                            }
+                            if ($sendDiscord) {
+                                Write-Output "[Discord] $(Get-Timestamp) - Sending $occurrenceCount/$occurrenceTotal."
+                                Invoke-Discord -site $($_._vsSite) -series $($_._vsSeries) -episode $($_._vsEpisode) -icon $discordSiteIcon -color $discordSiteColor
+                            }
                             # Check if the elapsed time exceeds 5 seconds and occurrence is right before a number divisable by 20
                             if (($msgStopwatch.Elapsed.TotalSeconds -le 60) -and ($occurrenceCount % 20 -eq 0)) {
                                 # Reset the stopwatch

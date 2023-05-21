@@ -122,5 +122,6 @@ Telegram (optional):
 |-MKVMerge|-mk/-MK|Tells script to run `MKVMerge` against video and subtitle files to edit and embed subtitle if available| Expects presence of `.mkv` and `.ass` file.|
 |-SubtitleEdit|-se/-SE|Tells script to run `SubetitleEdit` to fix common problems with `.srt` files if they are present.| Expects presence of `.ass` subtitle file.|
 |-SendTelegram|-st/-ST|If Telegram `token` and `chatid` filled out in `config.xml` will send out message to chat group with out of new videos.| |
-| -AudioLang| -al/AL| Sets audio and video track to a given language code ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -AL ja |
-| -SubtitleLang| -sl/SL| Sets default subtitle track to a given language code for track that matches ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -SL en |
+|-SendDiscord|-sd/-SD|If Discord `webhook` and `icon` and `color` filled out in `config.xml` will send out `embed` message to discord channel of `webhook` of new videos.| |
+|-AudioLang| -al/AL| Sets audio and video track to a given language code ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -AL ja |
+|-SubtitleLang| -sl/SL| Sets default subtitle track to a given language code for track that matches ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -SL en |
