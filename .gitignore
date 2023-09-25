@@ -1,7 +1,12 @@
-config.xml
+**/log
+**/Anilist
+**/batch
+**/config.xml
 .vscode/
+*.code-workspace
 shared/
 fonts/
 sites/
 test/
 *.tff
+*.log

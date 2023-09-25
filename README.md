@@ -2,38 +2,38 @@
 Script used to fetch files with yt-dlp, fix subtitles, embed into video file, rename and move video files into media server folders.
 ## Prerequisites
 
-Windows
+Windows:
 - All file formatting is based on Windows
 
-Powershell 7+
+Powershell 7+:
 - Scripts probably work with earlier versions, but haven't tested them
 
-YT-dlp
+yt-dlp:
 - Downloading videos
 - https://github.com/yt-dlp/yt-dlp
   - Read this documenation first to understand how to setup your supporting files
 
-Ffmpeg
+FFMPEG:
 - Video downloader used with yt-dlp, remux, copy and move files with yt-dlp
 - https://github.com/BtbN/FFmpeg-Builds/releases
 
-Aria2c
+Aria2c:
 - Video downloader used with yt-dlp
 - https://github.com/aria2/aria2
 
-Mkvtoolnix
+Mkvtoolnix:
 - Embeds subtitle and fonts
 - https://mkvtoolnix.download/
 
-Filebot
+Filebot:
 - File renamer based on tvdb entries
 - https://www.filebot.net/
 
-Subtitle Edit
+Subtitle Edit:
 - Fixes common subtitle issues like text timings
 - https://www.nikse.dk/SubtitleEdit/
- 
-Plex (optional)
+
+Plex (optional):
 - Media Server
 - https://www.plex.tv/
 - Getting Plex token:
@@ -48,11 +48,8 @@ Plex (optional)
        - Library Id = `key`
           - ex: `key = "1"`
 
-Telegram (optional)
-- Used to send out a message of videos successfully downloaded to a group chat.
-- Personal account
-- Bot account
-- group chat
+Discord (optional):
+- Used to send out a message of videos downloaded to discord chat via webhook
 
 ## Script Setup/Execution Walkthrough:
 1. Install or download prereqs and map to PATH or configure as needed.
@@ -64,7 +61,7 @@ Telegram (optional)
    - Url, Token, LibraryIds to to plex
    - Site credentials and corresponding LibraryId for final destination
    - Optional:
-     - Fill out Telegram section with token and chatid to send notification of new video with `-st` parameter.
+     - Fill out Discord section with token and chatid to send notification of new video with `-sd` parameter.
 4. Run: `path\to\dlp-script.ps1 -SU` to generate supporting files
    - Generates
       - `fonts` folder
@@ -84,7 +81,7 @@ Telegram (optional)
       - `dlp-script.ps1` gathers initial variables based on parameters passed into script.
          - Log file is generated and located in `site` folder based on date/datetime
          - Creates base folder structure for `tmp`, `src`, `dest`.
-         - Runs `YT-DLP`, `SubtitleEdit`, `mkvmerge`, `Telegram` command based on parameters
+         - Runs `YT-DLP`, `SubtitleEdit`, `mkvmerge`, `Discord` command based on parameters
          - Each run puts files in folder based on timestamp of execution.
          - Temp files store in `tmp` location defined in  `config.xml`.
            - Then moved into `src` location defined in `config.xml`
@@ -121,6 +118,6 @@ Telegram (optional)
 |-Filebot|-f/-F|Tells script to run Filebot. Will take Plex folder name defined in config xml.| Outputs file with \{n}\{'Season '+s00}\{n\} - \{s00e00\} - \{t\}|
 |-MKVMerge|-mk/-MK|Tells script to run `MKVMerge` against video and subtitle files to edit and embed subtitle if available| Expects presence of `.mkv` and `.ass` file.|
 |-SubtitleEdit|-se/-SE|Tells script to run `SubetitleEdit` to fix common problems with `.srt` files if they are present.| Expects presence of `.ass` subtitle file.|
-|-SendTelegram|-st/-ST|If Telegram `token` and `chatid` filled out in `config.xml` will send out message to chat group with out of new videos.| |
-| -AudioLang| -al/AL| Sets audio and video track to a given language code ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -AL ja |
-| -SubtitleLang| -sl/SL| Sets default subtitle track to a given language code for track that matches ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -SL en |
+|-SendDiscord|-sd/-SD|If Discord `webhook` and `icon` and `color` filled out in `config.xml` will send out `embed` message to discord channel of `webhook` of new videos.| Outputs video information<br/><br/>Site Name and icon = `config.xml`<br/>Series = original `Directory` name<br/>Episode = original `Basename` of file<br/>Subtitles = takes lang tag(s) in original `Subtitle` filename <br/>Video/Audio codec(s), duration, quality = `ffprobe.exe` cli|
+|-AudioLang|-al/-AL|Sets audio and video track to a given language code ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -AL ja |
+|-SubtitleLang|-sl/-SL|Sets default subtitle track to a given language code for track that matches ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -SL en |
