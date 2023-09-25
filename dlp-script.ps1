@@ -1044,19 +1044,37 @@ function Update-SubtitleStyle {
     ($newStrings | Format-Table | Out-String) -split "`n" | Where-Object { $_.Trim() -ne '' } | ForEach-Object {
         Write-Output "[SubtitleRegex] $(Get-DateTime) - $_"
     }
-    Write-Output "[SubtitleRegex] $(Get-DateTime) - End of final updated line block to file."
-    $styles = "`n[V4+ Styles]`n$($newStrings[0])`n"
-    foreach ($n in $newStrings[1]) {
-        $styles += $n + "`n"
+    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - End of final updated line block to file."
+
+    foreach ($line in $subtitleContent) {
+        if ($subtitleLineNum -lt $startLine -or $subtitleLineNum -gt $endLine) {
+            $newSubtitleContent += $line
+        }
+        elseif ($subtitleLineNum -eq $startLine) {
+            $newSubtitleContent += $newStrings
+        }
+        $subtitleLineNum++
     }
-    # Bottom - Events Dialogue
-    $events = $subtitleContent | Select-Object -Skip $endLine
-    # Joining together
-    $top = $result | Where-Object { $_ -ne $null -and $_.Trim() -ne '' }
-    $styles = $styles | Where-Object { $_ -ne $null -and $_.Trim() -ne '' }
-    $events = $events | Where-Object { $_ -ne $null -and $_.Trim() -ne '' }
-    ($top + $styles + $events)| Set-Content $SubtitleFilePath
-    Write-Output "[SubtitleRegex] $(Get-DateTime) - Finished updating subtitle: $SubtitleFilePath."
+
+    Set-Content $SubtitleFilePath $newSubtitleContent
+
+    $subtitleContent = Get-Content $SubtitleFilePath
+    $subtitlePatterns = @{
+
+        '(?<=^Original Translation:).*' = ''
+        '(?<=^Original Editing:).*'     = ''
+        '(?<=^Original Timing:).*'      = ''
+        '(?<=^Script Updated By:).*'    = ''
+        '(?<=^Update Details:).*'       = ''
+        '(?<=^Original Script:).*'      = ''
+    }
+    foreach ($pattern in $subtitlePatterns.Keys) {
+        $subtitleContent = $subtitleContent | ForEach-Object { $_ -replace $pattern, $subtitlePatterns[$pattern] }
+    }
+
+    Set-Content -Path $SubtitleFilePath -Value $subtitleContent
+    Write-Output "[SubtitleRegex] $(Get-Timestamp) - Finished updating subtitle: $SubtitleFilePath."
+
 }
 # Setting up arraylist for MKV and Filebot lists
 class VideoStatus {
@@ -1200,6 +1218,9 @@ $xmlConfig = @'
                 <icon
                     url=""
                     color="" />
+                <icon
+                    url=""
+                    color="" />
             </site>
         -->
         <site sitename="">
@@ -1212,14 +1233,6 @@ $xmlConfig = @'
             <icon
                 url=""
                 color="" />
-        </site>
-        <site sitename="">
-            <username></username>
-            <password></password>
-            <plexlibraryid></plexlibraryid>
-            <parentfolder></parentfolder>
-            <subfolder></subfolder>
-            <font></font>
             <icon
                 url=""
                 color="" />
@@ -1231,6 +1244,23 @@ $xmlConfig = @'
             <parentfolder></parentfolder>
             <subfolder></subfolder>
             <font></font>
+            <icon
+                url=""
+                color="" />
+            <icon
+                url=""
+                color="" />
+        </site>
+        <site sitename="">
+            <username></username>
+            <password></password>
+            <plexlibraryid></plexlibraryid>
+            <parentfolder></parentfolder>
+            <subfolder></subfolder>
+            <font></font>
+            <icon
+                url=""
+                color="" />
             <icon
                 url=""
                 color="" />
@@ -1766,12 +1796,11 @@ if ($site) {
     }
     $debugVars = [ordered]@{Site = $siteName; IsDaily = $daily; UseLogin = $login; UseCookies = $cookies; UseArchive = $archive; SubtitleEdit = $subtitleEdit; `
             MKVMerge = $mkvMerge; VideoTrackName = $videoTrackName; AudioLang = $audioLang; AudioTrackName = $audioTrackName; SubtitleLang = $subtitleLang; SubtitleTrackName = $subtitleTrackName; Filebot = $filebot; `
-            discordHookUrl = $configFile.configuration.Discord.hook.url; discordSiteIcon = $siteNameParams.icon.url; discordSiteColor = $siteNameParams.icon.color; discordIconDefault = $configFile.configuration.Discord.icon.Default; `
-            discordColorDefault = $configFile.configuration.Discord.icon.Color; filebotDB = $filebotDB; filebotStructure = $filebotStructure; SiteNameRaw = $siteNameRaw; SiteType = $siteType; SiteUser = $siteUser; SitePass = $sitePass; `
-            SiteFolderIdName = $siteFolderIdName[0]; SiteFolder = $siteFolder; SiteParentFolder = $siteParentFolder; SiteSubFolder = $siteSubFolder; SiteLibraryId = $siteLibraryID; SiteTemp = $siteTemp; SiteSrcBase = $siteSrcBase; `
-            SiteSrc = $siteSrc; SiteHomeBase = $siteHomeBase; SiteHome = $siteHome; SiteDefaultPath = $siteDefaultPath; SiteConfig = $siteConfig; CookieFile = $cookieFile; Archive = $archiveFile; Bat = $batFile; Ffmpeg = $ffmpeg; `
-            SubFontName = $subFontName; SubFontExtension = $subFontExtension; SubFontDir = $subFontDir; SubType = $subType; VidType = $vidType; Backup = $srcBackup; `
-            BackupFont = $srcDriveSharedFonts; SiteConfigBackup = $siteConfigBackup; PlexHost = $plexHost; PlexToken = $plexToken; ConfigPath = $configPath; `
+            filebotDB = $filebotDB; filebotStructure = $filebotStructure; SiteNameRaw = $siteNameRaw; SiteType = $siteType; SiteUser = $siteUser; SitePass = $sitePass; SiteFolderIdName = $siteFolderIdName[0]; `
+            SiteFolder = $siteFolder; SiteParentFolder = $siteParentFolder; SiteSubFolder = $siteSubFolder; SiteLibraryId = $siteLibraryID; SiteTemp = $siteTemp; SiteSrcBase = $siteSrcBase; SiteSrc = $siteSrc;
+        SiteHomeBase = $siteHomeBase; SiteHome = $siteHome; SiteDefaultPath = $siteDefaultPath; SiteConfig = $siteConfig; CookieFile = $cookieFile; Archive = $archiveFile; Bat = $batFile; Ffmpeg = $ffmpeg; `
+            SubFontName = $subFontName; SubFontExtension = $subFontExtension; SubFontDir = $subFontDir; SubType = $subType; VidType = $vidType; Backup = $srcBackup; BackupShared = $srcBackupDriveShared; `
+            BackupFont = $srcDriveSharedFonts; SiteConfigBackup = $siteConfigBackup; PlexHost = $plexHost; PlexToken = $plexToken; telegramToken = $telegramToken; TelegramChatId = $telegramChatID; ConfigPath = $configPath; `
             ScriptDirectory = $scriptDirectory; dlpParams = $dlpParams
     }
     if ($testScript) {
