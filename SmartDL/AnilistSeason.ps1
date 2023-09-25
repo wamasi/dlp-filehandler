@@ -21,6 +21,38 @@ param(
 # Script Variables
 $scriptRoot = $PSScriptRoot
 $configFile = Join-Path $scriptRoot -ChildPath 'config.xml'
+if (!(Test-Path $configFile)) {
+    $baseXML = @"
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <Directory>
+    <backup location="D:\Backup" />
+  </Directory>
+  <characters>
+    <char>’</char>
+  </characters>
+  <Logs>
+    <keeplog emptylogskeepdays="0" filledlogskeepdays="7" />
+    <lastUpdated></lastUpdated>
+  </Logs>
+  <Discord>
+    <hook ScheduleServerUrl="" MediaServerUrl="" />
+    <icon default="" author="" footerIcon="" Color="" />
+    <sites>
+      <site siteName="" emoji="" />
+      <site siteName="" emoji="" />
+      <site siteName="Default" emoji="" />
+    </sites>
+  </Discord>
+</configuration>
+"@
+New-Item $configFile
+Set-Content $configFile -Value $baseXML
+Write-Host "No config found. Configure xml file: $configFile"
+exit
+}
+
+
 $logFolder = Join-Path $scriptRoot -ChildPath 'Log'
 $logfile = Join-Path $logFolder -ChildPath 'AnilistSeason.log'
 [xml]$config = Get-Content $configFile
@@ -1185,7 +1217,6 @@ If ($generateBatchFile) {
         New-Item -Path $destinationDirectory -ItemType Directory
     }
     $itemsToCopy = Get-ChildItem -Path $sourceDirectory | Where-Object { $_.Name -ne '_archive' }
-    $itemsToDelete = $itemsToCopy | Where-Object { $_.Name -eq 'Site' }
     $itemsToCopy | ForEach-Object {
         $destinationPath = Join-Path -Path $destinationDirectory -ChildPath $_.Name
         $_.FullName
@@ -1205,7 +1236,6 @@ If ($generateBatchFile) {
         $itemsToCopy | Where-Object { $_.Name -eq 'Site' } | ForEach-Object {
             Remove-Item $_.FullName -Recurse
         }
-        Start-Sleep -Seconds 3
         $baseData = $rawData | Where-Object { $_.download -eq $true }
         $uniqueSites = $baseData | Select-Object -ExpandProperty Site -Unique
         foreach ($site in $uniqueSites) {

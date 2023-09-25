@@ -27,6 +27,37 @@ function Write-Log {
 
 $scriptRoot = $PSScriptRoot
 $configFilePath = Join-Path $scriptRoot -ChildPath 'config.xml'
+if (!(Test-Path $configFile)) {
+    $baseXML = @"
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <Directory>
+    <backup location="D:\Backup" />
+  </Directory>
+  <characters>
+    <char>’</char>
+  </characters>
+  <Logs>
+    <keeplog emptylogskeepdays="0" filledlogskeepdays="7" />
+    <lastUpdated></lastUpdated>
+  </Logs>
+  <Discord>
+    <hook ScheduleServerUrl="" MediaServerUrl="" />
+    <icon default="" author="" footerIcon="" Color="" />
+    <sites>
+      <site siteName="" emoji="" />
+      <site siteName="" emoji="" />
+      <site siteName="Default" emoji="" />
+    </sites>
+  </Discord>
+</configuration>
+"@
+New-Item $configFile
+Set-Content $configFile -Value $baseXML
+Write-Host "No config found. Configure xml file: $configFile"
+exit
+}
+
 [xml]$configData = Get-Content $configFilePath
 $backupPath = $configData.configuration.Directory.backup.location
 $logFolder = Join-Path $scriptRoot -ChildPath 'Log'
