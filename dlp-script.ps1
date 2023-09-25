@@ -937,6 +937,8 @@ function Invoke-Filebot {
         Write-Output "[Filebot] $(Get-DateTime) - [Cleanup] - File needs processing."
     }
 }
+
+
 # Update Subtitle files with font name
 function Update-SubtitleStyle {
     param (
@@ -944,7 +946,6 @@ function Update-SubtitleStyle {
         $subFontName
     )
     # Top
-    Write-Output "[SubtitleRegex] $(Get-DateTime) - Updating tags for $SubtitleFilePath"
     $subtitleContentTags = Get-Content -Path $SubtitleFilePath -Raw
     $substring = $subtitleContentTags.Substring(0, $subtitleContentTags.IndexOf('[V4+ Styles]'))
     $result = @()
@@ -978,6 +979,7 @@ function Update-SubtitleStyle {
         '^YCbCr Matrix.*'          = 'YCbCr Matrix: TV.709'
     }
     $c = 0
+    # Extract existing values from original script lines
     $existingValues = @()
     foreach ($line in $result) {
         foreach ($pattern in $subtitlePatterns.Keys) {
@@ -986,10 +988,12 @@ function Update-SubtitleStyle {
             }
         }
     }
+    # Add new lines from the patterns and associated values if not already present
     foreach ($pattern in $subtitlePatterns.Keys) {
         $patternMatched = $false
         foreach ($value in $existingValues) {
             if ($value -match $pattern) {
+                Write-Output "pattern found: $pattern - $value"
                 $patternMatched = $true
                 $c++
                 break
@@ -1001,15 +1005,15 @@ function Update-SubtitleStyle {
             }
         }
     }
-    # Middle
-    Write-Output "[SubtitleRegex] $(Get-DateTime) - Updating Styles for $SubtitleFilePath"
     $subtitleContent = Get-Content $SubtitleFilePath
     $startLine = $subtitleContent | Select-String -Pattern '^Format:.*' | Select-Object -First 1 | ForEach-Object { $_.LineNumber }
     $endLine = $subtitleContent | Select-String -Pattern '^Style:.*' | Select-Object -Last 1 | ForEach-Object { $_.LineNumber }
     Write-Output "[SubtitleRegex] $(Get-DateTime) - Found lines $startLine to $endLine."
+    # Middle - format header
     $formatHeader = $subtitleContent | Select-String -Pattern '^Format:.*' | Select-Object -First 1
     [string]$formatStyleBlock = ''
     $formatStyleBlock += ($formatHeader -Replace ('^Format: ', '') -replace (', ', ','))
+    # Middle - style rows
     $subtitleContent | Select-String -Pattern '^Style:.*' | ForEach-Object {
         $formatStyleBlock += "`n" + ($_ -Replace ('^Style: ', '') -replace (', ', ','))
     }
@@ -1044,38 +1048,21 @@ function Update-SubtitleStyle {
     ($newStrings | Format-Table | Out-String) -split "`n" | Where-Object { $_.Trim() -ne '' } | ForEach-Object {
         Write-Output "[SubtitleRegex] $(Get-DateTime) - $_"
     }
-    Write-Output "[SubtitleRegex] $(Get-TimeStamp) - End of final updated line block to file."
-
-    foreach ($line in $subtitleContent) {
-        if ($subtitleLineNum -lt $startLine -or $subtitleLineNum -gt $endLine) {
-            $newSubtitleContent += $line
-        }
-        elseif ($subtitleLineNum -eq $startLine) {
-            $newSubtitleContent += $newStrings
-        }
-        $subtitleLineNum++
+    Write-Output "[SubtitleRegex] $(Get-DateTime) - End of final updated line block to file."
+    $styles = "`n[V4+ Styles]`n$($newStrings[0])`n"
+    foreach ($n in $newStrings[1]) {
+        $styles += $n + "`n"
     }
-
-    Set-Content $SubtitleFilePath $newSubtitleContent
-
-    $subtitleContent = Get-Content $SubtitleFilePath
-    $subtitlePatterns = @{
-
-        '(?<=^Original Translation:).*' = ''
-        '(?<=^Original Editing:).*'     = ''
-        '(?<=^Original Timing:).*'      = ''
-        '(?<=^Script Updated By:).*'    = ''
-        '(?<=^Update Details:).*'       = ''
-        '(?<=^Original Script:).*'      = ''
-    }
-    foreach ($pattern in $subtitlePatterns.Keys) {
-        $subtitleContent = $subtitleContent | ForEach-Object { $_ -replace $pattern, $subtitlePatterns[$pattern] }
-    }
-
-    Set-Content -Path $SubtitleFilePath -Value $subtitleContent
-    Write-Output "[SubtitleRegex] $(Get-Timestamp) - Finished updating subtitle: $SubtitleFilePath."
-
+    $styles = $styles
+    # bottom
+    $events = $subtitleContent | Select-Object -Skip $endLine
+    $top = $result | Where-Object { $_ -ne $null -and $_.Trim() -ne '' }
+    $styles = $styles | Where-Object { $_ -ne $null -and $_.Trim() -ne '' }
+    $events = $events | Where-Object { $_ -ne $null -and $_.Trim() -ne '' }
+    ($top + $styles + $events)| Set-Content $SubtitleFilePath
+    Write-Output "[SubtitleRegex] $(Get-DateTime) - Finished updating subtitle: $SubtitleFilePath."
 }
+
 # Setting up arraylist for MKV and Filebot lists
 class VideoStatus {
     [string]$_vsSite
