@@ -52,9 +52,6 @@ Write-Host "No config found. Configure xml file: $configFilePath"
 exit
 }
 
-
-$logFolder = Join-Path $scriptRoot -ChildPath 'Log'
-$logfile = Join-Path $logFolder -ChildPath 'AnilistSeason.log'
 [xml]$config = Get-Content $configFilePath
 if ($debugScript) {
     $discordHookUrl = $config.configuration.Discord.hook.TestServerUrl
@@ -64,14 +61,15 @@ else {
 }
 $discordSiteIcon = $config.configuration.Discord.icon.default
 $siteFooterIcon = $config.configuration.Discord.icon.footerIcon
-$rootPath = Join-Path $scriptRoot -ChildPath 'Batch'
+$rootPath = Join-Path $scriptRoot -ChildPath 'batch'
 $batchArchiveFolder = Join-Path $rootPath -ChildPath '_archive'
 $lastUpdated = $config.configuration.logs.lastUpdated
 $emojis = $config.configuration.Discord.sites.site
 $badchar = $config.configuration.characters.char
 
 $logFolder = Join-Path $scriptRoot -ChildPath 'log'
-$csvFolder = Join-Path $scriptRoot -ChildPath 'Anilist'
+$logfile = Join-Path $logFolder -ChildPath 'anilistSeason.log'
+$csvFolder = Join-Path $scriptRoot -ChildPath 'anilist'
 
 $badURLs = 'https://www.crunchyroll.com/', 'https://www.crunchyroll.com', 'https://www.hidive.com/', 'https://www.hidive.com'
 $supportSites = 'Crunchyroll', 'Hidive', 'Netflix', 'Hulu'
@@ -83,7 +81,7 @@ $pby = (Get-Date(($today).AddYears(-1)) -Format 'yyyy').ToString()
 $cbyShort = $cby.Substring(2)
 $pbyShort = $pby.Substring(2)
 
-$csvFilePath = Join-Path $csvFolder -ChildPath "AnilistSeason_$($pbyShort)-$($cbyShort).csv"
+$csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_$($pbyShort)-$($cbyShort).csv"
 
 $allShows = @()
 $allEpisodes = @()
@@ -767,8 +765,8 @@ if ($GenerateAnilistFile) {
     do {
         $aType = Read-Host 'Run for (S)eason or (D)ate?'
         switch ($aType) {
-            'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "AnilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
-            'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "AnilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
+            'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
+            'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
             Default { Write-Output 'Enter S or D' }
         }
     } while (
@@ -1122,8 +1120,8 @@ If ($setDownload) {
     do {
         $sdType = Read-Host 'Set downloads by (S)eason or (D)ate?'
         switch ($sdType) {
-            'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "AnilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
-            'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "AnilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
+            'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
+            'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
             Default { Write-Output 'Enter S or D' }
         }
         if (!(Test-Path $csvFilePath)) {
@@ -1207,7 +1205,7 @@ If ($generateBatchFile) {
     Write-Host "D: $d; S: $s"
     # creating a backup everytime a new batch is created
     $date = Get-DateTime 2
-    $newBackupPath = Join-Path $batchArchiveFolder -ChildPath "Batch_$date"
+    $newBackupPath = Join-Path $batchArchiveFolder -ChildPath "batch_$date"
     if (!(Test-Path $newBackupPath)) {
         New-Item $newBackupPath -ItemType Directory
     }
@@ -1225,7 +1223,7 @@ If ($generateBatchFile) {
     }
 
     if ($d -eq $True) {
-        $csvFilePath = Join-Path $csvFolder -ChildPath "AnilistSeason_D_$($pbyShort)-$($cbyShort).csv"
+        $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv"
         Set-CSVFormatting $csvFilePath
         $rawData = (Import-Csv $csvFilePath) | Where-Object {
             $_.site -notin 'Hulu', 'Netflix' -and (
@@ -1241,7 +1239,7 @@ If ($generateBatchFile) {
         foreach ($site in $uniqueSites) {
             # Filter data for the current site
             $siteData = $baseData | Where-Object { $_.Site -eq $site }
-            $basepath = Join-Path $rootPath -ChildPath 'Site'
+            $basepath = Join-Path $rootPath -ChildPath 'site'
             $siteRootPath = Join-Path $basepath -ChildPath $site
             if (!(Test-Path $siteRootPath ) ) {
                 Write-Log -Message "[Batch] $(Get-DateTime) - Creating folder for $siteRootPath" -LogFilePath $logFile
@@ -1296,9 +1294,9 @@ If ($generateBatchFile) {
         }
     }
     if ($s -eq $True) {
-        $csvFilePath = Join-Path $csvFolder -ChildPath "AnilistSeason_S_$($pbyShort)-$($cbyShort).csv"
+        $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv"
         Set-CSVFormatting $csvFilePath
-        $baseSeasonPath = Join-Path $rootPath -ChildPath 'Season'
+        $baseSeasonPath = Join-Path $rootPath -ChildPath 'season'
         if (!(Test-Path $baseSeasonPath)) {
             New-Item $baseSeasonPath -ItemType Directory
         }
@@ -1375,7 +1373,7 @@ If ($sendDiscord) {
     }
     Write-Log -Message "[Discord] $(Get-DateTime) - Current lastUpdated: $lastUpdated " -LogFilePath $logFile
     $newLastUpdated = Get-Date -Format 'MM-dd-yyyy HH:mm:ss'
-    $csvFilePath = Join-Path $csvFolder -ChildPath "AnilistSeason_D_$($pbyShort)-$($cbyShort).csv"
+    $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv"
     Set-CSVFormatting $csvFilePath
     if (Test-Path $csvFilePath ) {
         $origin = (Import-Csv $csvFilePath) | Where-Object { $_.Download -eq $True } | Group-Object -Property Site

@@ -64,9 +64,9 @@ $dlpScript = Join-Path $dlpPath -ChildPath '\dlp-script.ps1'
 
 [xml]$configData = Get-Content $configFilePath
 $backupPath = $configData.configuration.Directory.backup.location
-$logFolder = Join-Path $scriptRoot -ChildPath 'Log'
-$logfile = Join-Path $logFolder -ChildPath 'SmartDL.log'
-$siteBatFolder = Join-Path $scriptRoot -ChildPath 'Batch\Site'
+$logFolder = Join-Path $scriptRoot -ChildPath 'log'
+$logfile = Join-Path $logFolder -ChildPath 'smartDL.log'
+$siteBatFolder = Join-Path $scriptRoot -ChildPath 'batch\site'
 $now = Get-Date
 $currentDate = Get-Date $now -Hour 0 -Minute 0 -Second 0 -Millisecond 0
 $weekday = Get-Date $currentDate -Format 'dddd'
