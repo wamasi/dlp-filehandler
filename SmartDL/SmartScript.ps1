@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param(
+    [switch]$dailyRuns,
     [switch]$backup
 )
 
@@ -27,7 +28,7 @@ function Write-Log {
 
 $scriptRoot = $PSScriptRoot
 $configFilePath = Join-Path $scriptRoot -ChildPath 'config.xml'
-if (!(Test-Path $configFile)) {
+if (!(Test-Path $configFilePath)) {
     $baseXML = @"
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -52,11 +53,14 @@ if (!(Test-Path $configFile)) {
   </Discord>
 </configuration>
 "@
-New-Item $configFile
-Set-Content $configFile -Value $baseXML
-Write-Host "No config found. Configure xml file: $configFile"
+New-Item $configFilePath
+Set-Content $configFilePath -Value $baseXML
+Write-Host "No config found. Configure xml file: $configFilePath"
 exit
 }
+
+$dlpPath = Resolve-Path "$scriptRoot\.."
+$dlpScript =Join-Path $dlpPath -ChildPath '\dlp-script.ps1'
 
 [xml]$configData = Get-Content $configFilePath
 $backupPath = $configData.configuration.Directory.backup.location
@@ -86,7 +90,11 @@ else {
     }
 }
 
-if (!($backup)) {
+if (!(Test-Path $dlpScript)) {
+    Write-Log -Message "[Start] $(Get-DateTime) - dlp-FileHandler script not found at $dlpscript. Exiting...$spacer" -LogFilePath $logFile
+}
+
+if ($dailyRuns) {
     Write-Log -Message "[Start] $(Get-DateTime) - Running for $weekday" -LogFilePath $logFile
     Get-ChildItem $siteBatFolder | ForEach-Object {
         $site = $_.Name
@@ -98,13 +106,13 @@ if (!($backup)) {
             switch ($site) {
                 'Crunchyroll' {
                     Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $weekday - $batchFile" -LogFilePath $logFile
-                    $return = pwsh.exe 'D:\_DL\dlp-script.ps1' -sn Crunchyroll -d -l -mk -f -a -al ja -sl en -sd -overrideBatch $batchFile
+                    $return = pwsh.exe $dlpScript -sn Crunchyroll -d -l -mk -f -a -al ja -sl en -sd -overrideBatch $batchFile
                     $message = $return -match '\[DLP-Script\]*' | ForEach-Object { $_ }
                     Write-Log -Message "$message" -LogFilePath $logFile
                 }
                 'HIDIVE' {
                     Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $weekday - $batchFile" -LogFilePath $logFile
-                    $return = pwsh.exe 'D:\_DL\dlp-script.ps1' -sn Hidive -d -c -mk -f -se -a -al ja -sl en -sd -overrideBatch $batchFile
+                    $return = pwsh.exe $dlpScript -sn Hidive -d -c -mk -f -se -a -al ja -sl en -sd -overrideBatch $batchFile
                     $message = $return -match '\[DLP-Script\]*' | ForEach-Object { $_ }
                     Write-Log -Message "$message" -LogFilePath $logFile
                 }
@@ -113,7 +121,7 @@ if (!($backup)) {
         }
     }
 }
-else {
+if ($backup) {
     $date = Get-DateTime 2
     $smartDLBackupPathRoot = (Join-Path $backupPath -ChildPath 'SmartDL')
     $bPath = Join-Path $smartDLBackupPathRoot -ChildPath "SmartDL_$date"

@@ -20,8 +20,8 @@ param(
 
 # Script Variables
 $scriptRoot = $PSScriptRoot
-$configFile = Join-Path $scriptRoot -ChildPath 'config.xml'
-if (!(Test-Path $configFile)) {
+$configFilePath = Join-Path $scriptRoot -ChildPath 'config.xml'
+if (!(Test-Path $configFilePath)) {
     $baseXML = @"
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -46,16 +46,16 @@ if (!(Test-Path $configFile)) {
   </Discord>
 </configuration>
 "@
-New-Item $configFile
-Set-Content $configFile -Value $baseXML
-Write-Host "No config found. Configure xml file: $configFile"
+New-Item $configFilePath
+Set-Content $configFilePath -Value $baseXML
+Write-Host "No config found. Configure xml file: $configFilePath"
 exit
 }
 
 
 $logFolder = Join-Path $scriptRoot -ChildPath 'Log'
 $logfile = Join-Path $logFolder -ChildPath 'AnilistSeason.log'
-[xml]$config = Get-Content $configFile
+[xml]$config = Get-Content $configFilePath
 if ($debugScript) {
     $discordHookUrl = $config.configuration.Discord.hook.TestServerUrl
 }
@@ -1490,7 +1490,7 @@ If ($sendDiscord) {
     }
     $config.configuration.logs.lastUpdated = $newLastUpdated
     Write-Log -Message "[Discord] $(Get-DateTime) - New lastUpdated: $newLastUpdated" -LogFilePath $logFile
-    $config.Save($configFile)
+    $config.Save($configFilePath)
     Start-Sleep -Seconds 2
 }
 Write-Log -Message "[End] $(Get-DateTime) - End of script.$spacer" -LogFilePath $logFile
