@@ -22,7 +22,7 @@ param(
 $scriptRoot = $PSScriptRoot
 $configFilePath = Join-Path $scriptRoot -ChildPath 'config.xml'
 if (!(Test-Path $configFilePath)) {
-    $baseXML = @"
+    $baseXML = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <Directory>
@@ -45,11 +45,11 @@ if (!(Test-Path $configFilePath)) {
     </sites>
   </Discord>
 </configuration>
-"@
-New-Item $configFilePath
-Set-Content $configFilePath -Value $baseXML
-Write-Host "No config found. Configure xml file: $configFilePath"
-exit
+'@
+    New-Item $configFilePath
+    Set-Content $configFilePath -Value $baseXML
+    Write-Host "No config found. Configure xml file: $configFilePath"
+    exit
 }
 
 [xml]$config = Get-Content $configFilePath
@@ -72,7 +72,12 @@ $logfile = Join-Path $logFolder -ChildPath 'anilistSeason.log'
 $csvFolder = Join-Path $scriptRoot -ChildPath 'anilist'
 
 $badURLs = 'https://www.crunchyroll.com/', 'https://www.crunchyroll.com', 'https://www.hidive.com/', 'https://www.hidive.com'
-$supportSites = 'Crunchyroll', 'Hidive', 'Netflix', 'Hulu'
+$supportSites = 'Crunchyroll', 'HIDIVE', 'Netflix', 'Hulu'
+$SiteCountList = @()
+foreach ($ss in $supportSites) {
+    $a = [PSCustomObject]@{Site = $ss; ShowCount = 0 }
+    $SiteCountList += $a
+}
 $spacer = "`n" + '-' * 120
 $now = Get-Date
 $today = Get-Date $now -Hour 0 -Minute 0 -Second 0 -Millisecond 0
@@ -396,8 +401,6 @@ function Invoke-AnilistApiShowDate {
             }
         }
 
-
-        #$response = Invoke-WebRequest -Uri $url -Method POST -Body $initialBody -ContentType 'application/json' -RetryIntervalSec 5
         $c = $response.Content | ConvertFrom-Json
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $nextPage = $c.data.Page.pageInfo.hasNextPage
@@ -420,9 +423,10 @@ function Invoke-AnilistApiShowDate {
 
 function Invoke-AnilistApiShowSeason {
     param (
+        
+        $id,
         $year,
-        $season,
-        $id
+        $season
     )
     $allSeasonShows = @()
     $pageNum = 1
@@ -447,7 +451,7 @@ function Invoke-AnilistApiShowSeason {
             query = @"
 {
   Page(page: $pageNum, perPage: $perPageNum) {
-    media($($mediaFilter), type: ANIME) {
+    media($mediaFilter, type: ANIME) {
       id
       episodes
       title {
@@ -469,7 +473,7 @@ function Invoke-AnilistApiShowSeason {
         month
         day
       }
-      externalLinks{
+      externalLinks {
         site
         url
       }
@@ -482,8 +486,6 @@ function Invoke-AnilistApiShowSeason {
 }
 "@
         } | ConvertTo-Json
-        #$response = Invoke-RestMethod -Uri $url -Method Post -Headers $headers -Body $initialBody
-
 
         $maxRetries = 3
         $retryIntervalSec = 5
@@ -510,7 +512,6 @@ function Invoke-AnilistApiShowSeason {
             }
         }
 
-        #$response = Invoke-WebRequest -Uri $url -Method POST -Body $initialBody -ContentType 'application/json'
         $c = $response.Content | ConvertFrom-Json
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $nextPage = $c.data.Page.pageInfo.hasNextPage
@@ -557,6 +558,7 @@ function Invoke-AnilistApiEpisode {
 {
   Page(page: $($pageNum), perPage: 20) {
     airingSchedules($mediaFilter) {
+      id
       episode
       airingAt
       media {
@@ -602,7 +604,7 @@ function Invoke-AnilistApiEpisode {
         $s = $c.data.page.airingSchedules
         $s
         $nextPage = $c.data.page.pageInfo.hasNextPage
-        $ae += $s | Select-Object episode, airingAt, @{name = 'id'; expression = { $_.media.id } }
+        $ae += $s | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, episode, airingAt
         Write-Host "added: $($s.count)"
         if ($nextPage) {
             $pageNum++
@@ -659,6 +661,7 @@ function Invoke-AnilistApiDateRange {
 {
   Page(page: $pageNum, perPage: $perPageNum) {
     airingSchedules($mediaFilter) {
+      id
       episode
       airingAt
       media {
@@ -699,7 +702,6 @@ function Invoke-AnilistApiDateRange {
             operationName = $null
         } | ConvertTo-Json
 
-
         $maxRetries = 3
         $retryIntervalSec = 5
 
@@ -725,7 +727,6 @@ function Invoke-AnilistApiDateRange {
             }
         }
 
-        #$response = Invoke-WebRequest -Uri $url -Method POST -Body $body -ContentType 'application/json'
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $c = $response.Content | ConvertFrom-Json
         $s = $c.data.page.airingSchedules
@@ -775,7 +776,7 @@ if ($GenerateAnilistFile) {
     if (Test-Path $csvFilePath) {
         Remove-Item -LiteralPath $csvFilePath
     }
-
+    Write-Host "$aType - $csvFilePath"
     $dStartUnix = Get-FullUnixDay $csvStartDate
     $dEndunix = Get-FullUnixDay $csvEndDate
 
@@ -784,12 +785,12 @@ if ($GenerateAnilistFile) {
         $sShow = Invoke-AnilistApiShowSeason -id 21
         $allShows += $sShow
         # Fetching the rest by CBY/PBY and season
-        foreach ($s in $SeasonDates.Keys) {
-            if ($s -eq 'FALL') {
-                $sShow = Invoke-AnilistApiShowSeason -year $pby -season $s
+        foreach ($seasonName in $seasonOrder.Keys) {
+            if ($seasonName -eq 'FALL') {
+                $sShow = Invoke-AnilistApiShowSeason -year $pby -season $seasonName
                 $allShows += $sShow
             }
-            $sShow = Invoke-AnilistApiShowSeason -year $cby -season $s
+            $sShow = Invoke-AnilistApiShowSeason -year $cby -season $seasonName
             $allShows += $sShow
         }
     }
@@ -878,7 +879,7 @@ if ($GenerateAnilistFile) {
     }
 
     foreach ($s in $anime) {
-        $id = $s.id
+        $showId = $s.id
         $title = $s.Title
         $totalEpisodes = $s.TotalEpisodes
         $season = $s.season
@@ -890,8 +891,8 @@ if ($GenerateAnilistFile) {
         $url = $s.url
         $genres = $s.genres
         $download = $s.download
-        foreach ($e in ($allEpisodes | Where-Object { $_.id -eq $id })) {
-            $episode = $e.id
+        foreach ($e in ($allEpisodes | Where-Object { $_.ShowId -eq $showId })) {
+            $episodeId = $e.EpisodeId
             $episode = $e.episode
             $airingFullTime = Get-UnixToLocal -unixTime $e.airingAt
             $airingFullTimeFixed = Get-Date $airingFullTime -Format 'MM/dd/yyyy HH:mm:ss'
@@ -900,7 +901,8 @@ if ($GenerateAnilistFile) {
             $weekday = Get-Date $airingFullTime -Format 'dddd'
             Write-Output "$title - $episode - $airingFullTimeFixed - $genres"
             $a = [PSCustomObject]@{
-                Id             = $id
+                ShowId         = $showId
+                EpisodeId      = $episodeId
                 Title          = $title
                 Episode        = [int]$episode
                 TotalEpisodes  = [int]$totalEpisodes
@@ -1192,9 +1194,9 @@ If ($generateBatchFile) {
             $daily = Read-Host 'Generate Daily(D) or Season(S) or Both(B)'
         }
         switch ($daily) {
-            'D' { $d = $True; $s = $false }
-            'S' { $d = $false; $s = $True }
-            'B' { $d = $True; $s = $True }
+            'D' { $dateBatch = $True; $seasonBatch = $false }
+            'S' { $dateBatch = $false; $seasonBatch = $True }
+            'B' { $dateBatch = $True; $seasonBatch = $True }
             Default { Write-Host 'Enter D, S, or B' }
         }
     } while (
@@ -1202,7 +1204,7 @@ If ($generateBatchFile) {
     )
     $cutoffStart = $today.AddDays(-7)
     $cutoffEnd = $today.AddDays(7)
-    Write-Host "D: $d; S: $s"
+    Write-Host "D: $dateBatch; S: $seasonBatch"
     # creating a backup everytime a new batch is created
     $date = Get-DateTime 2
     $newBackupPath = Join-Path $batchArchiveFolder -ChildPath "batch_$date"
@@ -1222,7 +1224,7 @@ If ($generateBatchFile) {
         Copy-Item -Path $_.FullName -Destination $destinationPath -Recurse
     }
 
-    if ($d -eq $True) {
+    if ($dateBatch -eq $True) {
         $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv"
         Set-CSVFormatting $csvFilePath
         $rawData = (Import-Csv $csvFilePath) | Where-Object {
@@ -1293,7 +1295,7 @@ If ($generateBatchFile) {
             }
         }
     }
-    if ($s -eq $True) {
+    if ($seasonBatch -eq $True) {
         $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv"
         Set-CSVFormatting $csvFilePath
         $baseSeasonPath = Join-Path $rootPath -ChildPath 'season'
@@ -1418,7 +1420,7 @@ If ($sendDiscord) {
                     $showCount++
                     $sCount++
                 }
-                $siteList | Where-Object { $_.Site -eq $sdSite } | ForEach-Object { $_.ShowCount = $sCount }
+                $SiteCountList | Where-Object { $_.Site -eq $sdSite } | ForEach-Object { $_.ShowCount = $sCount }
             }
             switch ($sdSite) {
                 { 'Hidive', 'Crunchyroll', 'Hulu', 'Netflix' -contains $_ } { $emoji = $emojiList | Where-Object { $_.siteName -eq $sdSite } | Select-Object -ExpandProperty siteEmoji }
@@ -1450,7 +1452,7 @@ If ($sendDiscord) {
             url = $discordSiteIcon
         }
         $siteFooterText = @()
-        foreach ($f in $siteList) {
+        foreach ($f in $SiteCountList) {
             $siteFooterText += "$($f.Site) - $($f.Showcount)"
         }
         $siteFooterText = $siteFooterText -join ' | '
