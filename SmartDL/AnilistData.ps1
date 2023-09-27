@@ -5,7 +5,7 @@ param(
     [Alias('G')]
     [switch]$GenerateAnilistFile,
     [Alias('U')]
-    [switch]$UpdateSeasonFile,
+    [switch]$updateAnilistCSV,
     [Alias('D')]
     [switch]$SetDownload,
     [Alias('B')]
@@ -929,7 +929,57 @@ if ($GenerateAnilistFile) {
     Write-Output "[Setup] $(Get-DateTime) - Updating $csvFilePath"
     $data | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
 }
+if ($updateAnilistCSV) {
+    if ($Automated) {
+        $aType = 'D'
+    }
+    else {
+        do {
+            $aType = Read-Host 'Run for (S)eason or (D)ate?'
+            if ($aType -notin 'S', 'D') {
+                Write-Output 'Enter S or D' 
+            }
+        } while (
+            $aType -notin 'S', 'D'
+        )
+    }
+    
+    switch ($aType) {
+        'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
+        'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
+    }
 
+    if (!(Test-Path $csvFilePath)) {
+        Write-Log -Message "[Check] $(Get-DateTime) - File does not exist:  $csvFilePath" -LogFilePath $logFile
+        Write-Log -Message "[End] $(Get-DateTime) - End of script.$spacer" -LogFilePath $logFile
+        exit
+    }
+    $startDate = $today
+    $maxDay = ($csvEndDate - $today).days
+    $start = 0
+
+    $csvFileData = Import-Csv $csvFilePath
+    $oShowIdList = $csvFileData | Where-Object {
+        $dateObject = [DateTime]::ParseExact($_.AirDate, 'MM/dd/yyyy', $null)
+        $dateObject -ge $today }
+    | Select-Object -ExpandProperty ShowId -Unique
+    #Chunk the Ids into groups of 20
+    $chunkSize = 20
+    $chunkedIdList = @()
+    for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
+        $chunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
+    }
+    while ($start -lt $maxDay) {
+        $start++
+        $startUnix, $endUnix = Get-FullUnixDay -Date $startDate
+        Write-Log -Message "[Generate] $(Get-DateTime) - $($start)/$($maxDay) - $startDate - $startUnix - $endUnix" -LogFilePath $logFile
+        foreach ($c in $chunkedIdList) {
+            $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $endUnix -id $c
+        }
+        $startDate.AddDays(1)
+    }
+    exit
+}
 # need to redo everything.
 # if ($UpdateSeasonFile) {
 #     # Bypass runtime day with override switch otherwise only run on mondays
