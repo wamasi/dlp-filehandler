@@ -243,68 +243,54 @@ function Add-UniqueRecords {
 
 function Update-Records {
     param (
-        $sourceData,
-        $targetData
+        $source,
+        $target
     )
-
-
-    # hold new shows
-    $newShows = @()
-    # Create a hashtable for faster lookup of source data by Id and Episode
-    $sourceLookup = @{}
-    $sourceData | ForEach-Object {
-        if ($_.Id -and $_.Episode) {
-            $key = "$($_.Id)-$($_.Episode)"
-            $sourceLookup[$key] = $_
-        }
-    }
-
-    # This will hold the final combined data
-    $finalData = @()
-
-    # Compare and update/append records
-    $targetData | ForEach-Object {
-        $targetRecord = $_
-        if ($targetRecord.Id -and $targetRecord.Episode) {
-            $key = "$($targetRecord.Id)-$($targetRecord.Episode)"
-            $sourceRecord = $sourceLookup[$key]
-
-            # If the record exists in the source data
-            if ($sourceRecord) {
-                # Compare the two records (excluding the Id and Episode columns for comparison)
-                $isDifferent = $false
-                $targetRecord.PSObject.Properties | Where-Object { $_.Name -ne 'Id' -and $_.Name -ne 'Episode' } | ForEach-Object {
-                    if ($sourceRecord.$($_.Name) -ne $targetRecord.$($_.Name)) {
-                        $isDifferent = $true
-                    }
-                    $isDifferent
+    # Initialize an array to store new datasets
+    $newDataArray = @()
+    # Loop through each record in target
+    foreach ($t in $target) {
+        $s = $source | Where-Object { $_.ShowId -eq $t.ShowId -and $_.EpisodeId -eq $t.EpisodeId }
+        $newData = [ordered]@{}
+        if ($s) {
+            # Existing record, perform comparison
+            foreach ($property in $s.PSObject.Properties.Name) {
+                if ($property -eq 'Download') {
+                    $newData[$property] = $s.$property  # Keep the value from source
                 }
-
-                # If the records are different, add the target record to final data
-                if ($isDifferent) {
-                    $finalData += $targetRecord
-                }
+                # elseif ($s.$property -eq $t.$property) {
+                #     $newData[$property] = $s.$property
+                # }
                 else {
-                    # If the records are the same, add one of them to the final data
-                    $finalData += $sourceRecord
+                    $newData[$property] = ($t.$property)
                 }
-
-                # Remove the matched record from the source lookup to prevent reprocessing
-                $sourceLookup.Remove($key)
-            }
-            else {
-                $newShows += $targetRecord
-                # If the record doesn't exist in the source data, append it to final data
-                $finalData += $targetRecord
             }
         }
+        else {
+            # New record, just copy from target
+            foreach ($property in $t.PSObject.Properties.Name) {
+                $newData[$property] = $t.$property
+            }
+        }
+        $newDataArray += [PSCustomObject]$newData
     }
-    $newShows = $newShows | Select-Object site, Title, TotalEpisodes -Unique
-    # Add any remaining records from the source that weren't matched with the target
-    $finalData += $sourceLookup.Values | Where-Object { $_.Id -and $_.Episode }
-    return $finalData, $newShows
+    # Loop through each record in source to find records not present in target
+    foreach ($s in $source) {
+        $n = $newDataArray | Where-Object { $_.ShowId -eq $s.ShowId -and $_.EpisodeId -eq $s.EpisodeId }
+        # If a corresponding record is NOT found in target
+        if (-not $n) {
+            # Initialize an empty ordered dictionary to store the new dataset
+            $newData = [ordered]@{}
+            # Copy all properties from the record in source
+            foreach ($property in $s.PSObject.Properties.Name) {
+                $newData[$property] = $s.$property
+            }
+            # Convert the ordered dictionary to a custom object and add it to the array
+            $newDataArray += [PSCustomObject]$newData
+        }
+    }
+    return $newDataArray
 }
-
 function Update-SiteGroups {
     param (
         $data
@@ -348,6 +334,7 @@ function Invoke-AnilistApiShowDate {
         }
         episodes
         genres
+        status
         season
         seasonYear
         startDate {
@@ -405,6 +392,12 @@ function Invoke-AnilistApiShowDate {
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $nextPage = $c.data.Page.pageInfo.hasNextPage
         $allSeasonShows += $c.data.Page.airingSchedules.media
+        | Select-Object @{name = 'ShowId'; expression = { $_.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, @{name = 'episodes'; expression = { $_.episodes } }, `
+            airingAt, @{name = 'TitleEnglish'; expression = { $_.title.english } }, @{name = 'TitleRomanji'; expression = { $_.title.romaji } }, `
+        @{name = 'TitleNative'; expression = { $_.title.native } }, @{name = 'Genres'; expression = { $_.genres -join ', ' } }, `
+        @{name = 'Status'; expression = { $_.status } }, @{name = 'Season'; expression = { $_.season } }, @{name = 'SeasonYear'; expression = { $_.seasonYear } } , `
+        @{name = 'StartDate'; expression = { "$($_.startDate.month)/$($_.startDate.day)/$($_.startDate.year)" } }, `
+        @{name = 'EndDate'; expression = { "$($_.endDate.month)/$($_.endDate.day)/$($_.endDate.year)" } }, externalLinks
         if ($nextPage) {
             $pageNum++
             Write-Host "Next Page: $pageNum - $start/$end"
@@ -516,6 +509,12 @@ function Invoke-AnilistApiShowSeason {
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $nextPage = $c.data.Page.pageInfo.hasNextPage
         $allSeasonShows += $c.data.Page.media
+        | Select-Object @{name = 'ShowId'; expression = { $_.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, `
+            airingAt, @{name = 'TitleEnglish'; expression = { $_.title.english } }, @{name = 'TitleRomanji'; expression = { $_.title.romaji } }, `
+        @{name = 'TitleNative'; expression = { $_.title.native } }, @{name = 'Genres'; expression = { $_.genres -join ', ' } }, `
+        @{name = 'Status'; expression = { $_.status } }, @{name = 'Season'; expression = { $_.season } }, @{name = 'SeasonYear'; expression = { $_.seasonYear } } , `
+        @{name = 'StartDate'; expression = { "$($_.startDate.month)/$($_.startDate.day)/$($_.startDate.year)" } }, `
+        @{name = 'EndDate'; expression = { "$($_.endDate.month)/$($_.endDate.day)/$($_.endDate.year)" } }, externalLinks
         if ($nextPage) {
             $pageNum++
             if ($season) {
@@ -601,10 +600,8 @@ function Invoke-AnilistApiEpisode {
 
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $c = $response.Content | ConvertFrom-Json
-        $s = $c.data.page.airingSchedules
-        $s
         $nextPage = $c.data.page.pageInfo.hasNextPage
-        $ae += $s | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, episode, airingAt
+        $ae += $c.data.page.airingSchedules | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, episode, airingAt
         Write-Host "added: $($s.count)"
         if ($nextPage) {
             $pageNum++
@@ -666,6 +663,7 @@ function Invoke-AnilistApiDateRange {
       airingAt
       media {
         id
+        episodes
         siteUrl
         title {
           english
@@ -729,7 +727,13 @@ function Invoke-AnilistApiDateRange {
 
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $c = $response.Content | ConvertFrom-Json
-        $s = $c.data.page.airingSchedules
+        $s = $c.data.page.airingSchedules 
+        | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, `
+            airingAt, episode, @{name = 'episodes'; expression = { $_.media.episodes } }, @{name = 'TitleEnglish'; expression = { $_.media.title.english } }, @{name = 'TitleRomanji'; expression = { $_.media.title.romaji } }, `
+        @{name = 'TitleNative'; expression = { $_.media.title.native } }, @{name = 'Genres'; expression = { $_.media.genres -join ', ' } }, `
+        @{name = 'Status'; expression = { $_.media.status } }, @{name = 'Season'; expression = { $_.media.season } }, @{name = 'SeasonYear'; expression = { $_.media.seasonYear } } , `
+        @{name = 'StartDate'; expression = { "$($_.media.startDate.month)/$($_.media.startDate.day)/$($_.media.startDate.year)" } } , `
+        @{name = 'EndDate'; expression = { "$($_.media.endDate.month)/$($_.media.endDate.day)/$($_.media.endDate.year)" } }, @{name = 'externalLinks'; expression = { $_.media.externalLinks } }
         $nextPage = $c.data.page.pageInfo.hasNextPage
         $allResponses += $s
         $nextPage = $aniapi.data.Page.pageInfo.hasNextPage
@@ -776,7 +780,6 @@ if ($GenerateAnilistFile) {
     if (Test-Path $csvFilePath) {
         Remove-Item -LiteralPath $csvFilePath
     }
-    Write-Host "$aType - $csvFilePath"
     $dStartUnix = Get-FullUnixDay $csvStartDate
     $dEndunix = Get-FullUnixDay $csvEndDate
 
@@ -800,15 +803,16 @@ if ($GenerateAnilistFile) {
     }
 
     foreach ($a in $allShows) {
-        if (-not [string]::IsNullOrEmpty($a.title.english)) {
-            $title = $a.title.english -replace $badchar, "'"
+        if (-not [string]::IsNullOrEmpty($a.TitleEnglish)) {
+            $title = $a.TitleEnglish -replace $badchar, "'"
         }
-        elseif (-not [string]::IsNullOrEmpty($a.title.romaji)) {
-            $title = $a.title.romaji -replace $badchar, "'"
+        elseif (-not [string]::IsNullOrEmpty($a.TitleRomanji)) {
+            $title = $a.TitleRomanji
         }
         else {
-            $title = $a.title.native -replace $badchar, "'"
+            $title = $a.TitleNative
         }
+
         $genres = $a.genres -join ', '
         $totalEpisodes = $a.episodes
         if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) {
@@ -821,40 +825,42 @@ if ($GenerateAnilistFile) {
             ''
         }
         $seasonYear = $a.SeasonYear
-        $ShowStatus = if (-not [string]::IsNullOrEmpty($a.status)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($a.status).ToLower()) }
+        $status = if (-not [string]::IsNullOrEmpty($a.status)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($a.status).ToLower()) }
         else {
             ''
         }
-        $showStartDate = $a.startDate
-        $startDateStr = '{0}/{1:D2}/{2:D2}' -f $showStartDate.month, $showStartDate.day, $showStartDate.year
-        if ($startDateStr -eq '//') {
-            $startDateStr = $null
+        
+        $showStartDate = if ($a.startDate -ne '//') { $a.startDate } else { $null }
+        $showEndDate = if ($a.endDate -ne '//') { $a.endDate } else { $null }
+
+        # Find the first preferred site
+        $firstPreferredSite = $null
+        foreach ($ps in $supportSites) {
+            $firstPreferredSite = $a.externalLinks | Where-Object { $_.site -eq $ps }
+            if ($firstPreferredSite) {
+                break
+            }
         }
-        $showEndDate = $a.endDate
-        $endDateStr = '{0}/{1:D2}/{2:D2}' -f $showEndDate.month, $showEndDate.day, $showEndDate.year
-        if ($endDateStr -eq '//') {
-            $endDateStr = $null
-        }
-        $a.externalLinks | Where-Object { $_.site -in $supportSites } | ForEach-Object {
-            $title = $title.Trim()
-            $site = ($_.site).Trim()
-            $url = ($_.url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
+        If ($firstPreferredSite) {
+            $site = $firstPreferredSite.Site
+            $url = $firstPreferredSite.url
+            $url = ($url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
             if (($url -in $badURLs) -or ($site -eq 'HIDIVE' -and $totalEpisodes -eq '00') -or ($site -in 'Hulu', 'Netflix')) {
                 $download = $false
             }
             else {
                 $download = $True
             }
-            Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $download" -LogFilePath $logFile
+            Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $download - $url" -LogFilePath $logFile
             $r = [PSCustomObject]@{
-                Id            = $a.id
+                ShowId        = $a.ShowId
                 Title         = $title
                 TotalEpisodes = [int]$totalEpisodes
                 SeasonYear    = $seasonYear
                 Season        = $season
-                Status        = $ShowStatus
-                StartDate     = $startDateStr
-                EndDate       = $endDateStr
+                Status        = $status
+                StartDate     = $showStartDate
+                EndDate       = $showEndDate
                 Site          = $site
                 URL           = $url
                 Genres        = $genres
@@ -865,7 +871,8 @@ if ($GenerateAnilistFile) {
     }
 
     # Extract the Ids from the objects
-    $ids = $anime | Select-Object Id -Unique | ForEach-Object { $_.Id }
+    $ids = $anime | Select-Object ShowId -Unique | ForEach-Object { $_.ShowId }
+    $ids
     # Chunk the Ids into groups of 20
     $chunkSize = 20
     $chunkedIdList = @()
@@ -879,7 +886,7 @@ if ($GenerateAnilistFile) {
     }
 
     foreach ($s in $anime) {
-        $showId = $s.id
+        $showId = $s.ShowId
         $title = $s.Title
         $totalEpisodes = $s.TotalEpisodes
         $season = $s.season
@@ -923,12 +930,14 @@ if ($GenerateAnilistFile) {
             $data += $a
         }
     }
-
     # Group by Title and filter based on Site preference
-    $data = Update-SiteGroups $data
-    Write-Output "[Setup] $(Get-DateTime) - Updating $csvFilePath"
+    Write-Output "[Setup] $(Get-DateTime) - Creating $csvFilePath"
     $data | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
 }
+
+$updatedRecordCalls = @()
+$updatedRecords = @()
+
 if ($updateAnilistCSV) {
     if ($Automated) {
         $aType = 'D'
@@ -955,7 +964,7 @@ if ($updateAnilistCSV) {
         exit
     }
     $startDate = $today
-    $maxDay = ($csvEndDate - $today).days
+    $maxDay = 1#($csvEndDate - $today).days
     $start = 0
 
     $csvFileData = Import-Csv $csvFilePath
@@ -978,195 +987,98 @@ if ($updateAnilistCSV) {
         }
         $startDate.AddDays(1)
     }
-    exit
+
+    foreach ($ur in $updatedRecordCalls) {
+        $ShowId = $ur.ShowId
+        $EpisodeId = $ur.EpisodeId
+        $episode = $ur.episode
+        $totalEpisodes = $ur.episodes
+        if ( $episode -eq '' -or $null -eq $episode) {
+            $episode = '00'
+        }
+        if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) {
+            $totalEpisodes = '00'
+        }
+        $episode = '{0:D2}' -f [int]$episode
+        $totalEpisodes = '{0:D2}' -f [int]$totalEpisodes
+        $genres = $ur.genres -join ', '
+        $seasonYear = $ur.seasonYear
+        $season = if (-not [string]::IsNullOrEmpty($ur.season)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($ur.season).ToLower()) }
+        else {
+            ''
+        }
+        $status = if (-not [string]::IsNullOrEmpty($ur.status)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($ur.status).ToLower()) }
+        else {
+            ''
+        }
+
+        $showStartDate = if ($ur.startDate -ne '//') { $ur.startDate } else { $null }
+        $showEndDate = if ($ur.endDate -ne '//') { $ur.endDate } else { $null }
+
+        if (-not [string]::IsNullOrEmpty($ur.TitleEnglish)) {
+            $title = $ur.TitleEnglish -replace $badchar, "'"
+        }
+        elseif (-not [string]::IsNullOrEmpty($ur.TitleRomanji)) {
+            $title = $ur.TitleRomanji
+        }
+        else {
+            $title = $ur.TitleNative
+        }
+         
+        $airingFullTime = Get-UnixToLocal -unixTime $ur.airingAt
+        $airingFullTimeFixed = Get-Date $airingFullTime -Format 'MM/dd/yyyy HH:mm:ss'
+        $airingDate = Get-Date $airingFullTime -Format 'MM/dd/yyyy'
+        $airingTime = Get-Date $airingFullTime -Format 'HH:mm'
+        $weekday = Get-Date $airingFullTime -Format 'dddd'
+
+        Write-Log -Message "[Generate] $(Get-DateTime) - $title - $episode/$totalEpisodes" -LogFilePath $logFile
+        # Find the first preferred site
+        $firstPreferredSite = $null
+        foreach ($ps in $supportSites) {
+            $firstPreferredSite = $ur.externalLinks | Where-Object { $_.site -eq $ps }
+            if ($firstPreferredSite) {
+                break
+            }
+        }
+        If ($firstPreferredSite) {
+            $site = $firstPreferredSite.site
+            $url = ($firstPreferredSite.url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
+            if (($url -in $badURLs) -or ($site -eq 'HIDIVE' -and $totalEpisodes -eq '00') -or ($site -in 'Hulu', 'Netflix')) {
+                $download = $false
+            }
+            else {
+                $download = $True
+            }
+            Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $download - $url" -LogFilePath $logFile
+            $ue = [PSCustomObject]@{
+                ShowId         = $showId
+                EpisodeId      = $episodeId
+                Title          = $title
+                Episode        = $episode
+                TotalEpisodes  = $totalEpisodes
+                SeasonYear     = $seasonYear
+                Season         = $season
+                Status         = $Status
+                AirDay         = $weekday
+                AirDate        = $airingDate
+                AiringTime     = $airingTime
+                AiringFullTime = $airingFullTimeFixed
+                StartDate      = $showStartDate
+                EndDate        = $showEndDate
+                Site           = $site
+                URL            = $url
+                Genres         = $genres
+                Download       = $download
+            }
+            $updatedRecords += $ue
+        }
+    }
+
+    $newData = Update-Records -source $csvFileData -target $updatedRecords
+    Write-Output "[Generate] $(Get-DateTime) - Updating $csvFilePath"
+    $newData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
 }
-# need to redo everything.
-# if ($UpdateSeasonFile) {
-#     # Bypass runtime day with override switch otherwise only run on mondays
-#     if ($today -ne 'Monday' -and (!($sCSV) -or !($override))) {
-#         Write-Log -Message "[Check] $(Get-DateTime) - Exiting script." -LogFilePath $logFile
-#         Start-Sleep 3
-#         Write-Log -Message "[End] $(Get-DateTime) - End of script." -LogFilePath $logFile
-#         exit
-#     }
-#     $startDate = $today
-#     $maxDay = 7
-#     $start = 0
-#     $updatedRecords = @()
-#     $updatedRecordCalls = @()
-#     Write-Log -Message "[Generate] $(Get-DateTime) - AnilistSeason CSV exists. Starting on $($startDate). Running for $maxDay days." -LogFilePath $logFile
-#     $origin = Import-Csv $csvFilePath
-#     # Extract the Ids from the objects
-#     $ids = $origin | Select-Object Id -Unique | ForEach-Object { $_.Id }
-#     # Chunk the Ids into groups of 20
-#     $chunkSize = 20
-#     $chunkedIdList = @()
-#     for ($i = 0; $i -lt $ids.Count; $i += $chunkSize) {
-#         $chunkedIdList += ($ids[$i..($i + $chunkSize - 1)] -join ', ')
-#     }
-#     while ($start -lt $maxDay) {
-#         $start++
-#         $startUnix, $endUnix = Get-FullUnixDay -Date $startDate
-#         Write-Log -Message "[Generate] $(Get-DateTime) - $($start)/$($maxDay) - $startDate - $startUnix - $endUnix" -LogFilePath $logFile
-#         foreach ($c in $chunkedIdList) {
-#             $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $endUnix -id $c
-#         }
-#     }
-#     foreach ($ur in $updatedRecordCalls) {
-#         $id = $ur.id
-#         $episode = $ur.episode
-#         $totalEpisodes = $ur.media.episodes
-#         if ( $episode -eq '' -or $null -eq $episode) {
-#             $episode = '00'
-#         }
-#         if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) {
-#             $totalEpisodes = '00'
-#         }
-#         $episode = '{0:D2}' -f [int]$episode
-#         $totalEpisodes = '{0:D2}' -f [int]$totalEpisodes
-#         $genres = $ur.media.genres -join ', '
-#         $season = if (-not [string]::IsNullOrEmpty($ur.media.season)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($ur.media.season).ToLower()) }
-#         else {
-#             ''
-#         }
-#         $ShowStatus = if (-not [string]::IsNullOrEmpty($ur.media.status)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($ur.media.status).ToLower()) }
-#         else {
-#             ''
-#         }
-#         $showStartDate = $ur.media.startDate
-#         $startDateStr = '{0}/{1:D2}/{2:D2}' -f $showStartDate.month, $showStartDate.day, $showStartDate.year
-#         if ($startDateStr -eq '//') {
-#             $startDateStr = $null
-#         }
-#         $showEndDate = $ur.media.endDate
-#         $endDateStr = '{0}/{1:D2}/{2:D2}' -f $showEndDate.month, $showEndDate.day, $showEndDate.year
-#         if ($endDateStr -eq '//') {
-#             $endDateStr = $null
-#         }
-#         if (-not [string]::IsNullOrEmpty($ur.media.title.english)) {
-#             $title = $ur.media.title.english -replace $badchar, "'"
-#         }
-#         elseif (-not [string]::IsNullOrEmpty($ur.media.title.romaji)) {
-#             $title = $ur.media.title.romaji
-#         }
-#         else {
-#             $title = $ur.media.title.native
-#         }
-#         $airingFullTime = Get-UnixToLocal -unixTime $ur.airingAt
-#         $airingFullTimeFixed = Get-Date $airingFullTime -Format 'MM/dd/yyyy HH:mm:ss'
-#         #$airingDate = Get-Date $airingFullTime -Format 'MM-dd-yyyy'
-#         $weekday = Get-Date $airingFullTime -Format 'dddd'
-#         $airingTime = Get-Date $airingFullTime -Format 'HH:mm'
-#         Write-Log -Message "[Generate] $(Get-DateTime) - $title - $episode/$totalEpisodes" -LogFilePath $logFile
-#         $ur.media.externalLinks | Where-Object { $_.site -in $supportSites } | ForEach-Object {
-#             $title = $title.Trim()
-#             $site = ($_.site).Trim()
-#             $url = ($_.url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
-#             if (($url -in $badURLs) -or ($site -eq 'HIDIVE' -and $totalEpisodes -eq '00') -or ($site -in 'Hulu', 'Netflix')) {
-#                 $download = $false
-#             }
-#             else {
-#                 $download = $True
-#             }
-#             Write-Log -Message "[Generate] $(Get-DateTime) - $title - $download" -LogFilePath $logFile
-#             $a = [PSCustomObject]@{
-#                 Id             = $id
-#                 Title          = $title
-#                 Episode        = [int]$episode
-#                 TotalEpisodes  = [int]$totalEpisodes
-#                 SeasonYear     = $seasonYear
-#                 Season         = $season
-#                 Status         = $Status
-#                 AirDay         = $weekday
-#                 AirDate        = $airingDate
-#                 AiringTime     = $airingTime
-#                 AiringFullTime = $airingFullTimeFixed
-#                 StartDate      = $startDate
-#                 EndDate        = $endDate
-#                 Site           = $site
-#                 URL            = $url
-#                 Genres         = $genres
-#                 Download       = $download
-#             }
-#             $updatedRecords += $a
-#         }
-#     }
-#     # cleaning up records based on site preferences
-#     $updatedRecords = Update-SiteGroups $updatedRecords
-#     # To Do: update exisitng records
-#     $data, $newData = Update-Records -sourceData $origin -targetData $updatedRecords
-#     $newData = Update-SiteGroups $newData
-#     if ($newData.Count -gt 0 ) {
-#         $emojiList = @()
-#         $emojis | ForEach-Object {
-#             $de = [PSCustomObject]@{
-#                 siteName  = $_.siteName
-#                 siteEmoji = $_.emoji
-#             }
-#             $emojiList += $de
-#         }
-#         $thumbnailObject = [PSCustomObject]@{
-#             url = $discordSiteIcon
-#         }
-#         $new = $newData | Group-Object -Property Site
-#         $fieldObjects = @()
-#         $new | ForEach-Object {
-#             $fieldValueRelease = @()
-#             $snSite = ($_.Name)
-#             $_.Group | ForEach-Object {
-#                 if ([int]::TryParse($_.TotalEpisodes, [ref]$null)) {
-#                     $totalEpisodes = '{0:D2}' -f [int]$_.TotalEpisodes
-#                 }
-#                 else {
-#                     $totalEpisodes = '??'
-#                 }
-#                 $v = '```' + ("`n$($snSite) - $($_.Title)`nTotal Episodes: $($totalEpisodes)`n$($_.Genrez)`nDownload: $($_.Download)") + '```'
-#                 $fieldValueRelease += $v
-#             }
-#             switch ($snSite) {
-#                 'Hidive' { $emoji = $emojiList | Where-Object { $_.siteName -eq $snSite } | Select-Object -ExpandProperty siteEmoji }
-#                 'Crunchyroll' { $emoji = $emojiList | Where-Object { $_.siteName -eq $snSite } | Select-Object -ExpandProperty siteEmoji }
-#                 Default { $emoji = $emojiList | Where-Object { $_.siteName -eq $snSite } | Select-Object -ExpandProperty siteEmoji }
-#             }
-#             $snSite = $emoji + ' **' + $snSite + '** ' + $emoji
-#             if ($fieldValueRelease.count -gt 0) {
-#                 $fieldValueRelease = $fieldValueRelease
-#                 $fObj = [PSCustomObject]@{
-#                     name   = $snSite
-#                     value  = $fieldValueRelease
-#                     inline = $false
-#                 }
-#                 $fieldObjects += $fObj
-#             }
-#         }
-#         [System.Collections.ArrayList]$embedArray = @()
-#         $embedObject = [PSCustomObject]@{
-#             color     = 15879747
-#             title     = 'New shows found'
-#             #description = $description
-#             thumbnail = $thumbnailObject
-#             fields    = $fieldObjects
-#             #footer      = $footerObject
-#             timestamp = $(Get-DateTime 3)
-#         }
-#         $payload = [PSCustomObject]@{
-#             embeds = $embedArray
-#         }
-#         $embedArray.Add($embedObject) | Out-Null
-#         $payloadJson = $payload | ConvertTo-Json -Depth 4
-#         Write-Log -Message "[Discord] $(Get-DateTime) - Sending Discord Message for new show found." -LogFilePath $logFile
-#         Invoke-WebRequest -Uri $discordHookUrl -Body $payloadJson -Method Post -ContentType 'application/json' | Select-Object -ExpandProperty Headers | Out-Null
-#     }
-#     $data = Update-SiteGroups $data
-#     $data | Sort-Object SeasonYear, { $SeasonOrder[$_.Season] }, Site, Title, { [int]$_.Episode }, TotalEpisodes | Export-Csv $csvFilePath -NoTypeInformation
-#     Write-Log -Message "[Generate] $(Get-DateTime) - Updating AnilistSeason CSV as of $(Get-Date -Format 'MM/dd/yyyy HH:mm:ss'). " -LogFilePath $logFile
-# }
-# $t = $True
-# if ($t) {
-#     $anime = Import-Csv $csvFilePath
-#     $data = Update-SiteGroups $anime
-#     $data | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
-# }
+
 
 If ($setDownload) {
     do {
@@ -1531,6 +1443,7 @@ If ($sendDiscord) {
         }
         else {
             Write-Log -Message "[Discord] $(Get-DateTime) - No shows airing for $sdWeekday" -LogFilePath $logFile
+            `w    
         }
     }
     else {
