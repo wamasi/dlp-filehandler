@@ -17,8 +17,6 @@ param(
     [Alias('O')]
     [switch]$Override
 )
-
-# Script Variables
 $scriptRoot = $PSScriptRoot
 $configFilePath = Join-Path $scriptRoot -ChildPath 'config.xml'
 if (!(Test-Path $configFilePath)) {
@@ -51,7 +49,6 @@ if (!(Test-Path $configFilePath)) {
     Write-Host "No config found. Configure xml file: $configFilePath"
     exit
 }
-
 [xml]$config = Get-Content $configFilePath
 if ($debugScript) {
     $discordHookUrl = $config.configuration.Discord.hook.TestServerUrl
@@ -66,11 +63,9 @@ $batchArchiveFolder = Join-Path $rootPath -ChildPath '_archive'
 $lastUpdated = $config.configuration.logs.lastUpdated
 $emojis = $config.configuration.Discord.sites.site
 $badchar = $config.configuration.characters.char
-
 $logFolder = Join-Path $scriptRoot -ChildPath 'log'
 $logfile = Join-Path $logFolder -ChildPath 'anilistSeason.log'
 $csvFolder = Join-Path $scriptRoot -ChildPath 'anilist'
-
 $badURLs = 'https://www.crunchyroll.com/', 'https://www.crunchyroll.com', 'https://www.hidive.com/', 'https://www.hidive.com'
 $supportSites = 'Crunchyroll', 'HIDIVE', 'Netflix', 'Hulu'
 $SiteCountList = @()
@@ -85,14 +80,14 @@ $cby = (Get-Date $today -Format 'yyyy').ToString()
 $pby = (Get-Date(($today).AddYears(-1)) -Format 'yyyy').ToString()
 $cbyShort = $cby.Substring(2)
 $pbyShort = $pby.Substring(2)
-
 $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_$($pbyShort)-$($cbyShort).csv"
-
 $allShows = @()
 $allEpisodes = @()
 $data = @()
 $anime = @()
-
+$updatedRecordCalls = @()
+$updatedRecords = @()
+$chunkSize = 20
 $SeasonDates = @(
     [PSCustomObject]@{Season = 'FALL'; Ordinal = 1 ; StartDate = "10/01/$pby"; EndDate = "12/31/$pby" }
     [PSCustomObject]@{Season = 'WINTER'; Ordinal = 2; StartDate = "01/01/$cby"; EndDate = "03/31/$cby" }
@@ -100,17 +95,14 @@ $SeasonDates = @(
     [PSCustomObject]@{Season = 'SUMMER'; Ordinal = 4 ; StartDate = "08/01/$cby"; EndDate = "09/30/$cby" }
     [PSCustomObject]@{Season = 'FALL'; Ordinal = 5 ; StartDate = "10/01/$cby"; EndDate = "12/31/$cby" }
 )
-
 $csvStartDate = $SeasonDates | Where-Object { $_.Ordinal -eq 1 } | Select-Object -ExpandProperty StartDate
 $csvEndDate = $SeasonDates | Where-Object { $_.Ordinal -eq 5 } | Select-Object -ExpandProperty EndDate
 $csvStartDate = Get-Date $csvStartDate -Hour 0 -Minute 0 -Second 0 -Millisecond 0
 $csvEndDate = Get-Date $csvEndDate -Hour 0 -Minute 0 -Second 0 -Millisecond 0
-
 $seasonOrder = [ordered]@{}
 foreach ($season in $SeasonDates | Where-Object { $_.Ordinal -ne 1 }) {
     $seasonOrder[$season.Season] = $season.Ordinal
 }
-
 $weekdayOrder = [ordered]@{
     Monday    = 1
     Tuesday   = 2
@@ -120,7 +112,6 @@ $weekdayOrder = [ordered]@{
     Saturday  = 6
     Sunday    = 7
 }
-
 function Write-Log {
     param (
         [string]$Message,
@@ -132,7 +123,6 @@ function Write-Log {
     }
     Add-Content -Path $LogFilePath -Value $Message
 }
-# Output current time in different formats
 function Get-DateTime {
     param (
         [int]$dateType
@@ -145,7 +135,6 @@ function Get-DateTime {
     }
     return $datetime
 }
-
 function Get-UnixToLocal {
     param (
         $unixTime
@@ -153,7 +142,6 @@ function Get-UnixToLocal {
     $d = (Get-Date -Date ([DateTimeOffset]::FromUnixTimeSeconds($unixTime)).DateTime).ToLocalTime()
     return $d
 }
-
 function Get-FullUnixDay {
     param (
         [DateTime]$date
@@ -162,11 +150,13 @@ function Get-FullUnixDay {
     $epochStart = (Get-Date '1970-01-01 00:00:00').ToLocalTime()
     $startDateOffset = if ($date.IsDaylightSavingTime()) { [TimeSpan]::FromHours(1) } else { [TimeSpan]::FromHours(0) }
     $endDateOffset = if ($endDate.IsDaylightSavingTime()) { [TimeSpan]::FromHours(1) } else { [TimeSpan]::FromHours(0) }
-
     $startDateUnix = [Math]::Floor(($date.Add(-$startDateOffset)).Subtract($epochStart).TotalSeconds)
     $endDateUnix = [Math]::Floor(($endDate.Add(-$endDateOffset)).Subtract($epochStart).TotalSeconds)
-
     return $startDateUnix, $endDateUnix
+}
+function Exit-Script {
+    Write-Log -Message "[End] $(Get-DateTime) - End of script.$spacer" -LogFilePath $logFile
+    exit
 }
 function Set-CSVFormatting {
     param (
@@ -188,123 +178,73 @@ function Set-CSVFormatting {
         $csvd | Export-Csv $csvPath -NoTypeInformation
     }
 }
-
-function Add-UniqueRecords {
-    param (
-        [array]$sourceTable,
-        [array]$targetTable
-    )
-    # Add existing records from source to unique table
-    $uniqueTable = @()
-    $uniqueTable += $sourceTable
-    $uniqueShows = $sourceTable | Select-Object Site, Title, URL -Unique
-    $targetShows = $targetTable | Select-Object Site, Title, URL, TotalEpisodes, Download -Unique
-    $uniqueTableRun = @()
-    $duplicateTableRun = @()
-    $newShows = @()
-    $oldshows = @()
-    # compare new data to unique table and only add of difference of urls
-    foreach ($targetRecord in $targetTable) {
-        $duplicate = $uniqueTable | Where-Object { $_.Site -eq $targetRecord.Site -and $_.URL -eq $targetRecord.URL -and $_.episode -eq $targetRecord.Episode }
-        if ($null -eq $duplicate) {
-            $targetRecord.download = $uniqueTable | Where-Object { $_.Site -eq $targetRecord.Site -and $_.URL -eq $targetRecord.URL } | Select-Object -ExpandProperty download -Unique
-            $uniqueTable += $targetRecord
-            $uniqueTableRun += $targetRecord
-        }
-        else {
-            $duplicateTableRun += $targetRecord
-        }
-    }
-    # compare New/Duplicate Shows
-    foreach ($tsRecords in $targetShows) {
-        $tsduplicate = $uniqueShows | Where-Object { $_.Site -eq $tsRecords.Site -and $_.URL -eq $tsRecords.URL -and $_.Title -eq $tsRecords.Title }
-        if ($null -eq $tsduplicate) {
-            $newShows += $tsRecords
-        }
-        else {
-            $oldshows += $tsRecords
-        }
-    }
-    # output list of new/duplicates records and shows in a specific order
-    foreach ($d in $duplicateTableRun) {
-        Write-Log -Message "[Dedupe] $(Get-DateTime) - Duplicate record: [$($d.site)] $($d.title) - $($d.Episode)/$($d.TotalEpisodes) - $($d.download) - $($d.URL)" -LogFilePath $logFile
-    }
-    foreach ($o in $oldshows) {
-        Write-Log -Message "[Dedupe] $(Get-DateTime) - Duplicate Show: [$($o.site)] $($o.title) - $($o.TotalEpisodes) $($o.URL)" -LogFilePath $logFile
-    }
-    foreach ($u in $uniqueTableRun) {
-        Write-Log -Message "[Dedupe] $(Get-DateTime) - Record added: [$($u.site)] $($u.title) - $($u.Episode)/$($u.TotalEpisodes) - $($u.URL)" -LogFilePath $logFile
-    }
-    foreach ($n in $newShows) {
-        Write-Log -Message "[Dedupe] $(Get-DateTime) - New Show added: [$($n.site)] $($n.title) - $($n.TotalEpisodes) $($n.URL)" -LogFilePath $logFile
-    }
-    return $uniqueTable, $newShows
-}
-
 function Update-Records {
     param (
         $source,
         $target
     )
-    # Initialize an array to store new datasets
     $newDataArray = @()
-    # Loop through each record in target
     foreach ($t in $target) {
         $s = $source | Where-Object { $_.ShowId -eq $t.ShowId -and $_.EpisodeId -eq $t.EpisodeId }
         $newData = [ordered]@{}
         if ($s) {
-            # Existing record, perform comparison
             foreach ($property in $s.PSObject.Properties.Name) {
                 if ($property -eq 'Download') {
-                    $newData[$property] = $s.$property  # Keep the value from source
+                    $newData[$property] = $s.$property
                 }
-                # elseif ($s.$property -eq $t.$property) {
-                #     $newData[$property] = $s.$property
-                # }
                 else {
                     $newData[$property] = ($t.$property)
                 }
             }
         }
         else {
-            # New record, just copy from target
             foreach ($property in $t.PSObject.Properties.Name) {
                 $newData[$property] = $t.$property
             }
         }
         $newDataArray += [PSCustomObject]$newData
     }
-    # Loop through each record in source to find records not present in target
     foreach ($s in $source) {
         $n = $newDataArray | Where-Object { $_.ShowId -eq $s.ShowId -and $_.EpisodeId -eq $s.EpisodeId }
-        # If a corresponding record is NOT found in target
         if (-not $n) {
-            # Initialize an empty ordered dictionary to store the new dataset
             $newData = [ordered]@{}
-            # Copy all properties from the record in source
             foreach ($property in $s.PSObject.Properties.Name) {
                 $newData[$property] = $s.$property
             }
-            # Convert the ordered dictionary to a custom object and add it to the array
             $newDataArray += [PSCustomObject]$newData
         }
     }
     return $newDataArray
 }
-function Update-SiteGroups {
+function Invoke-Request {
     param (
-        $data
+        $rUrl,
+        $rBody
     )
-    $data = $data | Group-Object -Property seasonYear, Id, title, Episode | ForEach-Object {
-        $group = $_.Group
-        $selectedSite = $supportSites | Where-Object { $group.Site -contains $_ } | Select-Object -First 1
-        if ($selectedSite) {
-            $group | Where-Object { $_.Site -eq $selectedSite } | Select-Object -First 1
+    $maxRetries = 3
+    $retryIntervalSec = 5
+    for ($i = 0; $i -lt $maxRetries; $i++) {
+        try {
+            $rResponse = Invoke-WebRequest -Uri $rUrl -Method POST -Body $rBody -ContentType 'application/json'
+            if ($rResponse.StatusCode -eq 200) {
+                break
+            }
+            elseif ($rResponse.StatusCode -ge 500 -and $rResponse.StatusCode -lt 600) {
+                Write-Host 'Received HTTP 500 error. Retrying...'
+                Start-Sleep -Seconds $retryIntervalSec
+            }
+            else {
+                Write-Host "Received unexpected status code $($rResponse.StatusCode). Exiting."
+                break
+            }
         }
-    } | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes
-    return $data
+        catch {
+            Write-Host "An error occurred: $_. Retrying..."
+            Start-Sleep -Seconds $retryIntervalSec
+        }
+    }
+    return $rResponse
 }
-
 function Invoke-AnilistApiShowDate {
     param (
         $start,
@@ -362,32 +302,7 @@ function Invoke-AnilistApiShowDate {
 }
 "@
         } | ConvertTo-Json
-
-        $maxRetries = 3
-        $retryIntervalSec = 5
-
-        for ($i = 0; $i -lt $maxRetries; $i++) {
-            try {
-                $response = Invoke-WebRequest -Uri $url -Method POST -Body $initialBody -ContentType 'application/json'
-                if ($response.StatusCode -eq 200) {
-
-                    break
-                }
-                elseif ($response.StatusCode -ge 500 -and $response.StatusCode -lt 600) {
-                    Write-Host 'Received HTTP 500 error. Retrying...'
-                    Start-Sleep -Seconds $retryIntervalSec
-                }
-                else {
-                    Write-Host "Received unexpected status code $($response.StatusCode). Exiting."
-                    break
-                }
-            }
-            catch {
-                Write-Host "An error occurred: $_. Retrying..."
-                Start-Sleep -Seconds $retryIntervalSec
-            }
-        }
-
+        $response = Invoke-Request -rUrl $url -rBody $initialBody
         $c = $response.Content | ConvertFrom-Json
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $nextPage = $c.data.Page.pageInfo.hasNextPage
@@ -413,24 +328,21 @@ function Invoke-AnilistApiShowDate {
     } while ($nextPage)
     return $allSeasonShows
 }
-
 function Invoke-AnilistApiShowSeason {
     param (
-        
         $id,
         $year,
         $season
     )
     $allSeasonShows = @()
     $pageNum = 1
-    $perPageNum = 15
+    $perPageNum = 20
     $url = 'https://graphql.anilist.co'
     $headers = New-Object 'System.Collections.Generic.Dictionary[[String],[String]]'
     $headers.Add('method', 'POST')
     $headers.Add('authority', 'graphql.anilist.co')
     $headers.Add('Content', 'application/json')
     $headers.Add('Content-Type', 'application/json')
-
     if ($id) {
         $mediaFilter = "id: $id"
         Write-Host "Start Page: $id - $pageNum"
@@ -479,32 +391,7 @@ function Invoke-AnilistApiShowSeason {
 }
 "@
         } | ConvertTo-Json
-
-        $maxRetries = 3
-        $retryIntervalSec = 5
-
-        for ($i = 0; $i -lt $maxRetries; $i++) {
-            try {
-                $response = Invoke-WebRequest -Uri $url -Method POST -Body $initialBody -ContentType 'application/json'
-                if ($response.StatusCode -eq 200) {
-
-                    break
-                }
-                elseif ($response.StatusCode -ge 500 -and $response.StatusCode -lt 600) {
-                    Write-Host 'Received HTTP 500 error. Retrying...'
-                    Start-Sleep -Seconds $retryIntervalSec
-                }
-                else {
-                    Write-Host "Received unexpected status code $($response.StatusCode). Exiting."
-                    break
-                }
-            }
-            catch {
-                Write-Host "An error occurred: $_. Retrying..."
-                Start-Sleep -Seconds $retryIntervalSec
-            }
-        }
-
+        $response = Invoke-Request -rUrl $url -rBody $initialBody
         $c = $response.Content | ConvertFrom-Json
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $nextPage = $c.data.Page.pageInfo.hasNextPage
@@ -542,6 +429,7 @@ function Invoke-AnilistApiEpisode {
     )
     $ae = @()
     $pageNum = 1
+    $perPageNum = 20
     $url = 'https://graphql.anilist.co'
     $headers = New-Object 'System.Collections.Generic.Dictionary[[String],[String]]'
     $headers.Add('method', 'POST')
@@ -550,12 +438,11 @@ function Invoke-AnilistApiEpisode {
     $headers.Add('Content-Type', 'application/json')
     Write-Host "Starting page: $pageNum"
     $mediaFilter = "mediaId_in: [$($id)], airingAt_greater: $eStart, airingAt_lesser: $eEnd"
-
     do {
         $episodesBody = [PSCustomObject]@{
             query         = @"
 {
-  Page(page: $($pageNum), perPage: 20) {
+  Page(page: $($pageNum), perPage: $perPageNum) {
     airingSchedules($mediaFilter) {
       id
       episode
@@ -573,31 +460,7 @@ function Invoke-AnilistApiEpisode {
             variables     = $null
             operationName = $null
         } | ConvertTo-Json
-        $episodesBody
-        $maxRetries = 3
-        $retryIntervalSec = 5
-
-        for ($i = 0; $i -lt $maxRetries; $i++) {
-            try {
-                $response = Invoke-WebRequest -Uri $url -Method POST -Body $episodesBody -ContentType 'application/json'
-                if ($response.StatusCode -eq 200) {
-                    break
-                }
-                elseif ($response.StatusCode -ge 500 -and $response.StatusCode -lt 600) {
-                    Write-Host 'Received HTTP 500 error. Retrying...'
-                    Start-Sleep -Seconds $retryIntervalSec
-                }
-                else {
-                    Write-Host "Received unexpected status code $($response.StatusCode). Exiting."
-                    break
-                }
-            }
-            catch {
-                Write-Host "An error occurred: $_. Retrying..."
-                Start-Sleep -Seconds $retryIntervalSec
-            }
-        }
-
+        $response = Invoke-Request -rUrl $url -rBody $episodesBody
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $c = $response.Content | ConvertFrom-Json
         $nextPage = $c.data.page.pageInfo.hasNextPage
@@ -607,7 +470,6 @@ function Invoke-AnilistApiEpisode {
             $pageNum++
             Write-Host "Next Page: $pageNum"
         }
-
         if ($remaining -le 6) {
             Start-Sleep -Seconds 60
         }
@@ -618,7 +480,6 @@ function Invoke-AnilistApiEpisode {
     } while ($nextPage)
     return $ae
 }
-
 function Invoke-AnilistApiDateRange {
     param (
         [Parameter(Mandatory = $true)]
@@ -630,16 +491,12 @@ function Invoke-AnilistApiDateRange {
     )
     $pageNum = 1
     $perPageNum = 20
-    if ($headers) {
-        Remove-Variable headers
-    }
     $url = 'https://graphql.anilist.co'
     $headers = New-Object 'System.Collections.Generic.Dictionary[[String],[String]]'
     $headers.Add('method', 'POST')
     $headers.Add('authority', 'graphql.anilist.co')
     $headers.Add('Content', 'application/json')
     $headers.Add('Content-Type', 'application/json')
-
     $allResponses = @()
     $mediaFilter = "airingAt_greater: $start, airingAt_lesser: $end"
     if ($null -ne $id) {
@@ -651,7 +508,6 @@ function Invoke-AnilistApiDateRange {
         }
     }
     Write-Log -Message "[AnilistAPI] $(Get-DateTime) - $start - Starting on page $pageNum" -LogFilePath $logFile
-
     do {
         $body = [PSCustomObject]@{
             query         = @"
@@ -699,35 +555,10 @@ function Invoke-AnilistApiDateRange {
             variables     = $null
             operationName = $null
         } | ConvertTo-Json
-
-        $maxRetries = 3
-        $retryIntervalSec = 5
-
-        for ($i = 0; $i -lt $maxRetries; $i++) {
-            try {
-                $response = Invoke-WebRequest -Uri $url -Method POST -Body $body -ContentType 'application/json'
-                if ($response.StatusCode -eq 200) {
-
-                    break
-                }
-                elseif ($response.StatusCode -ge 500 -and $response.StatusCode -lt 600) {
-                    Write-Host 'Received HTTP 500 error. Retrying...'
-                    Start-Sleep -Seconds $retryIntervalSec
-                }
-                else {
-                    Write-Host "Received unexpected status code $($response.StatusCode). Exiting."
-                    break
-                }
-            }
-            catch {
-                Write-Host "An error occurred: $_. Retrying..."
-                Start-Sleep -Seconds $retryIntervalSec
-            }
-        }
-
+        $response = Invoke-Request -rUrl $url -rBody $body
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $c = $response.Content | ConvertFrom-Json
-        $s = $c.data.page.airingSchedules 
+        $s = $c.data.page.airingSchedules
         | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, `
             airingAt, episode, @{name = 'episodes'; expression = { $_.media.episodes } }, @{name = 'TitleEnglish'; expression = { $_.media.title.english } }, @{name = 'TitleRomanji'; expression = { $_.media.title.romaji } }, `
         @{name = 'TitleNative'; expression = { $_.media.title.native } }, @{name = 'Genres'; expression = { $_.media.genres -join ', ' } }, `
@@ -751,7 +582,6 @@ function Invoke-AnilistApiDateRange {
     } while ($nextPage)
     return $allResponses
 }
-
 if (!(Test-Path $logFolder)) {
     New-Item $logFolder -ItemType Directory
     New-Item $logFile -ItemType File
@@ -759,13 +589,8 @@ if (!(Test-Path $logFolder)) {
 elseif (!(Test-Path $logfile)) {
     New-Item $logfile -ItemType File
 }
-
 Write-Log -Message "[Start] $(Get-DateTime) - Running for $today" -LogFilePath $logFile
-
-if (!(Test-Path $csvFolder)) {
-    New-Item $csvFolder -ItemType Directory
-}
-
+if (!(Test-Path $csvFolder)) { New-Item $csvFolder -ItemType Directory }
 if ($GenerateAnilistFile) {
     do {
         $aType = Read-Host 'Run for (S)eason or (D)ate?'
@@ -777,12 +602,9 @@ if ($GenerateAnilistFile) {
     } while (
         $aType -notin 'S', 'D'
     )
-    if (Test-Path $csvFilePath) {
-        Remove-Item -LiteralPath $csvFilePath
-    }
+    if (Test-Path $csvFilePath) { Remove-Item -LiteralPath $csvFilePath }
     $dStartUnix = Get-FullUnixDay $csvStartDate
     $dEndunix = Get-FullUnixDay $csvEndDate
-
     if ($aType -eq 's') {
         # Fetching One Piece by ID since its season is 1999
         $sShow = Invoke-AnilistApiShowSeason -id 21
@@ -801,7 +623,6 @@ if ($GenerateAnilistFile) {
         $dShow = Invoke-AnilistApiShowDate -start $dStartUnix[0] -end $dEndunix[1]
         $allShows += $dShow
     }
-
     foreach ($a in $allShows) {
         if (-not [string]::IsNullOrEmpty($a.TitleEnglish)) {
             $title = $a.TitleEnglish -replace $badchar, "'"
@@ -812,12 +633,9 @@ if ($GenerateAnilistFile) {
         else {
             $title = $a.TitleNative
         }
-
         $genres = $a.genres -join ', '
         $totalEpisodes = $a.episodes
-        if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) {
-            $totalEpisodes = '00'
-        }
+        if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) { $totalEpisodes = '00' }
         $episode = '{0:D2}' -f [int]$episode
         $totalEpisodes = '{0:D2}' -f [int]$totalEpisodes
         $season = if (-not [string]::IsNullOrEmpty($a.season)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($a.season).ToLower()) }
@@ -829,11 +647,8 @@ if ($GenerateAnilistFile) {
         else {
             ''
         }
-        
         $showStartDate = if ($a.startDate -ne '//') { $a.startDate } else { $null }
         $showEndDate = if ($a.endDate -ne '//') { $a.endDate } else { $null }
-
-        # Find the first preferred site
         $firstPreferredSite = $null
         foreach ($ps in $supportSites) {
             $firstPreferredSite = $a.externalLinks | Where-Object { $_.site -eq $ps }
@@ -869,22 +684,15 @@ if ($GenerateAnilistFile) {
             $anime += $r
         }
     }
-
-    # Extract the Ids from the objects
     $ids = $anime | Select-Object ShowId -Unique | ForEach-Object { $_.ShowId }
-    $ids
-    # Chunk the Ids into groups of 20
-    $chunkSize = 20
     $chunkedIdList = @()
     for ($i = 0; $i -lt $ids.Count; $i += $chunkSize) {
         $chunkedIdList += ($ids[$i..($i + $chunkSize - 1)] -join ', ')
     }
-
     foreach ($c in $chunkedIdList) {
         $c
         $allEpisodes += Invoke-AnilistApiEpisode -id $c -eStart $dStartUnix[0] -eEnd $dEndunix[1]
     }
-
     foreach ($s in $anime) {
         $showId = $s.ShowId
         $title = $s.Title
@@ -930,50 +738,37 @@ if ($GenerateAnilistFile) {
             $data += $a
         }
     }
-    # Group by Title and filter based on Site preference
     Write-Output "[Setup] $(Get-DateTime) - Creating $csvFilePath"
     $data | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
 }
-
-$updatedRecordCalls = @()
-$updatedRecords = @()
-
 if ($updateAnilistCSV) {
-    if ($Automated) {
-        $aType = 'D'
-    }
+    if ($Automated) { $aType = 'D' }
     else {
         do {
             $aType = Read-Host 'Run for (S)eason or (D)ate?'
             if ($aType -notin 'S', 'D') {
-                Write-Output 'Enter S or D' 
+                Write-Output 'Enter S or D'
             }
         } while (
             $aType -notin 'S', 'D'
         )
     }
-    
     switch ($aType) {
         'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
         'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
     }
-
     if (!(Test-Path $csvFilePath)) {
         Write-Log -Message "[Check] $(Get-DateTime) - File does not exist:  $csvFilePath" -LogFilePath $logFile
-        Write-Log -Message "[End] $(Get-DateTime) - End of script.$spacer" -LogFilePath $logFile
-        exit
+        Exit-Script
     }
     $startDate = $today
-    $maxDay = 1#($csvEndDate - $today).days
     $start = 0
-
+    if ($Automated) { $maxDay = 8 } else { $maxDay = ($csvEndDate - $today).days }
     $csvFileData = Import-Csv $csvFilePath
     $oShowIdList = $csvFileData | Where-Object {
         $dateObject = [DateTime]::ParseExact($_.AirDate, 'MM/dd/yyyy', $null)
         $dateObject -ge $today }
     | Select-Object -ExpandProperty ShowId -Unique
-    #Chunk the Ids into groups of 20
-    $chunkSize = 20
     $chunkedIdList = @()
     for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
         $chunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
@@ -987,18 +782,13 @@ if ($updateAnilistCSV) {
         }
         $startDate.AddDays(1)
     }
-
     foreach ($ur in $updatedRecordCalls) {
         $ShowId = $ur.ShowId
         $EpisodeId = $ur.EpisodeId
         $episode = $ur.episode
         $totalEpisodes = $ur.episodes
-        if ( $episode -eq '' -or $null -eq $episode) {
-            $episode = '00'
-        }
-        if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) {
-            $totalEpisodes = '00'
-        }
+        if ( $episode -eq '' -or $null -eq $episode) { $episode = '00' }
+        if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) { $totalEpisodes = '00' }
         $episode = '{0:D2}' -f [int]$episode
         $totalEpisodes = '{0:D2}' -f [int]$totalEpisodes
         $genres = $ur.genres -join ', '
@@ -1011,10 +801,8 @@ if ($updateAnilistCSV) {
         else {
             ''
         }
-
         $showStartDate = if ($ur.startDate -ne '//') { $ur.startDate } else { $null }
         $showEndDate = if ($ur.endDate -ne '//') { $ur.endDate } else { $null }
-
         if (-not [string]::IsNullOrEmpty($ur.TitleEnglish)) {
             $title = $ur.TitleEnglish -replace $badchar, "'"
         }
@@ -1024,31 +812,22 @@ if ($updateAnilistCSV) {
         else {
             $title = $ur.TitleNative
         }
-         
         $airingFullTime = Get-UnixToLocal -unixTime $ur.airingAt
         $airingFullTimeFixed = Get-Date $airingFullTime -Format 'MM/dd/yyyy HH:mm:ss'
         $airingDate = Get-Date $airingFullTime -Format 'MM/dd/yyyy'
         $airingTime = Get-Date $airingFullTime -Format 'HH:mm'
         $weekday = Get-Date $airingFullTime -Format 'dddd'
-
         Write-Log -Message "[Generate] $(Get-DateTime) - $title - $episode/$totalEpisodes" -LogFilePath $logFile
         # Find the first preferred site
         $firstPreferredSite = $null
         foreach ($ps in $supportSites) {
             $firstPreferredSite = $ur.externalLinks | Where-Object { $_.site -eq $ps }
-            if ($firstPreferredSite) {
-                break
-            }
+            if ($firstPreferredSite) { break }
         }
         If ($firstPreferredSite) {
             $site = $firstPreferredSite.site
             $url = ($firstPreferredSite.url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
-            if (($url -in $badURLs) -or ($site -eq 'HIDIVE' -and $totalEpisodes -eq '00') -or ($site -in 'Hulu', 'Netflix')) {
-                $download = $false
-            }
-            else {
-                $download = $True
-            }
+            if (($url -in $badURLs) -or ($site -eq 'HIDIVE' -and $totalEpisodes -eq '00') -or ($site -in 'Hulu', 'Netflix')) { $download = $false } else { $download = $True }
             Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $download - $url" -LogFilePath $logFile
             $ue = [PSCustomObject]@{
                 ShowId         = $showId
@@ -1073,13 +852,10 @@ if ($updateAnilistCSV) {
             $updatedRecords += $ue
         }
     }
-
     $newData = Update-Records -source $csvFileData -target $updatedRecords
     Write-Output "[Generate] $(Get-DateTime) - Updating $csvFilePath"
     $newData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
 }
-
-
 If ($setDownload) {
     do {
         $sdType = Read-Host 'Set downloads by (S)eason or (D)ate?'
@@ -1096,8 +872,7 @@ If ($setDownload) {
         $sdType -notin 'S', 'D'
     )
     Set-CSVFormatting $csvFilePath
-    $pContent = Import-Csv $csvFilePath
-    # pick to do all, true, false values from season CSV records
+    $pContent = Import-Csv $
     do {
         $f = Read-Host 'Update All(A), True(T), False(F)'
         switch ($f) {
@@ -1133,9 +908,7 @@ If ($setDownload) {
             $r -notin 'y', 'yes', 'n', 'no'
         )
     }
-    # Loop through records in the first CSV file
     foreach ($record in $pContent) {
-        # Find matching record in the second CSV file based on common columns
         $matchingRecord = $sContent | Where-Object { $_.title -eq $record.title -and $_.URL -eq $record.URL }
         if ($matchingRecord) {
             foreach ($m in $matchingRecord) {
@@ -1167,17 +940,12 @@ If ($generateBatchFile) {
     $cutoffStart = $today.AddDays(-7)
     $cutoffEnd = $today.AddDays(7)
     Write-Host "D: $dateBatch; S: $seasonBatch"
-    # creating a backup everytime a new batch is created
     $date = Get-DateTime 2
     $newBackupPath = Join-Path $batchArchiveFolder -ChildPath "batch_$date"
-    if (!(Test-Path $newBackupPath)) {
-        New-Item $newBackupPath -ItemType Directory
-    }
+    if (!(Test-Path $newBackupPath)) { New-Item $newBackupPath -ItemType Directory }
     $sourceDirectory = $rootPath
     $destinationDirectory = $newBackupPath
-    if (!(Test-Path $destinationDirectory)) {
-        New-Item -Path $destinationDirectory -ItemType Directory
-    }
+    if (!(Test-Path $destinationDirectory)) { New-Item -Path $destinationDirectory -ItemType Directory }
     $itemsToCopy = Get-ChildItem -Path $sourceDirectory | Where-Object { $_.Name -ne '_archive' }
     $itemsToCopy | ForEach-Object {
         $destinationPath = Join-Path -Path $destinationDirectory -ChildPath $_.Name
@@ -1185,7 +953,6 @@ If ($generateBatchFile) {
         $destinationPath
         Copy-Item -Path $_.FullName -Destination $destinationPath -Recurse
     }
-
     if ($dateBatch -eq $True) {
         $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv"
         Set-CSVFormatting $csvFilePath
@@ -1201,7 +968,6 @@ If ($generateBatchFile) {
         $baseData = $rawData | Where-Object { $_.download -eq $true }
         $uniqueSites = $baseData | Select-Object -ExpandProperty Site -Unique
         foreach ($site in $uniqueSites) {
-            # Filter data for the current site
             $siteData = $baseData | Where-Object { $_.Site -eq $site }
             $basepath = Join-Path $rootPath -ChildPath 'site'
             $siteRootPath = Join-Path $basepath -ChildPath $site
@@ -1214,13 +980,10 @@ If ($generateBatchFile) {
                 Remove-Item $siteRootPath -Recurse -Force
                 New-Item $siteRootPath -ItemType Directory | Out-Null
             }
-            # Iterate through unique Weekdays for the current site
             $uniqueWeekdays = $siteData | Select-Object -ExpandProperty AirDay -Unique
             foreach ($weekday in $uniqueWeekdays) {
-                # Filter data for the current weekday
                 $weekdayData = $siteData | Where-Object { $_.AirDay -eq $weekday }
                 $dayNum = $weekdayOrder[$weekday]
-                # Initialize an empty array to hold the URLs
                 $urls = @()
                 # Generate URLs
                 foreach ($entry in $weekdayData) {
@@ -1267,7 +1030,6 @@ If ($generateBatchFile) {
         else {
             Get-ChildItem $baseSeasonPath | Remove-Item -Recurse
         }
-
         $rawData = (Import-Csv $csvFilePath) | Where-Object { $_.site -notin 'Hulu', 'Netflix' }
         | Select-Object SeasonYear, Season, Title, TotalEpisodes, AirDay, Site, URL, Download -Unique | Sort-Object Site, { $weekdayOrder[$_.AirDay] }, AiringTime, Title
         $baseData = $rawData | Where-Object { $_.download -eq $true }
@@ -1325,7 +1087,6 @@ If ($generateBatchFile) {
         }
     }
 }
-
 If ($sendDiscord) {
     $emojiList = @()
     $emojis | ForEach-Object {
@@ -1350,7 +1111,6 @@ If ($sendDiscord) {
             }
             $siteList += $b
         }
-
         Write-Log -Message "[Discord] $(Get-DateTime) - Reading Anilist Date CSV $csvFilePath" -LogFilePath $logFile
         $fieldObjects = @()
         $showCount = 0
@@ -1398,7 +1158,6 @@ If ($sendDiscord) {
                 }
                 $fieldObjects += $fObj
             }
-
         }
         if ($showCount -eq 0) {
             $fObj = [PSCustomObject]@{
@@ -1407,7 +1166,6 @@ If ($sendDiscord) {
                 inline = $false
             }
             $fieldObjects += $fObj
-
         }
         $description = "**No. of Shows:** $($showCount)"
         $thumbnailObject = [PSCustomObject]@{
@@ -1443,17 +1201,15 @@ If ($sendDiscord) {
         }
         else {
             Write-Log -Message "[Discord] $(Get-DateTime) - No shows airing for $sdWeekday" -LogFilePath $logFile
-            `w    
         }
     }
     else {
         Write-Log -Message "[Discord] $(Get-DateTime) - Anilist Season CSV not exist at: $csvFilePath" -LogFilePath $logFile
-        Write-Log -Message "[End] $(Get-DateTime) - End of script.$spacer" -LogFilePath $logFile
-        exit
+        Exit-Script
     }
     $config.configuration.logs.lastUpdated = $newLastUpdated
     Write-Log -Message "[Discord] $(Get-DateTime) - New lastUpdated: $newLastUpdated" -LogFilePath $logFile
     $config.Save($configFilePath)
     Start-Sleep -Seconds 2
 }
-Write-Log -Message "[End] $(Get-DateTime) - End of script.$spacer" -LogFilePath $logFile
+Exit-Script
