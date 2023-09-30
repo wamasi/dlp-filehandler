@@ -175,7 +175,7 @@ function Set-CSVFormatting {
                 'False' { $d.download = 'False' }
             }
         }
-        $csvd | Export-Csv $csvPath -NoTypeInformation
+        $csvd | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvPath -NoTypeInformation
     }
 }
 function Update-Records {
@@ -651,7 +651,7 @@ if ($GenerateAnilistFile) {
         $showEndDate = if ($a.endDate -ne '//') { $a.endDate } else { $null }
         $firstPreferredSite = $null
         foreach ($ps in $supportSites) {
-            $firstPreferredSite = $a.externalLinks | Where-Object { $_.site -eq $ps }
+            $firstPreferredSite = $a.externalLinks | Where-Object { $_.site -eq $ps } | Select-Object * -First 1
             if ($firstPreferredSite) {
                 break
             }
@@ -764,6 +764,7 @@ if ($updateAnilistCSV) {
     $startDate = $today
     $start = 0
     if ($Automated) { $maxDay = 8 } else { $maxDay = ($csvEndDate - $today).days }
+    $maxDay =1
     $csvFileData = Import-Csv $csvFilePath
     $oShowIdList = $csvFileData | Where-Object {
         $dateObject = [DateTime]::ParseExact($_.AirDate, 'MM/dd/yyyy', $null)
@@ -821,7 +822,7 @@ if ($updateAnilistCSV) {
         # Find the first preferred site
         $firstPreferredSite = $null
         foreach ($ps in $supportSites) {
-            $firstPreferredSite = $ur.externalLinks | Where-Object { $_.site -eq $ps }
+            $firstPreferredSite = $ur.externalLinks | Where-Object { $_.site -eq $ps } | Select-Object * -First 1
             if ($firstPreferredSite) { break }
         }
         If ($firstPreferredSite) {
