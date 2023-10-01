@@ -15,7 +15,9 @@ param(
     [Alias('DS')]
     [switch]$DebugScript,
     [Alias('O')]
-    [switch]$Override
+    [switch]$Override,
+    [Alias('I')]
+    [string]$IDs
 )
 $scriptRoot = $PSScriptRoot
 $configFilePath = Join-Path $scriptRoot -ChildPath 'config.xml'
@@ -191,6 +193,8 @@ function Update-Records {
             foreach ($property in $s.PSObject.Properties.Name) {
                 if ($property -eq 'Download') {
                     $newData[$property] = $s.$property
+                } elseif ($s.$property -eq $t.$property) {
+                    $newData[$property] = $t.$property
                 }
                 else {
                     $newData[$property] = ($t.$property)
@@ -764,13 +768,15 @@ if ($updateAnilistCSV) {
     $startDate = $today
     $start = 0
     if ($Automated) { $maxDay = 8 } else { $maxDay = ($csvEndDate - $today).days }
-    $maxDay =1
     $csvFileData = Import-Csv $csvFilePath
     $oShowIdList = $csvFileData | Where-Object {
         $dateObject = [DateTime]::ParseExact($_.AirDate, 'MM/dd/yyyy', $null)
         $dateObject -ge $today }
     | Select-Object -ExpandProperty ShowId -Unique
     $chunkedIdList = @()
+    if ($IDs) {
+        $oShowIdList = ($IDs -replace ' ', '' ) -split ','
+    }
     for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
         $chunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
     }
@@ -781,7 +787,7 @@ if ($updateAnilistCSV) {
         foreach ($c in $chunkedIdList) {
             $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $endUnix -id $c
         }
-        $startDate.AddDays(1)
+        $startDate = $startDate.AddDays(1)
     }
     foreach ($ur in $updatedRecordCalls) {
         $ShowId = $ur.ShowId
@@ -950,8 +956,6 @@ If ($generateBatchFile) {
     $itemsToCopy = Get-ChildItem -Path $sourceDirectory | Where-Object { $_.Name -ne '_archive' }
     $itemsToCopy | ForEach-Object {
         $destinationPath = Join-Path -Path $destinationDirectory -ChildPath $_.Name
-        $_.FullName
-        $destinationPath
         Copy-Item -Path $_.FullName -Destination $destinationPath -Recurse
     }
     if ($dateBatch -eq $True) {
@@ -986,13 +990,10 @@ If ($generateBatchFile) {
                 $weekdayData = $siteData | Where-Object { $_.AirDay -eq $weekday }
                 $dayNum = $weekdayOrder[$weekday]
                 $urls = @()
-                # Generate URLs
                 foreach ($entry in $weekdayData) {
                     $url = $entry.URL
                     $totalEpisodes = $entry.TotalEpisodes
-                    if ($totalEpisodes -eq 'NA') {
-                        $totalEpisodes = 0
-                    }
+                    if ($totalEpisodes -eq 'NA') { $totalEpisodes = 0 }
                     if ($site -eq 'HIDIVE' -and $totalEpisodes -gt 0) {
                         for ($i = 1; $i -le $totalEpisodes; $i++) {
                             $lastPart = $url -replace '/season-\d+', '' -replace '.*/', ''
@@ -1005,7 +1006,7 @@ If ($generateBatchFile) {
                             }
                             else {
                                 $modifiedUrl = "$v/s01e$($formattedNumber)"
-                            }
+                            } 
                             $urls += $modifiedUrl
                         }
                     }
@@ -1050,14 +1051,10 @@ If ($generateBatchFile) {
                         foreach ($b in $batch) {
                             $site = $sd
                             $p = Join-Path $baseSeasonPath -ChildPath "$y\$s\$sd"
-                            if (!(Test-Path $p)) {
-                                New-Item $p -ItemType Directory
-                            }
+                            if (!(Test-Path $p)) { New-Item $p -ItemType Directory }
                             $url = $b.URL
                             $totalEpisodes = $b.TotalEpisodes
-                            if ($totalEpisodes -eq 'NA') {
-                                $totalEpisodes = 0
-                            }
+                            if ($totalEpisodes -eq 'NA') { $totalEpisodes = 0 }
                             if ($site -eq 'HIDIVE' -and $totalEpisodes -gt 0) {
                                 for ($i = 1; $i -le $totalEpisodes; $i++) {
                                     $lastPart = $url -replace '/season-\d+', '' -replace '.*/', ''
