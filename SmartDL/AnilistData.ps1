@@ -991,14 +991,14 @@ If ($generateBatchFile) {
                 $dayNum = $weekdayOrder[$weekday]
                 $urls = @()
                 foreach ($entry in $weekdayData) {
-                    $url = $entry.URL
+                    $showUrl = $entry.URL
                     $totalEpisodes = $entry.TotalEpisodes
                     if ($totalEpisodes -eq 'NA') { $totalEpisodes = 0 }
                     if ($site -eq 'HIDIVE' -and $totalEpisodes -gt 0) {
                         for ($i = 1; $i -le $totalEpisodes; $i++) {
-                            $lastPart = $url -replace '/season-\d+', '' -replace '.*/', ''
+                            $lastPart = $showUrl -replace '/season-\d+', '' -replace '.*/', ''
                             $v = "https://www.hidive.com/stream/$lastPart"
-                            $seasonNumber = [regex]::Match($url, '/season-(\d+)').Groups[1].Value
+                            $seasonNumber = [regex]::Match($showUrl, '/season-(\d+)').Groups[1].Value
                             $seasonNumber = '{0:D2}' -f [int]$seasonNumber
                             $formattedNumber = '{0:D3}' -f $i
                             if ($seasonNumber -ne '00') {
@@ -1011,7 +1011,7 @@ If ($generateBatchFile) {
                         }
                     }
                     else {
-                        $urls += $url
+                        $urls += $showUrl
                     }
                 }
                 $urls = $urls | Select-Object -Unique
