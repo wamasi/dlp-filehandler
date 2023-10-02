@@ -1816,7 +1816,7 @@ if ($site) {
                 $discordTestAudioCodec = 'Test Audio Codec'; $discordTestDuration = 'Test Duration'; $discordTestRelease = 'Test Release'; $discordTestEpsidodeURL = 'https://www.google.com' ; $discordTestFooterIcon = $discordFooterIconDefault
             Invoke-Discord -site $discordTestSiteName -series $discordTestSeries -episode $discordTestEpisode -siteIcon $discordTestIcon -color $discordTestColor -subtitle $discordTestsubtitle `
                 -episodeSize $discordTestEpisodeSize -quality $discordTestQuality -videoCodec $discordTestVideoCodec -audioCodec $discordTestAudioCodec -duration $discordTestDuration `
-                -release $discordTestRelease -episodeURL $discordTestEpsidodeURL -episodeDate $fieldEpisodeDate -siteFooterIcon $discordTestFooterIcon -siteFooterText $fieldFooterText
+                -release $discordTestRelease -episodeURL $discordTestEpsidodeURL -episodeDate $fieldEpisodeDate -siteFooterIcon $discordTestFooterIcon -siteFooterText $fieldFooterText -DiscordSiteUrl $discordHookUrl
         }
         Exit-Script
     }
@@ -2232,7 +2232,7 @@ if ($site) {
                 $fieldEpisodeDate = $_._vsEpisodeDate
                 if ($_._vsErrored -eq $true) { 
                     $fieldRelease = "Error: $($_._vsEpisode)"
-                    $discordUrl = $discordHookErrorURL 
+                    $discordUrl = $discordHookErrorURL
                 }
                 else {
                     if ($filebot) {
