@@ -25,7 +25,6 @@ function Write-Log {
     Write-Host $Message
     Add-Content -Path $LogFilePath -Value $Message
 }
-
 $scriptRoot = $PSScriptRoot
 $configFilePath = Join-Path $scriptRoot -ChildPath 'config.xml'
 if (!(Test-Path $configFilePath)) {
@@ -58,10 +57,8 @@ if (!(Test-Path $configFilePath)) {
     Write-Host "No config found. Configure xml file: $configFilePath"
     exit
 }
-
 $dlpPath = Resolve-Path "$scriptRoot\.."
 $dlpScript = Join-Path $dlpPath -ChildPath '\dlp-script.ps1'
-
 [xml]$configData = Get-Content $configFilePath
 $backupPath = $configData.configuration.Directory.backup.location
 $logFolder = Join-Path $scriptRoot -ChildPath 'log'
@@ -72,7 +69,6 @@ $currentDate = Get-Date $now -Hour 0 -Minute 0 -Second 0 -Millisecond 0
 $weekday = Get-Date $currentDate -Format 'dddd'
 $weekday
 $spacer = "`n" + '-' * 120
-
 if (!(Test-Path $logFolder)) {
     New-Item $logFolder -ItemType Directory
     New-Item $logFile -ItemType File
@@ -89,8 +85,6 @@ else {
         Write-Log -Message "$spacer" -LogFilePath $logFile
     }
 }
-
-
 if ($dailyRuns) {
     if ((Test-Path $dlpScript)) { 
         Write-Log -Message "[Start] $(Get-DateTime) - Running for $weekday" -LogFilePath $logFile
@@ -125,7 +119,6 @@ if ($dailyRuns) {
     Write-Log -Message "[End] - $(Get-DateTime) - End of script.$spacer" -LogFilePath $logFile
     exit
 }
-
 if ($backup) {
     $date = Get-DateTime 2
     $smartDLBackupPathRoot = (Join-Path $backupPath -ChildPath 'SmartDL')

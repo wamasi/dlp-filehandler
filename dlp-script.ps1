@@ -207,7 +207,7 @@ function Get-DiskSpace {
     $freeSpaceFormatted = "$($freeSpace)$($FreeUnit)"
     $usedSpaceFormatted = "$($usedSpace)$($usedUnit)"
     $totalSpaceFormatted = "$($totalSpace)$($totalUnit)"
-    $percentageFree = [math]::Round((($freeO  / $totalO) * 100), 2).ToString('F2')
+    $percentageFree = [math]::Round((($freeO / $totalO) * 100), 2).ToString('F2')
     $percentageUsed = [math]::Round((($usedO / $totalO) * 100), 2).ToString('F2')
     $diskSpacePSObj = [PSCustomObject]@{
         rootName            = $rootName
@@ -604,7 +604,8 @@ function Invoke-Discord {
         $episodeURL,
         $episodeDate,
         $siteFooterIcon,
-        $siteFooterText
+        $siteFooterText,
+        $DiscordSiteUrl
     )
     $embedDebug = @()
     $fieldObjects = @()
@@ -740,7 +741,7 @@ function Invoke-Discord {
     $embedArray.Add($embedObject) | Out-Null
     $payloadJson = $payload | ConvertTo-Json -Depth 4
     Invoke-ExpressionConsole -scmFunctionName 'Discord' -scmFunctionParams "write-output `"$($embedDebug -join "`n")`""
-    $p = Invoke-WebRequest -Uri $discordHookUrl -Body $payloadJson -Method Post -ContentType 'application/json' | Select-Object -ExpandProperty Headers
+    $p = Invoke-WebRequest -Uri $DiscordSiteUrl -Body $payloadJson -Method Post -ContentType 'application/json' | Select-Object -ExpandProperty Headers
     $discordLimit = $p.'x-ratelimit-limit'
     $discordRemainingLimit = $p.'x-ratelimit-remaining'
     $discordResetAfter = [float]::Parse($p.'x-rateLimit-reset-after')
@@ -924,6 +925,10 @@ function Invoke-Filebot {
             Write-Output "[Filebot] $(Get-DateTime) - Setting file($filebotVidInput) as completed."
             Set-VideoStatus -searchKey '_vsEpisodeRaw' -searchValue $filebotVidBaseName -nodeKey '_vsFBCompleted' -nodeValue $($true)
         }
+        else {
+            Write-Output "[Filebot] $(Get-DateTime) - Failed to match. Setting file($filebotVidInput) as errored."
+            Set-VideoStatus -searchKey '_vsEpisodeRaw' -searchValue $filebotVidBaseName -nodeKey '_vsErrored' -nodeValue $($true)
+        }
     }
     $vsvFBCount = ($vsCompletedFilesList | Where-Object { $_._vsFBCompleted -eq $true } | Measure-Object).Count
     if ($vsvFBCount -eq $vsvTotCount ) {
@@ -1059,7 +1064,7 @@ function Update-SubtitleStyle {
     $top = $result | Where-Object { $_ -ne $null -and $_.Trim() -ne '' }
     $styles = $styles | Where-Object { $_ -ne $null -and $_.Trim() -ne '' }
     $events = $events | Where-Object { $_ -ne $null -and $_.Trim() -ne '' }
-    ($top + $styles + $events)| Set-Content $SubtitleFilePath
+    ($top + $styles + $events) | Set-Content $SubtitleFilePath
     Write-Output "[SubtitleRegex] $(Get-DateTime) - Finished updating subtitle: $SubtitleFilePath."
 }
 
@@ -1554,6 +1559,10 @@ if ($site) {
     $overrideSeriesList = $configFile.configuration.OverrideSeries.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
     $overrideEpisodeList = $configFile.configuration.OverrideEposides.override | Where-Object { $_.filenamePattern -ne '' -and $_.fileReplaceText -ne '' }
     $discordHookUrl = $configFile.configuration.Discord.hook.url
+    $discordHookErrorURL = $configFile.configuration.Discord.hook.error
+    if ([string]::IsNullOrEmpty($discordHookUrl) -eq '' -or [string]::IsNullOrEmpty($discordHookErrorURL) -eq '' ) {
+        $sendDiscord = $false
+    }
     $discordSiteIcon = $siteNameParams.icon.url
     $discordSiteColor = $siteNameParams.icon.color
     $discordIconDefault = $configFile.configuration.Discord.icon.Default
@@ -2221,16 +2230,18 @@ if ($site) {
                 $fieldDuration = $_._vsEpisodeDuration
                 $fieldEpisodeUrl = $_._vsEpisodeUrl
                 $fieldEpisodeDate = $_._vsEpisodeDate
-                $fieldRelease = if ($_._vsFilebotTitle.trim() -eq '') {
-                    if ($filebot) {
-                        "Error: $($_._vsEpisode)"
-                    }
-                    else {
-                        "$($_._vsEpisode)"
-                    }
+                if ($_._vsErrored -eq $true) { 
+                    $fieldRelease = "Error: $($_._vsEpisode)"
+                    $discordUrl = $discordHookErrorURL 
                 }
                 else {
-                    $_._vsFilebotTitle
+                    if ($filebot) {
+                        $fieldRelease = $_._vsFilebotTitle
+                    }
+                    else {
+                        $fieldRelease = $($_._vsEpisode)
+                    }
+                    $discordUrl = $discordHookURL
                 }
                 $filePath = if ($_._vsFinalPathVideo.trim() -ne '') {
                     $_._vsFinalPathVideo
@@ -2243,7 +2254,7 @@ if ($site) {
                 Write-Output "[Discord] $(Get-DateTime) - Sending $occurrenceCount/$occurrenceTotal."
                 Invoke-Discord -site $fieldSite -series $fieldSeries -episode $fieldEpisode -siteIcon $discordSiteIcon -color $discordSiteColor -subtitle $fieldSubtitle `
                     -episodeSize $fieldSize -quality $fieldQuality -videoCodec $fieldVideoCodec -audioCodec $fieldAudioCodec -duration $fieldDuration -release $fieldRelease `
-                    -episodeURL $fieldEpisodeUrl -episodeDate $fieldEpisodeDate -siteFooterIcon $discordFooterIconDefault -siteFooterText $fieldFooterText
+                    -episodeURL $fieldEpisodeUrl -episodeDate $fieldEpisodeDate -siteFooterIcon $discordFooterIconDefault -siteFooterText $fieldFooterText -DiscordSiteUrl $discordUrl
             }
         }
         Write-Output "[Processing] $(Get-DateTime) - Errored Files: $vsvErrorCount/$vsvTotCount"

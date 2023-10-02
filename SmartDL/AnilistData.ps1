@@ -17,7 +17,11 @@ param(
     [Alias('O')]
     [switch]$Override,
     [Alias('I')]
-    [string]$IDs
+    [string]$MediaID_In,
+    [Alias('NI')]
+    [string]$MediaID_NotIn,
+    [Alias('NSC')]
+    [switch]$newShowCheck
 )
 $scriptRoot = $PSScriptRoot
 $configFilePath = Join-Path $scriptRoot -ChildPath 'config.xml'
@@ -71,10 +75,7 @@ $csvFolder = Join-Path $scriptRoot -ChildPath 'anilist'
 $badURLs = 'https://www.crunchyroll.com/', 'https://www.crunchyroll.com', 'https://www.hidive.com/', 'https://www.hidive.com'
 $supportSites = 'Crunchyroll', 'HIDIVE', 'Netflix', 'Hulu'
 $SiteCountList = @()
-foreach ($ss in $supportSites) {
-    $a = [PSCustomObject]@{Site = $ss; ShowCount = 0 }
-    $SiteCountList += $a
-}
+foreach ($ss in $supportSites) { $a = [PSCustomObject]@{Site = $ss; ShowCount = 0 }; $SiteCountList += $a }
 $spacer = "`n" + '-' * 120
 $now = Get-Date
 $today = Get-Date $now -Hour 0 -Minute 0 -Second 0 -Millisecond 0
@@ -102,9 +103,7 @@ $csvEndDate = $SeasonDates | Where-Object { $_.Ordinal -eq 5 } | Select-Object -
 $csvStartDate = Get-Date $csvStartDate -Hour 0 -Minute 0 -Second 0 -Millisecond 0
 $csvEndDate = Get-Date $csvEndDate -Hour 0 -Minute 0 -Second 0 -Millisecond 0
 $seasonOrder = [ordered]@{}
-foreach ($season in $SeasonDates | Where-Object { $_.Ordinal -ne 1 }) {
-    $seasonOrder[$season.Season] = $season.Ordinal
-}
+foreach ($season in $SeasonDates | Where-Object { $_.Ordinal -ne 1 }) { $seasonOrder[$season.Season] = $season.Ordinal }
 $weekdayOrder = [ordered]@{
     Monday    = 1
     Tuesday   = 2
@@ -120,9 +119,7 @@ function Write-Log {
         [string]$LogFilePath
     )
     Write-Host $Message
-    if (!(Test-Path $LogFilePath)) {
-        New-Item $LogFilePath -ItemType File
-    }
+    if (!(Test-Path $LogFilePath)) { New-Item $LogFilePath -ItemType File }
     Add-Content -Path $LogFilePath -Value $Message
 }
 function Get-DateTime {
@@ -193,7 +190,8 @@ function Update-Records {
             foreach ($property in $s.PSObject.Properties.Name) {
                 if ($property -eq 'Download') {
                     $newData[$property] = $s.$property
-                } elseif ($s.$property -eq $t.$property) {
+                }
+                elseif ($s.$property -eq $t.$property) {
                     $newData[$property] = $t.$property
                 }
                 else {
@@ -317,10 +315,7 @@ function Invoke-AnilistApiShowDate {
         @{name = 'Status'; expression = { $_.status } }, @{name = 'Season'; expression = { $_.season } }, @{name = 'SeasonYear'; expression = { $_.seasonYear } } , `
         @{name = 'StartDate'; expression = { "$($_.startDate.month)/$($_.startDate.day)/$($_.startDate.year)" } }, `
         @{name = 'EndDate'; expression = { "$($_.endDate.month)/$($_.endDate.day)/$($_.endDate.year)" } }, externalLinks
-        if ($nextPage) {
-            $pageNum++
-            Write-Host "Next Page: $pageNum - $start/$end"
-        }
+        if ($nextPage) { $pageNum++; Write-Host "Next Page: $pageNum - $start/$end" }
         if ($remaining -le 5) {
             Write-Host 'Pausing for 60 second(s).'
             Start-Sleep -Seconds 60
@@ -329,7 +324,7 @@ function Invoke-AnilistApiShowDate {
             $delayBetweenRequests = [math]::Ceiling((60 / ($remaining + 1)))
             Start-Sleep -Seconds $delayBetweenRequests
         }
-    } while ($nextPage)
+    } while ( $nextPage )
     return $allSeasonShows
 }
 function Invoke-AnilistApiShowSeason {
@@ -422,7 +417,7 @@ function Invoke-AnilistApiShowSeason {
             $delayBetweenRequests = 60 / ($remaining + 1)
             Start-Sleep -Seconds $delayBetweenRequests
         }
-    } while ($nextPage)
+    } while ( $nextPage )
     return $allSeasonShows
 }
 function Invoke-AnilistApiEpisode {
@@ -470,10 +465,7 @@ function Invoke-AnilistApiEpisode {
         $nextPage = $c.data.page.pageInfo.hasNextPage
         $ae += $c.data.page.airingSchedules | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, episode, airingAt
         Write-Host "added: $($s.count)"
-        if ($nextPage) {
-            $pageNum++
-            Write-Host "Next Page: $pageNum"
-        }
+        if ($nextPage) { $pageNum++; Write-Host "Next Page: $pageNum" }
         if ($remaining -le 6) {
             Start-Sleep -Seconds 60
         }
@@ -481,7 +473,7 @@ function Invoke-AnilistApiEpisode {
             $delayBetweenRequests = 60 / ($remaining + 2)
             Start-Sleep -Seconds $delayBetweenRequests
         }
-    } while ($nextPage)
+    } while ( $nextPage )
     return $ae
 }
 function Invoke-AnilistApiDateRange {
@@ -491,7 +483,9 @@ function Invoke-AnilistApiDateRange {
         [Parameter(Mandatory = $true)]
         $end,
         [Parameter(Mandatory = $false)]
-        $id
+        $ID_IN,
+        [Parameter(Mandatory = $false)]
+        $ID_NOTIN
     )
     $pageNum = 1
     $perPageNum = 20
@@ -503,12 +497,20 @@ function Invoke-AnilistApiDateRange {
     $headers.Add('Content-Type', 'application/json')
     $allResponses = @()
     $mediaFilter = "airingAt_greater: $start, airingAt_lesser: $end"
-    if ($null -ne $id) {
-        if ($id -like '*,*') {
-            $mediaFilter = $mediaFilter + ", mediaId_in: [$($id)]"
+    if ($null -ne $ID_IN) {
+        if ($ID_IN -like '*,*') {
+            $mediaFilter = $mediaFilter + ", mediaId_in: [$($ID_IN)]"
         }
         else {
-            $mediaFilter = $mediaFilter + ", mediaId: $($id)"
+            $mediaFilter = $mediaFilter + ", mediaId: $($ID_IN)"
+        }
+    }
+    if ($null -ne $ID_NOTIN) {
+        if ($ID_NOTIN -like '*,*') {
+            $mediaFilter = $mediaFilter + ", mediaId_not_in: [$($ID_NOTIN)]"
+        }
+        else {
+            $mediaFilter = $mediaFilter + ", mediaId_not: $($ID_NOTIN)"
         }
     }
     Write-Log -Message "[AnilistAPI] $(Get-DateTime) - $start - Starting on page $pageNum" -LogFilePath $logFile
@@ -583,7 +585,7 @@ function Invoke-AnilistApiDateRange {
             $delayBetweenRequests = 60 / ($remaining + 1)
             Start-Sleep -Seconds $delayBetweenRequests
         }
-    } while ($nextPage)
+    } while ( $nextPage )
     return $allResponses
 }
 if (!(Test-Path $logFolder)) {
@@ -603,9 +605,7 @@ if ($GenerateAnilistFile) {
             'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
             Default { Write-Output 'Enter S or D' }
         }
-    } while (
-        $aType -notin 'S', 'D'
-    )
+    } while ( $aType -notin 'S', 'D' )
     if (Test-Path $csvFilePath) { Remove-Item -LiteralPath $csvFilePath }
     $dStartUnix = Get-FullUnixDay $csvStartDate
     $dEndunix = Get-FullUnixDay $csvEndDate
@@ -656,9 +656,7 @@ if ($GenerateAnilistFile) {
         $firstPreferredSite = $null
         foreach ($ps in $supportSites) {
             $firstPreferredSite = $a.externalLinks | Where-Object { $_.site -eq $ps } | Select-Object * -First 1
-            if ($firstPreferredSite) {
-                break
-            }
+            if ($firstPreferredSite) { break }
         }
         If ($firstPreferredSite) {
             $site = $firstPreferredSite.Site
@@ -688,13 +686,12 @@ if ($GenerateAnilistFile) {
             $anime += $r
         }
     }
-    $ids = $anime | Select-Object ShowId -Unique | ForEach-Object { $_.ShowId }
+    $idList = $anime | Select-Object ShowId -Unique | ForEach-Object { $_.ShowId }
     $chunkedIdList = @()
-    for ($i = 0; $i -lt $ids.Count; $i += $chunkSize) {
-        $chunkedIdList += ($ids[$i..($i + $chunkSize - 1)] -join ', ')
+    for ($i = 0; $i -lt $idList.Count; $i += $chunkSize) {
+        $chunkedIdList += ($idList[$i..($i + $chunkSize - 1)] -join ', ')
     }
     foreach ($c in $chunkedIdList) {
-        $c
         $allEpisodes += Invoke-AnilistApiEpisode -id $c -eStart $dStartUnix[0] -eEnd $dEndunix[1]
     }
     foreach ($s in $anime) {
@@ -753,9 +750,7 @@ if ($updateAnilistCSV) {
             if ($aType -notin 'S', 'D') {
                 Write-Output 'Enter S or D'
             }
-        } while (
-            $aType -notin 'S', 'D'
-        )
+        } while ( $aType -notin 'S', 'D' )
     }
     switch ($aType) {
         'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
@@ -769,13 +764,19 @@ if ($updateAnilistCSV) {
     $start = 0
     if ($Automated) { $maxDay = 8 } else { $maxDay = ($csvEndDate - $today).days }
     $csvFileData = Import-Csv $csvFilePath
-    $oShowIdList = $csvFileData | Where-Object {
-        $dateObject = [DateTime]::ParseExact($_.AirDate, 'MM/dd/yyyy', $null)
-        $dateObject -ge $today }
-    | Select-Object -ExpandProperty ShowId -Unique
     $chunkedIdList = @()
-    if ($IDs) {
-        $oShowIdList = ($IDs -replace ' ', '' ) -split ','
+    
+    if ($MediaID_In) {
+        $oShowIdList = ($MediaID_In -replace ' ', '' ) -split ','
+    }
+    elseif ($MediaID_NotIn) {
+        $oShowIdList = ($MediaID_NotIn -replace ' ', '' ) -split ','
+    }
+    else {
+        $oShowIdList = $csvFileData | Where-Object {
+            $dateObject = [DateTime]::ParseExact($_.AirDate, 'MM/dd/yyyy', $null)
+            $dateObject -ge $today }
+        | Select-Object -ExpandProperty ShowId -Unique
     }
     for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
         $chunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
@@ -785,7 +786,12 @@ if ($updateAnilistCSV) {
         $startUnix, $endUnix = Get-FullUnixDay -Date $startDate
         Write-Log -Message "[Generate] $(Get-DateTime) - $($start)/$($maxDay) - $startDate - $startUnix - $endUnix" -LogFilePath $logFile
         foreach ($c in $chunkedIdList) {
-            $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $endUnix -id $c
+            if ($MediaID_NotIn -or $newShowCheck) {
+                $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $endUnix -ID_NOTIN $c
+            }
+            else {
+                $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $endUnix -ID_IN $c
+            }
         }
         $startDate = $startDate.AddDays(1)
     }
@@ -875,11 +881,9 @@ If ($setDownload) {
             $sdType = 'NA'
             Write-Host "File does not exist: $csvFilePath"
         }
-    } while (
-        $sdType -notin 'S', 'D'
-    )
+    } while ( $sdType -notin 'S', 'D' )
     Set-CSVFormatting $csvFilePath
-    $pContent = Import-Csv $
+    $pContent = Import-Csv $csvFilePath
     do {
         $f = Read-Host 'Update All(A), True(T), False(F)'
         switch ($f) {
@@ -888,32 +892,28 @@ If ($setDownload) {
             'f' { $sContent = $pContent | Where-Object { $_.download -eq $false } | Select-Object Title, TotalEpisodes, Site, URL, Download -Unique }
             Default { Write-Output 'Enter a valid response(a/t/f)' }
         }
-    } while (
-        $f -notin 'a', 't', 'f'
-    )
+    } while ( $f -notin 'a', 't', 'f' )
     [int]$counter = 1
     $counts = $sContent.count
     Write-Host "Total items: $counts"
     foreach ($c in $sContent) {
         do {
-            $c.download = $null
             if (($c.url -in $badURLs ) -or ($c.site -eq 'HIDIVE' -and $c.TotalEpisodes -eq '00')) {
                 Write-Output "[Debug] $(Get-DateTime) - $counter/$counts - URL or site condition met: $($c.URL), $($c.site), $($c.TotalEpisodes)"
                 Write-Output "$($spacer)`nTotal Episodes: $($c.TotalEpisodes) - URL: $($c.URL)"
                 $r = 'no'
             }
             else {
-                $r = Read-Host "$($spacer)`n$($counter)/$($counts) - Total Episodes: $($c.TotalEpisodes) - URL: $($c.URL)`nAdd $($c.title)?(Y/N)"
+                $r = Read-Host "$($spacer)`n$($counter)/$($counts) - Total Episodes: $($c.TotalEpisodes) - URL: $($c.URL)`nAdd $($c.title) [$($c.download)]?(Y/N/Blank)"
             }
             switch ($r) {
-                { 'y', 'yes' -contains $_ } { [bool]$c.download = $True; $counter++ }
-                { 'n', 'no' -contains $_ } { [bool]$c.download = $false; $counter++ }
-                Default { Write-Output 'Enter a valid response(y/n)' }
+                { 'y', 'yes' -contains $_ } { $c.download = $True; $counter++ }
+                { 'n', 'no' -contains $_ } { $c.download = $false; $counter++ }
+                {  '' -contains $_ } { [bool]$c.download = $c.download; $counter++ }
+                Default { Write-Output 'Enter a valid response(y/n/blank)' }
             }
-            Write-Output "[Setup] $(Get-DateTime) - Setting $($c.title) to $($c.download)$spacer"
-        } while (
-            $r -notin 'y', 'yes', 'n', 'no'
-        )
+            Write-Output "[Setup] $(Get-DateTime) - Setting $($c.title) to [$($c.download)]$spacer"
+        } while ( $r -notin 'y', 'yes', 'n', 'no' ,'' )
     }
     foreach ($record in $pContent) {
         $matchingRecord = $sContent | Where-Object { $_.title -eq $record.title -and $_.URL -eq $record.URL }
@@ -926,7 +926,6 @@ If ($setDownload) {
     Write-Output "[Setup] $(Get-DateTime) - Updating $csvFilePath"
     $pContent | Export-Csv -Path $csvFilePath -NoTypeInformation
 }
-
 If ($generateBatchFile) {
     do {
         if ($automated) {
@@ -941,9 +940,7 @@ If ($generateBatchFile) {
             'B' { $dateBatch = $True; $seasonBatch = $True }
             Default { Write-Host 'Enter D, S, or B' }
         }
-    } while (
-        $daily -notin 'D', 'S', 'B'
-    )
+    } while ( $daily -notin 'D', 'S', 'B' )
     $cutoffStart = $today.AddDays(-7)
     $cutoffEnd = $today.AddDays(7)
     Write-Host "D: $dateBatch; S: $seasonBatch"
