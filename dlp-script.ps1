@@ -1560,9 +1560,6 @@ if ($site) {
     $overrideEpisodeList = $configFile.configuration.OverrideEposides.override | Where-Object { $_.filenamePattern -ne '' -and $_.fileReplaceText -ne '' }
     $discordHookUrl = $configFile.configuration.Discord.hook.url
     $discordHookErrorURL = $configFile.configuration.Discord.hook.error
-    if ([string]::IsNullOrEmpty($discordHookUrl) -eq '' -or [string]::IsNullOrEmpty($discordHookErrorURL) -eq '' ) {
-        $sendDiscord = $false
-    }
     $discordSiteIcon = $siteNameParams.icon.url
     $discordSiteColor = $siteNameParams.icon.color
     $discordIconDefault = $configFile.configuration.Discord.icon.Default
@@ -2230,7 +2227,7 @@ if ($site) {
                 $fieldDuration = $_._vsEpisodeDuration
                 $fieldEpisodeUrl = $_._vsEpisodeUrl
                 $fieldEpisodeDate = $_._vsEpisodeDate
-                if ($_._vsErrored -eq $true) { 
+                if ($_._vsErrored -eq $true) {
                     $fieldRelease = "Error: $($_._vsEpisode)"
                     $discordUrl = $discordHookErrorURL
                 }
