@@ -216,7 +216,8 @@ function Update-Records {
             $newDataArray += [PSCustomObject]$newData
         }
     }
-    return $newDataArray
+    $newDataArrayFiltered = $newDataArray | Where-Object { $null -ne $_.PSObject.Properties.Value -and $_.PSObject.Properties.Value -ne '' }
+    return $newDataArrayFiltered
 }
 function Invoke-Request {
     param (
@@ -763,6 +764,7 @@ if ($updateAnilistCSV) {
     $startDate = $today
     $start = 0
     if ($Automated) { $maxDay = 8 } else { $maxDay = ($csvEndDate - $today).days }
+    Set-CSVFormatting -csvPath $csvFilePath
     $csvFileData = Import-Csv $csvFilePath
     $chunkedIdList = @()
     
@@ -795,7 +797,7 @@ if ($updateAnilistCSV) {
         }
         $startDate = $startDate.AddDays(1)
     }
-    foreach ($ur in $updatedRecordCalls) {
+    foreach ($ur in $updatedRecordCalls | Sort-Object ShowId, EpisodeId) {
         $ShowId = $ur.ShowId
         $EpisodeId = $ur.EpisodeId
         $episode = $ur.episode
@@ -830,7 +832,6 @@ if ($updateAnilistCSV) {
         $airingDate = Get-Date $airingFullTime -Format 'MM/dd/yyyy'
         $airingTime = Get-Date $airingFullTime -Format 'HH:mm'
         $weekday = Get-Date $airingFullTime -Format 'dddd'
-        Write-Log -Message "[Generate] $(Get-DateTime) - $title - $episode/$totalEpisodes" -LogFilePath $logFile
         # Find the first preferred site
         $firstPreferredSite = $null
         foreach ($ps in $supportSites) {
@@ -841,7 +842,7 @@ if ($updateAnilistCSV) {
             $site = $firstPreferredSite.site
             $url = ($firstPreferredSite.url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
             if (($url -in $badURLs) -or ($site -eq 'HIDIVE' -and $totalEpisodes -eq '00') -or ($site -in 'Hulu', 'Netflix')) { $download = $false } else { $download = $True }
-            Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $download - $url" -LogFilePath $logFile
+            Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $episode/$totalEpisodes - $download - $url" -LogFilePath $logFile
             $ue = [PSCustomObject]@{
                 ShowId         = $showId
                 EpisodeId      = $episodeId
@@ -909,11 +910,11 @@ If ($setDownload) {
             switch ($r) {
                 { 'y', 'yes' -contains $_ } { $c.download = $True; $counter++ }
                 { 'n', 'no' -contains $_ } { $c.download = $false; $counter++ }
-                {  '' -contains $_ } { [bool]$c.download = $c.download; $counter++ }
+                { '' -contains $_ } { [bool]$c.download = $c.download; $counter++ }
                 Default { Write-Output 'Enter a valid response(y/n/blank)' }
             }
             Write-Output "[Setup] $(Get-DateTime) - Setting $($c.title) to [$($c.download)]$spacer"
-        } while ( $r -notin 'y', 'yes', 'n', 'no' ,'' )
+        } while ( $r -notin 'y', 'yes', 'n', 'no' , '' )
     }
     foreach ($record in $pContent) {
         $matchingRecord = $sContent | Where-Object { $_.title -eq $record.title -and $_.URL -eq $record.URL }
