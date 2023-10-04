@@ -184,7 +184,7 @@ function Update-Records {
     )
     $newDataArray = @()
     foreach ($t in $target) {
-        $s = $source | Where-Object { $_.ShowId -eq $t.ShowId -and $_.EpisodeId -eq $t.EpisodeId }
+        $s = $source | Where-Object { $_.ShowId -eq $t.ShowId -and $_.Episode -eq $t.Episode }
         $newData = [ordered]@{}
         if ($s) {
             foreach ($property in $s.PSObject.Properties.Name) {
@@ -207,7 +207,7 @@ function Update-Records {
         $newDataArray += [PSCustomObject]$newData
     }
     foreach ($s in $source) {
-        $n = $newDataArray | Where-Object { $_.ShowId -eq $s.ShowId -and $_.EpisodeId -eq $s.EpisodeId }
+        $n = $newDataArray | Where-Object { $_.ShowId -eq $s.ShowId -and $_.Episode -eq $s.Episode }
         if (-not $n) {
             $newData = [ordered]@{}
             foreach ($property in $s.PSObject.Properties.Name) {
