@@ -6,6 +6,8 @@ param(
     [switch]$GenerateAnilistFile,
     [Alias('U')]
     [switch]$updateAnilistCSV,
+    [Alias('UR')]
+    [switch]$updateAnilistURLs,
     [Alias('D')]
     [switch]$SetDownload,
     [Alias('B')]
@@ -589,6 +591,67 @@ function Invoke-AnilistApiDateRange {
     } while ( $nextPage )
     return $allResponses
 }
+function Invoke-AnilistApiURL {
+    param (
+        $urlIDs
+    )
+    $uIDlist = @()
+    $pageNum = 1
+    $perPageNum = 20
+    $url = 'https://graphql.anilist.co'
+    $headers = New-Object 'System.Collections.Generic.Dictionary[[String],[String]]'
+    $headers.Add('method', 'POST')
+    $headers.Add('authority', 'graphql.anilist.co')
+    $headers.Add('Content', 'application/json')
+    $headers.Add('Content-Type', 'application/json')
+    Write-Host "Starting page: $pageNum"
+    if ($urlIDs -like '*,*') {
+        $mediaFilter = "id_in: [$($urlIDs)]"
+    }
+    else {
+        $mediaFilter = "id: $($urlIDs)"
+    }
+    do {
+        $urlBody = [PSCustomObject]@{
+            query         = @"
+{
+  Page(page: $($pageNum), perPage: $($perPageNum)) {
+    media($($mediaFilter)) {
+      id
+      title {
+        english
+      }
+      externalLinks {
+        site
+        url
+      }
+    }
+    pageInfo {
+      hasNextPage
+    }
+  }
+}
+"@
+            variables     = $null
+            operationName = $null
+        } | ConvertTo-Json
+        $response = Invoke-Request -rUrl $url -rBody $urlBody
+        [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
+        $c = $response.Content | ConvertFrom-Json
+        $nextPage = $c.data.page.pageInfo.hasNextPage
+        $uIDlist += $c.data.page.media | Select-Object @{name = 'ShowId'; expression = { $_.id } }, externalLinks
+        Write-Host "added: $($uIDlist.count)"
+        if ($nextPage) { $pageNum++; Write-Host "Next Page: $pageNum" }
+        if ($remaining -le 6) {
+            Start-Sleep -Seconds 60
+        }
+        else {
+            $delayBetweenRequests = 60 / ($remaining + 2)
+            Start-Sleep -Seconds $delayBetweenRequests
+        }
+    } while ( $nextPage )
+    return $uIDlist
+}
 if (!(Test-Path $logFolder)) {
     New-Item $logFolder -ItemType Directory
     New-Item $logFile -ItemType File
@@ -875,6 +938,59 @@ if ($updateAnilistCSV) {
     Write-Output "[Generate] $(Get-DateTime) - Updating $csvFilePath"
     $newData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
 }
+if ($updateAnilistURLs) {
+    $chunkedIdList = @()
+    $urlList = @()
+    $lookupTable = @{}
+    if ($Automated) { $aType = 'D' }
+    else {
+        do {
+            $aType = Read-Host 'Run for (S)eason or (D)ate?'
+            if ($aType -notin 'S', 'D') {
+                Write-Output 'Enter S or D'
+            }
+        } while ( $aType -notin 'S', 'D' )
+    }
+    switch ($aType) {
+        'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
+        'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
+    }
+    Set-CSVFormatting -csvPath $csvFilePath
+    $csvFileData = Import-Csv $csvFilePath
+    if ($MediaID_In) {
+        $oShowIdList = ($MediaID_In -replace ' ', '' ) -split ','
+    }
+    elseif ($MediaID_NotIn) {
+        $oShowIdList = ($MediaID_NotIn -replace ' ', '' ) -split ','
+    }
+    else {
+        $oShowIdList = $csvFileData | Select-Object -ExpandProperty ShowId -Unique
+    }
+    for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
+        $chunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
+    }
+    foreach ($c in $chunkedIdList) {
+        $urlList += Invoke-AnilistApiURL -urlIDs $c
+    }
+    foreach ($rs in $urlList) {
+        $nestedSites = $rs.externalLinks
+        $firstPreferredSite = $nestedSites | Where-Object { $_.site -in $supportSites } | Select-Object @{name = 'site'; expression = { $_.site } },@{name = 'url'; expression = { $_.url } } -First 1
+        if ($null -ne $firstPreferredSite) {
+            $lookupTable["$($rs.ShowId)"] = @{
+                'site' = $firstPreferredSite.site
+                'url'  = $firstPreferredSite.url
+            }
+        }
+    }
+    foreach ($row in $csvFileData) {
+        $key = "$($row.ShowId)"
+        if ($lookupTable.ContainsKey($key)) {
+            $row.Site = $lookupTable[$key]['site']
+            $row.URL  = $lookupTable[$key]['url']
+        }
+    }
+    $csvFileData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
+}
 If ($setDownload) {
     do {
         $sdType = Read-Host 'Set downloads by (S)eason or (D)ate?'
@@ -951,7 +1067,7 @@ If ($generateBatchFile) {
     }
     $cutoffStart = $today.AddDays(-7)
     $cutoffEnd = $today.AddDays(7)
-    Write-Host "D: $dateBatch; S: $seasonBatch"
+    Write-Host "Generate Daily: $dateBatch; Generate Seasonal: $seasonBatch"
     $date = Get-DateTime 2
     $newBackupPath = Join-Path $batchArchiveFolder -ChildPath "batch_$date"
     if (!(Test-Path $newBackupPath)) { New-Item $newBackupPath -ItemType Directory }
