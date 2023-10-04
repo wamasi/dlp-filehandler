@@ -599,14 +599,19 @@ elseif (!(Test-Path $logfile)) {
 Write-Log -Message "[Start] $(Get-DateTime) - Running for $today" -LogFilePath $logFile
 if (!(Test-Path $csvFolder)) { New-Item $csvFolder -ItemType Directory }
 if ($GenerateAnilistFile) {
-    do {
-        $aType = Read-Host 'Run for (S)eason or (D)ate?'
-        switch ($aType) {
-            'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
-            'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
-            Default { Write-Output 'Enter S or D' }
-        }
-    } while ( $aType -notin 'S', 'D' )
+    if ($Automated) {
+        $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv"
+    }
+    else {
+        do {
+            $aType = Read-Host 'Run for (S)eason or (D)ate?'
+            switch ($aType) {
+                'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
+                'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
+                Default { Write-Output 'Enter S or D' }
+            }
+        } while ( $aType -notin 'S', 'D' )
+    }
     if (Test-Path $csvFilePath) { Remove-Item -LiteralPath $csvFilePath }
     $dStartUnix = Get-FullUnixDay $csvStartDate
     $dEndunix = Get-FullUnixDay $csvEndDate
@@ -767,7 +772,7 @@ if ($updateAnilistCSV) {
     Set-CSVFormatting -csvPath $csvFilePath
     $csvFileData = Import-Csv $csvFilePath
     $chunkedIdList = @()
-    
+
     if ($MediaID_In) {
         $oShowIdList = ($MediaID_In -replace ' ', '' ) -split ','
     }
@@ -928,20 +933,22 @@ If ($setDownload) {
     $pContent | Export-Csv -Path $csvFilePath -NoTypeInformation
 }
 If ($generateBatchFile) {
-    do {
-        if ($automated) {
-            $daily = $True
-        }
-        else {
+    if ($automated) {
+        $daily = 'D'
+    }
+    else {
+        do {
             $daily = Read-Host 'Generate Daily(D) or Season(S) or Both(B)'
-        }
-        switch ($daily) {
-            'D' { $dateBatch = $True; $seasonBatch = $false }
-            'S' { $dateBatch = $false; $seasonBatch = $True }
-            'B' { $dateBatch = $True; $seasonBatch = $True }
-            Default { Write-Host 'Enter D, S, or B' }
-        }
-    } while ( $daily -notin 'D', 'S', 'B' )
+            if ($daily -notin 'D', 'S', 'B' ) {
+                Write-Host 'Enter vaild value(D, S, B)'
+            }
+        } while ( $daily -notin 'D', 'S', 'B' )
+    }
+    switch ($daily) {
+        'D' { $dateBatch = $True; $seasonBatch = $false }
+        'S' { $dateBatch = $false; $seasonBatch = $True }
+        'B' { $dateBatch = $True; $seasonBatch = $True }
+    }
     $cutoffStart = $today.AddDays(-7)
     $cutoffEnd = $today.AddDays(7)
     Write-Host "D: $dateBatch; S: $seasonBatch"
@@ -1004,7 +1011,7 @@ If ($generateBatchFile) {
                             }
                             else {
                                 $modifiedUrl = "$v/s01e$($formattedNumber)"
-                            } 
+                            }
                             $urls += $modifiedUrl
                         }
                     }
