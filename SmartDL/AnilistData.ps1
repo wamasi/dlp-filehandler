@@ -50,6 +50,9 @@ if (!(Test-Path $configFilePath)) {
       <site siteName="Default" emoji="" />
     </sites>
   </Discord>
+  <overrides>
+    <Show id ="" EpisodeStart="" />
+  </overrides>
 </configuration>
 '@
     New-Item $configFilePath
