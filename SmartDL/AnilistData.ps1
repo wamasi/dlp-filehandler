@@ -6,7 +6,7 @@ param(
     [switch]$GenerateAnilistFile,
     [Alias('U')]
     [switch]$updateAnilistCSV,
-    [Alias('UR')]
+    [Alias('UU')]
     [switch]$updateAnilistURLs,
     [Alias('D')]
     [switch]$SetDownload,
@@ -666,17 +666,23 @@ Write-Log -Message "[Start] $(Get-DateTime) - Running for $today" -LogFilePath $
 if (!(Test-Path $csvFolder)) { New-Item $csvFolder -ItemType Directory }
 if ($GenerateAnilistFile) {
     if ($Automated) {
-        $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv"
+        $aType = 'D'
+        if ($today.DayOfWeek -ne 'Monday') {
+            Write-Host "Today is $($today.DayOfWeek). Automation not running until Monday."
+            Exit-Script
+        }
     }
     else {
         do {
             $aType = Read-Host 'Run for (S)eason or (D)ate?'
-            switch ($aType) {
-                'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
-                'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
-                Default { Write-Output 'Enter S or D' }
+            if ($aType -notin 'S', 'D' ) {
+                Write-Host 'Enter S or D'
             }
         } while ( $aType -notin 'S', 'D' )
+    }
+    switch ($aType) {
+        'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
+        'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
     }
     if (Test-Path $csvFilePath) { Remove-Item -LiteralPath $csvFilePath }
     $dStartUnix = Get-FullUnixDay $csvStartDate
