@@ -974,7 +974,7 @@ if ($updateAnilistURLs) {
     }
     foreach ($rs in $urlList) {
         $nestedSites = $rs.externalLinks
-        $firstPreferredSite = $nestedSites | Where-Object { $_.site -in $supportSites } | Select-Object @{name = 'site'; expression = { $_.site } },@{name = 'url'; expression = { $_.url } } -First 1
+        $firstPreferredSite = $nestedSites | Where-Object { $_.site -in $supportSites } | Select-Object @{name = 'site'; expression = { $_.site } }, @{name = 'url'; expression = { $_.url } } -First 1
         if ($null -ne $firstPreferredSite) {
             $lookupTable["$($rs.ShowId)"] = @{
                 'site' = $firstPreferredSite.site
@@ -986,7 +986,7 @@ if ($updateAnilistURLs) {
         $key = "$($row.ShowId)"
         if ($lookupTable.ContainsKey($key)) {
             $row.Site = $lookupTable[$key]['site']
-            $row.URL  = $lookupTable[$key]['url']
+            $row.URL = $lookupTable[$key]['url']
         }
     }
     $csvFileData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
