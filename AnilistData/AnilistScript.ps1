@@ -23,9 +23,9 @@ param(
     [Alias('NSC')]
     [switch]$newShowCheck,
     [Alias('DR')]
-    [switch]$dailyRuns,
+    [switch]$DailyRuns,
     [Alias('BU')]
-    [switch]$backup
+    [switch]$Backup
 )
 $scriptRoot = $PSScriptRoot
 $configFilePath = Join-Path $scriptRoot -ChildPath 'config.xml'
