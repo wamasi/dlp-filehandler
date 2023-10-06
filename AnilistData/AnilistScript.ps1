@@ -16,14 +16,16 @@ param(
     [switch]$SendDiscord,
     [Alias('DS')]
     [switch]$DebugScript,
-    [Alias('O')]
-    [switch]$Override,
     [Alias('I')]
     [string]$MediaID_In,
     [Alias('NI')]
     [string]$MediaID_NotIn,
     [Alias('NSC')]
-    [switch]$newShowCheck
+    [switch]$newShowCheck,
+    [Alias('DR')]
+    [switch]$dailyRuns,
+    [Alias('BU')]
+    [switch]$backup
 )
 $scriptRoot = $PSScriptRoot
 $configFilePath = Join-Path $scriptRoot -ChildPath 'config.xml'
@@ -67,6 +69,13 @@ if ($debugScript) {
 else {
     $discordHookUrl = $config.configuration.Discord.hook.ScheduleServerUrl
 }
+$dlpPath = Resolve-Path "$scriptRoot\.."
+$dlpScript = Join-Path $dlpPath -ChildPath '\dlp-script.ps1'
+$siteBatFolder = Join-Path $scriptRoot -ChildPath 'batch\site'
+$logFolder = Join-Path $scriptRoot -ChildPath 'log'
+$anilistLogfile = Join-Path $logFolder -ChildPath 'anilistSeason.log'
+$smartLogfile = Join-Path $logFolder -ChildPath 'smartDL.log'
+$backupPath = $configData.configuration.Directory.backup.location
 $discordSiteIcon = $config.configuration.Discord.icon.default
 $siteFooterIcon = $config.configuration.Discord.icon.footerIcon
 $rootPath = Join-Path $scriptRoot -ChildPath 'batch'
@@ -74,8 +83,6 @@ $batchArchiveFolder = Join-Path $rootPath -ChildPath '_archive'
 $lastUpdated = $config.configuration.logs.lastUpdated
 $emojis = $config.configuration.Discord.sites.site
 $badchar = $config.configuration.characters.char
-$logFolder = Join-Path $scriptRoot -ChildPath 'log'
-$logfile = Join-Path $logFolder -ChildPath 'anilistSeason.log'
 $csvFolder = Join-Path $scriptRoot -ChildPath 'anilist'
 $badURLs = 'https://www.crunchyroll.com/', 'https://www.crunchyroll.com', 'https://www.hidive.com/', 'https://www.hidive.com'
 $supportSites = 'Crunchyroll', 'HIDIVE', 'Netflix', 'Hulu'
@@ -84,6 +91,7 @@ foreach ($ss in $supportSites) { $a = [PSCustomObject]@{Site = $ss; ShowCount = 
 $spacer = "`n" + '-' * 120
 $now = Get-Date
 $today = Get-Date $now -Hour 0 -Minute 0 -Second 0 -Millisecond 0
+$currentweekday = Get-Date $today -Format 'dddd'
 $cby = (Get-Date $today -Format 'yyyy').ToString()
 $pby = (Get-Date(($today).AddYears(-1)) -Format 'yyyy').ToString()
 $cbyShort = $cby.Substring(2)
@@ -159,7 +167,12 @@ function Get-FullUnixDay {
     return $startDateUnix, $endDateUnix
 }
 function Exit-Script {
-    Write-Log -Message "[End] $(Get-DateTime) - End of script.$spacer" -LogFilePath $logFile
+    if (-not $dailyRuns) {
+        Write-Log -Message "[End] $(Get-DateTime) - End of script.$spacer" -LogFilePath $anilistLogfile
+    }
+    else {
+        Write-Log -Message "[End] $(Get-DateTime) - End of script.$spacer" -LogFilePath $smartLogfile
+    }
     exit
 }
 function Set-CSVFormatting {
@@ -519,7 +532,7 @@ function Invoke-AnilistApiDateRange {
             $mediaFilter = $mediaFilter + ", mediaId_not: $($ID_NOTIN)"
         }
     }
-    Write-Log -Message "[AnilistAPI] $(Get-DateTime) - $start - Starting on page $pageNum" -LogFilePath $logFile
+    Write-Log -Message "[AnilistAPI] $(Get-DateTime) - $start - Starting on page $pageNum" -LogFilePath $anilistLogfile
     do {
         $body = [PSCustomObject]@{
             query         = @"
@@ -657,12 +670,20 @@ function Invoke-AnilistApiURL {
 }
 if (!(Test-Path $logFolder)) {
     New-Item $logFolder -ItemType Directory
-    New-Item $logFile -ItemType File
+    New-Item $anilistLogfile -ItemType File
+    New-Item $smartLogfile -ItemType File
 }
-elseif (!(Test-Path $logfile)) {
-    New-Item $logfile -ItemType File
+elseif (!(Test-Path $anilistLogfile)) {
+    New-Item $anilistLogfile -ItemType File
 }
-Write-Log -Message "[Start] $(Get-DateTime) - Running for $today" -LogFilePath $logFile
+
+if (-not $dailyRuns) {
+    Write-Log -Message "[Start] $(Get-DateTime) - Running for $today" -LogFilePath $anilistLogfile
+}
+else {
+    Write-Log -Message "[Start] $(Get-DateTime) - Running for $today" -LogFilePath $smartLogfile
+}
+
 if (!(Test-Path $csvFolder)) { New-Item $csvFolder -ItemType Directory }
 if ($GenerateAnilistFile) {
     if ($Automated) {
@@ -746,7 +767,7 @@ if ($GenerateAnilistFile) {
             else {
                 $download = $True
             }
-            Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $download - $url" -LogFilePath $logFile
+            Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $download - $url" -LogFilePath $anilistLogfile
             $r = [PSCustomObject]@{
                 ShowId        = $a.ShowId
                 Title         = $title
@@ -835,7 +856,7 @@ if ($updateAnilistCSV) {
         'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
     }
     if (!(Test-Path $csvFilePath)) {
-        Write-Log -Message "[Check] $(Get-DateTime) - File does not exist:  $csvFilePath" -LogFilePath $logFile
+        Write-Log -Message "[Check] $(Get-DateTime) - File does not exist:  $csvFilePath" -LogFilePath $anilistLogfile
         Exit-Script
     }
     $startDate = $today
@@ -863,7 +884,7 @@ if ($updateAnilistCSV) {
     while ($start -lt $maxDay) {
         $start++
         $startUnix, $endUnix = Get-FullUnixDay -Date $startDate
-        Write-Log -Message "[Generate] $(Get-DateTime) - $($start)/$($maxDay) - $startDate - $startUnix - $endUnix" -LogFilePath $logFile
+        Write-Log -Message "[Generate] $(Get-DateTime) - $($start)/$($maxDay) - $startDate - $startUnix - $endUnix" -LogFilePath $anilistLogfile
         foreach ($c in $chunkedIdList) {
             if ($MediaID_NotIn -or $newShowCheck) {
                 $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $endUnix -ID_NOTIN $c
@@ -919,7 +940,7 @@ if ($updateAnilistCSV) {
             $site = $firstPreferredSite.site
             $url = ($firstPreferredSite.url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
             if (($url -in $badURLs) -or ($site -eq 'HIDIVE' -and $totalEpisodes -eq '00') -or ($site -in 'Hulu', 'Netflix')) { $download = $false } else { $download = $True }
-            Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $episode/$totalEpisodes - $download - $url" -LogFilePath $logFile
+            Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $episode/$totalEpisodes - $download - $url" -LogFilePath $anilistLogfile
             $ue = [PSCustomObject]@{
                 ShowId         = $showId
                 EpisodeId      = $episodeId
@@ -1107,11 +1128,11 @@ If ($generateBatchFile) {
             $basepath = Join-Path $rootPath -ChildPath 'site'
             $siteRootPath = Join-Path $basepath -ChildPath $site
             if (!(Test-Path $siteRootPath ) ) {
-                Write-Log -Message "[Batch] $(Get-DateTime) - Creating folder for $siteRootPath" -LogFilePath $logFile
+                Write-Log -Message "[Batch] $(Get-DateTime) - Creating folder for $siteRootPath" -LogFilePath $anilistLogfile
                 New-Item $siteRootPath -ItemType Directory | Out-Null
             }
             else {
-                Write-Log -Message "[Batch] $(Get-DateTime) - Creating folder for $siteRootPath" -LogFilePath $logFile
+                Write-Log -Message "[Batch] $(Get-DateTime) - Creating folder for $siteRootPath" -LogFilePath $anilistLogfile
                 Remove-Item $siteRootPath -Recurse -Force
                 New-Item $siteRootPath -ItemType Directory | Out-Null
             }
@@ -1147,7 +1168,7 @@ If ($generateBatchFile) {
                 $urls = $urls | Select-Object -Unique
                 # Write to a text file named by the Site-Weekday combination
                 $fileName = Join-Path $siteRootPath -ChildPath "$($site)-$($dayNum)-$($weekday)"
-                Write-Log -Message "[Batch] $(Get-DateTime) - $($site) - $weekday - $($urls.count) - $fileName" -LogFilePath $logFile
+                Write-Log -Message "[Batch] $(Get-DateTime) - $($site) - $weekday - $($urls.count) - $fileName" -LogFilePath $anilistLogfile
                 $urls | Out-File -FilePath $fileName
             }
         }
@@ -1206,7 +1227,7 @@ If ($generateBatchFile) {
                             }
                             $urls = $urls | Select-Object -Unique
                             $fileName = Join-Path $p -ChildPath "$($site)-$($y)-$($s)-$($dayNum)-$($weekday)"
-                            Write-Log -Message "[Batch] $(Get-DateTime) - $($site) - $weekday - $($urls.count) - $fileName" -LogFilePath $logFile
+                            Write-Log -Message "[Batch] $(Get-DateTime) - $($site) - $weekday - $($urls.count) - $fileName" -LogFilePath $anilistLogfile
                             $urls | Out-File -FilePath $fileName
                         }
                     }
@@ -1224,7 +1245,7 @@ If ($sendDiscord) {
         }
         $emojiList += $de
     }
-    Write-Log -Message "[Discord] $(Get-DateTime) - Current lastUpdated: $lastUpdated " -LogFilePath $logFile
+    Write-Log -Message "[Discord] $(Get-DateTime) - Current lastUpdated: $lastUpdated " -LogFilePath $anilistLogfile
     $newLastUpdated = Get-Date -Format 'MM-dd-yyyy HH:mm:ss'
     $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv"
     Set-CSVFormatting $csvFilePath
@@ -1239,7 +1260,7 @@ If ($sendDiscord) {
             }
             $siteList += $b
         }
-        Write-Log -Message "[Discord] $(Get-DateTime) - Reading Anilist Date CSV $csvFilePath" -LogFilePath $logFile
+        Write-Log -Message "[Discord] $(Get-DateTime) - Reading Anilist Date CSV $csvFilePath" -LogFilePath $anilistLogfile
         $fieldObjects = @()
         $showCount = 0
         $sdWeekday = Get-Date -Format 'dddd dd-MMM'
@@ -1265,7 +1286,7 @@ If ($sendDiscord) {
                         $totalEpisodes = '??'
                     }
                     $v = '```' + ("$($airingtime)`n$($_.Title)`n$episode/$totalEpisodes") + '```'
-                    Write-Log -Message "[Discord] $(Get-DateTime) - $($airingtime) - $($_.Title) - $episode/$totalEpisodes" -LogFilePath $logFile
+                    Write-Log -Message "[Discord] $(Get-DateTime) - $($airingtime) - $($_.Title) - $episode/$totalEpisodes" -LogFilePath $anilistLogfile
                     $fieldValueRelease += $v
                     $showCount++
                     $sCount++
@@ -1324,20 +1345,69 @@ If ($sendDiscord) {
         $embedArray.Add($embedObject) | Out-Null
         $payloadJson = $payload | ConvertTo-Json -Depth 4
         if ($fieldObjects.count -gt 0) {
-            Write-Log -Message "[Discord] $(Get-DateTime) - Sending Discord Message for $sdWeekday" -LogFilePath $logFile
+            Write-Log -Message "[Discord] $(Get-DateTime) - Sending Discord Message for $sdWeekday" -LogFilePath $anilistLogfile
             Invoke-WebRequest -Uri $discordHookUrl -Body $payloadJson -Method Post -ContentType 'application/json' | Select-Object -ExpandProperty Headers | Out-Null
         }
         else {
-            Write-Log -Message "[Discord] $(Get-DateTime) - No shows airing for $sdWeekday" -LogFilePath $logFile
+            Write-Log -Message "[Discord] $(Get-DateTime) - No shows airing for $sdWeekday" -LogFilePath $anilistLogfile
         }
     }
     else {
-        Write-Log -Message "[Discord] $(Get-DateTime) - Anilist Season CSV not exist at: $csvFilePath" -LogFilePath $logFile
+        Write-Log -Message "[Discord] $(Get-DateTime) - Anilist Season CSV not exist at: $csvFilePath" -LogFilePath $anilistLogfile
         Exit-Script
     }
     $config.configuration.logs.lastUpdated = $newLastUpdated
-    Write-Log -Message "[Discord] $(Get-DateTime) - New lastUpdated: $newLastUpdated" -LogFilePath $logFile
+    Write-Log -Message "[Discord] $(Get-DateTime) - New lastUpdated: $newLastUpdated" -LogFilePath $anilistLogfile
     $config.Save($configFilePath)
     Start-Sleep -Seconds 2
+}
+
+if ($dailyRuns) {
+    if ((Test-Path $dlpScript)) {
+        Get-ChildItem $siteBatFolder | ForEach-Object {
+            $site = $_.Name
+            $batchFile = (Get-ChildItem $_ -Recurse | Where-Object { $_.Directory.Name -eq $site -and ($_.FullName -match "$($site).*$currentWeekday") }).FullName
+            if ($null -eq $batchFile) {
+                Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - No File for $currentWeekday" -LogFilePath $smartLogfile
+            }
+            else {
+                switch ($site) {
+                    'Crunchyroll' {
+                        Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $currentWeekday - $batchFile" -LogFilePath $smartLogfile
+                        $return = pwsh.exe $dlpScript -sn Crunchyroll -d -l -mk -f -a -al ja -sl en -sd -overrideBatch $batchFile
+                        $message = $return -match '\[DLP-Script\]*' | ForEach-Object { $_ }
+                        Write-Log -Message "$message" -LogFilePath $anilistLogfile
+                    }
+                    'HIDIVE' {
+                        Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $currentWeekday - $batchFile" -LogFilePath $smartLogfile
+                        $return = pwsh.exe $dlpScript -sn Hidive -d -c -mk -f -se -a -al ja -sl en -sd -overrideBatch $batchFile
+                        $message = $return -match '\[DLP-Script\]*' | ForEach-Object { $_ }
+                        Write-Log -Message "$message" -LogFilePath $anilistLogfile
+                    }
+                    Default { Write-Log -Message "[DLP-Script] $(Get-DateTime) - No Applicable Site for $batchFile" -LogFilePath $smartLogfile }
+                }
+            }
+        }
+    }
+    else {
+        Write-Log -Message "[Start] $(Get-DateTime) - dlp-FileHandler script not found at $dlpscript. Exiting...$spacer" -LogFilePath $smartLogfile
+    }
+}
+if ($backup) {
+    $date = Get-DateTime 2
+    $smartDLBackupPathRoot = (Join-Path $backupPath -ChildPath 'AnilistData')
+    $bPath = Join-Path $smartDLBackupPathRoot -ChildPath "SmartDL_$date"
+    Write-Log -Message "[Start] $(Get-DateTime) - Backing up batches to $bPath" -LogFilePath $smartLogfile
+    if (!(Test-Path $bPath)) {
+        New-Item $bPath -ItemType Directory
+    }
+    Get-ChildItem -Path "$scriptRoot\*" | Copy-Item -Destination $bPath -Recurse -Exclude '*/Log'
+    # deleting old backups
+    $deleteCutoff = $today.AddDays(-180)
+    $foldersToDelete = Get-ChildItem -Path $smartDLBackupPathRoot -Directory | Where-Object { $_.CreationTime -lt $deleteCutoff }
+    $foldersToDelete | ForEach-Object {
+        Remove-Item $_.FullName -Recurse -Force
+    }
+    Write-Log -Message "[End] - $(Get-DateTime) - End of script.$spacer" -LogFilePath $smartLogfile
 }
 Exit-Script

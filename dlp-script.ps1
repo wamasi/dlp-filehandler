@@ -39,6 +39,7 @@ param(
     [Parameter(ParameterSetName = 'Site', Mandatory = $True)]
     [Parameter(ParameterSetName = 'Test', Mandatory = $True)]
     [string]$site,
+    [Alias('OD')]
     [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
     [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [string]$overrideBatch,

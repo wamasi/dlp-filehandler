@@ -32,7 +32,7 @@ Filebot:
 Subtitle Edit:
 - Fixes common subtitle issues like text timings
 - https://www.nikse.dk/SubtitleEdit/
- 
+
 Plex (optional)
 - Media Server
 - https://www.plex.tv/
@@ -103,7 +103,7 @@ Discord (optional):
             - `tmp` will always be deleted at the end of a run
             - `src` and `dest` will only be deleted if empty
 
-# Parameters explained:
+# dlp-script Parameters explained:
 | Arguments/Switches | Abbreviation | Description | Notes |
  :--- | :--- | :--- | :--- |
 |-Help|-h/-H|Shows MD file.| If help is true or all parameters false/null then displays readme. |
@@ -120,4 +120,22 @@ Discord (optional):
 |-SubtitleEdit|-se/-SE|Tells script to run `SubetitleEdit` to fix common problems with `.srt` files if they are present.| Expects presence of `.ass` subtitle file.|
 |-SendDiscord|-sd/-SD|If Discord `webhook` and `icon` and `color` filled out in `config.xml` will send out `embed` message to discord channel of `webhook` of new videos.| Outputs video information<br/><br/>Site Name and icon = `config.xml`<br/>Series = original `Directory` name<br/>Episode = original `Basename` of file<br/>Subtitles = takes lang tag(s) in original `Subtitle` filename <br/>Video/Audio codec(s), duration, quality = `ffprobe.exe` cli|
 |-AudioLang|-al/-AL|Sets audio and video track to a given language code ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -AL ja |
-|-SubtitleLang|-sl/-SL|Sets default subtitle track to a given language code for track that matches ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')|ex: -SL en |
+|-SubtitleLang|-sl/-SL|Sets default subtitle track to a given language code for track that matches ('ar', 'de', 'en', 'es', 'es-es', 'fr', 'it', 'ja', 'pt-br', 'pt-pt', 'ru', 'und')| Ex: -SL en |
+|-ArchiveTemp|-AT| Will use a separate hardcoded archive file instead of the normal archive | If both Archive and ArchiveTemp are specified AT will tak precedence |
+|-OverrideBatch|-OD| Will use a separate batch file specified in the command instead | Ex: -OD `path\to\my\other\batch\file` |
+
+# AnilistData Parameters explained:
+| Arguments/Switches | Abbreviation | Description | Notes |
+ :--- | :--- | :--- | :--- |
+|Automated|-A| Allows automated run of script based on hardcoded values||
+|GenerateAnilistFile|-G|Generates either a csv file of anime based on Season or Dates||
+|updateAnilistCSV|-U|Updates the generated csv for any changed data since created||
+|updateAnilistURLs|-UU|Updates only the URLs in the CSV if they have changed||
+|SetDownload|-D|Allows users to specify whether to track a given show||
+|GenerateBatchFile|-B|Creates batch files used for separate script based on days of the week||
+|SendDiscord|-SD|Sends list of shows airing that day that are marked as watching||
+|MediaID_In|-I|Used to override the update parameters to specified anilist Id(s) when updating records||
+|MediaID_NotIn|-NI|Used to override the update parameters to specified anilist Id(s) not in the CSV when updating records||
+|newShowCheck|-NSC|Similar to -NI except no need to specify ID(s)||
+|DailyRuns|-DR|Run dlp-script based on batch files created using anilistData script||
+|Backup|-BU|Backups files generated from anilistData script to a specified location||
