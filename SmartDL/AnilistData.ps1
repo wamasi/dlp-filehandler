@@ -729,8 +729,8 @@ if ($GenerateAnilistFile) {
         else {
             ''
         }
-        $showStartDate = if ($a.startDate -ne '//') { $a.startDate } else { $null }
-        $showEndDate = if ($a.endDate -ne '//') { $a.endDate } else { $null }
+        $showStartDate = if ($a.startDate -ne '//') { $a.startDate } else { '' }
+        $showEndDate = if ($a.endDate -ne '//') { $a.endDate } else { '' }
         $firstPreferredSite = $null
         foreach ($ps in $supportSites) {
             $firstPreferredSite = $a.externalLinks | Where-Object { $_.site -eq $ps } | Select-Object * -First 1
@@ -893,8 +893,8 @@ if ($updateAnilistCSV) {
         else {
             ''
         }
-        $showStartDate = if ($ur.startDate -ne '//') { $ur.startDate } else { $null }
-        $showEndDate = if ($ur.endDate -ne '//') { $ur.endDate } else { $null }
+        $showStartDate = if ($ur.startDate -ne '//') { $ur.startDate } else { '' }
+        $showEndDate = if ($ur.endDate -ne '//') { $ur.endDate } else { '' }
         if (-not [string]::IsNullOrEmpty($ur.TitleEnglish)) {
             $title = $ur.TitleEnglish -replace $badchar, "'"
         }
@@ -1295,7 +1295,7 @@ If ($sendDiscord) {
             }
             $fieldObjects += $fObj
         }
-        $description = "**No. of Shows:** $($showCount)"
+        $description = "**$($showCount)** shows airing"
         $thumbnailObject = [PSCustomObject]@{
             url = $discordSiteIcon
         }
