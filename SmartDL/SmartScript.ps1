@@ -67,7 +67,6 @@ $siteBatFolder = Join-Path $scriptRoot -ChildPath 'batch\site'
 $now = Get-Date
 $currentDate = Get-Date $now -Hour 0 -Minute 0 -Second 0 -Millisecond 0
 $weekday = Get-Date $currentDate -Format 'dddd'
-$weekday
 $spacer = "`n" + '-' * 120
 if (!(Test-Path $logFolder)) {
     New-Item $logFolder -ItemType Directory

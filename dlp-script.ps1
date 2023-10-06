@@ -58,6 +58,10 @@ param(
     [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
     [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
     [switch]$archive,
+    [Alias('AT')]
+    [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
+    [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
+    [switch]$archiveTemp,
     [Alias('SE')]
     [Parameter(ParameterSetName = 'Site', Mandatory = $false)]
     [Parameter(ParameterSetName = 'Test', Mandatory = $false)]
@@ -1549,7 +1553,12 @@ if ($site) {
     else {
         $batFile = Join-Path -Path $siteFolder -ChildPath "$($siteType)_B"
     }
-    $archiveFile = Join-Path -Path $siteFolder -ChildPath "$($siteType)_A"
+    $archiveFile = if ($archiveTemp) {
+        Join-Path -Path $siteFolder -ChildPath "$($siteType)_A_Temp"
+    }
+    else {
+        Join-Path -Path $siteFolder -ChildPath "$($siteType)_A"
+    }
     $siteConfigBackup = Join-Path -Path (Join-Path -Path $srcBackup -ChildPath 'sites') -ChildPath $siteType
     $filebotArgument = $configFile.configuration.Filebot.fbfolder | Where-Object { $_.type -eq $SiteContentType } | Select-Object fbArgumentdb, fbArgumentStructure
     foreach ($fb in $filebotArgument) {
@@ -1724,15 +1733,15 @@ if ($site) {
         Write-Output "[Setup] $(Get-DateTime) - BAT: $batFile missing. Exiting."
         Exit-Script
     }
-    if ($archive) {
+    if ($archive -or $archiveTemp) {
         if ((Test-Path -Path $archiveFile)) {
             Write-Output "[Setup] $(Get-DateTime) - $archiveFile file found. Continuing."
             $dlpParams = $dlpParams + " --download-archive $archiveFile"
             $dlpArray += '--download-archive', "$archiveFile"
         }
         else {
-            Write-Output "[Setup] $(Get-DateTime) - Archive file missing. Exiting."
-            Exit-Script
+            Write-Output "[Setup] $(Get-DateTime) - Archive file missing. Creating."
+            New-Item $archiveFile -ItemType File
         }
     }
     else {
@@ -1787,13 +1796,13 @@ if ($site) {
         Write-Output "[Setup] $(Get-DateTime) - SubSubWrite is missing. Exiting."
         Exit-Script
     }
-    $debugVars = [ordered]@{Site = $siteName; IsDaily = $daily; UseLogin = $login; UseCookies = $cookies; UseArchive = $archive; SubtitleEdit = $subtitleEdit; `
+    $debugVars = [ordered]@{Site = $siteName; IsDaily = $daily; UseLogin = $login; UseCookies = $cookies; UseArchive = $archive; UseArchiveTemp = $archiveTemp; SubtitleEdit = $subtitleEdit; `
             MKVMerge = $mkvMerge; VideoTrackName = $videoTrackName; AudioLang = $audioLang; AudioTrackName = $audioTrackName; SubtitleLang = $subtitleLang; SubtitleTrackName = $subtitleTrackName; Filebot = $filebot; `
             filebotDB = $filebotDB; filebotStructure = $filebotStructure; SiteNameRaw = $siteNameRaw; SiteType = $siteType; SiteUser = $siteUser; SitePass = $sitePass; SiteFolderIdName = $siteFolderIdName[0]; `
-            SiteFolder = $siteFolder; SiteParentFolder = $siteParentFolder; SiteSubFolder = $siteSubFolder; SiteLibraryId = $siteLibraryID; SiteTemp = $siteTemp; SiteSrcBase = $siteSrcBase; SiteSrc = $siteSrc;
-        SiteHomeBase = $siteHomeBase; SiteHome = $siteHome; SiteDefaultPath = $siteDefaultPath; SiteConfig = $siteConfig; CookieFile = $cookieFile; Archive = $archiveFile; Bat = $batFile; Ffmpeg = $ffmpeg; `
+            SiteFolder = $siteFolder; SiteParentFolder = $siteParentFolder; SiteSubFolder = $siteSubFolder; SiteLibraryId = $siteLibraryID; SiteTemp = $siteTemp; SiteSrcBase = $siteSrcBase; SiteSrc = $siteSrc; `
+            SiteHomeBase = $siteHomeBase; SiteHome = $siteHome; SiteDefaultPath = $siteDefaultPath; SiteConfig = $siteConfig; CookieFile = $cookieFile; Archive = $archiveFile; Bat = $batFile; Ffmpeg = $ffmpeg; `
             SubFontName = $subFontName; SubFontExtension = $subFontExtension; SubFontDir = $subFontDir; SubType = $subType; VidType = $vidType; Backup = $srcBackup; BackupShared = $srcBackupDriveShared; `
-            BackupFont = $srcDriveSharedFonts; SiteConfigBackup = $siteConfigBackup; PlexHost = $plexHost; PlexToken = $plexToken; telegramToken = $telegramToken; TelegramChatId = $telegramChatID; ConfigPath = $configPath; `
+            BackupFont = $srcDriveSharedFonts; SiteConfigBackup = $siteConfigBackup; PlexHost = $plexHost; PlexToken = $plexToken; ConfigPath = $configPath; `
             ScriptDirectory = $scriptDirectory; dlpParams = $dlpParams
     }
     if ($testScript) {
