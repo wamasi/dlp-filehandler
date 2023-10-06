@@ -673,17 +673,18 @@ if (!(Test-Path $logFolder)) {
     New-Item $anilistLogfile -ItemType File
     New-Item $smartLogfile -ItemType File
 }
-elseif (!(Test-Path $anilistLogfile)) {
+if (!(Test-Path $smartLogfile)) {
+    New-Item $smartLogfile -ItemType File
+}
+if (!(Test-Path $anilistLogfile)) {
     New-Item $anilistLogfile -ItemType File
 }
-
 if (-not $dailyRuns) {
     Write-Log -Message "[Start] $(Get-DateTime) - Running for $today" -LogFilePath $anilistLogfile
 }
 else {
     Write-Log -Message "[Start] $(Get-DateTime) - Running for $today" -LogFilePath $smartLogfile
 }
-
 if (!(Test-Path $csvFolder)) { New-Item $csvFolder -ItemType Directory }
 if ($GenerateAnilistFile) {
     if ($Automated) {
@@ -1390,14 +1391,14 @@ if ($dailyRuns) {
         }
     }
     else {
-        Write-Log -Message "[Start] $(Get-DateTime) - dlp-FileHandler script not found at $dlpscript. Exiting...$spacer" -LogFilePath $smartLogfile
+        Write-Log -Message "[[DLP-Script] $(Get-DateTime) - dlp-FileHandler script not found at $dlpscript." -LogFilePath $smartLogfile
     }
 }
 if ($backup) {
     $date = Get-DateTime 2
     $smartDLBackupPathRoot = (Join-Path $backupPath -ChildPath 'AnilistData')
     $bPath = Join-Path $smartDLBackupPathRoot -ChildPath "SmartDL_$date"
-    Write-Log -Message "[Start] $(Get-DateTime) - Backing up batches to $bPath" -LogFilePath $smartLogfile
+    Write-Log -Message "[Backup] $(Get-DateTime) - Backing up batches to $bPath" -LogFilePath $smartLogfile
     if (!(Test-Path $bPath)) {
         New-Item $bPath -ItemType Directory
     }
@@ -1408,6 +1409,5 @@ if ($backup) {
     $foldersToDelete | ForEach-Object {
         Remove-Item $_.FullName -Recurse -Force
     }
-    Write-Log -Message "[End] - $(Get-DateTime) - End of script.$spacer" -LogFilePath $smartLogfile
 }
 Exit-Script

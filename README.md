@@ -124,7 +124,7 @@ Discord (optional):
 |-ArchiveTemp|-AT| Will use a separate hardcoded archive file instead of the normal archive | If both Archive and ArchiveTemp are specified AT will tak precedence |
 |-OverrideBatch|-OD| Will use a separate batch file specified in the command instead | Ex: -OD `path\to\my\other\batch\file` |
 
-# AnilistData Parameters explained:
+# AnilistScript Parameters explained:
 | Arguments/Switches | Abbreviation | Description | Notes |
  :--- | :--- | :--- | :--- |
 |Automated|-A| Allows automated run of script based on hardcoded values||
