@@ -1480,13 +1480,13 @@ if ($dailyRuns) {
                         Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $currentWeekday - $batchFile" -LogFilePath $smartLogfile
                         $return = pwsh.exe $dlpScript -sn Crunchyroll -d -l -mk -f -a -al ja -sl en -sd -overrideBatch $batchFile
                         $message = $return -match '\[DLP-Script\]*' | ForEach-Object { $_ }
-                        Write-Log -Message "$message" -LogFilePath $anilistLogfile
+                        Write-Log -Message "$message" -LogFilePath $smartLogfile
                     }
                     'HIDIVE' {
                         Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $currentWeekday - $batchFile" -LogFilePath $smartLogfile
                         $return = pwsh.exe $dlpScript -sn Hidive -d -c -mk -f -se -a -al ja -sl en -sd -overrideBatch $batchFile
                         $message = $return -match '\[DLP-Script\]*' | ForEach-Object { $_ }
-                        Write-Log -Message "$message" -LogFilePath $anilistLogfile
+                        Write-Log -Message "$message" -LogFilePath $smartLogfile
                     }
                     Default { Write-Log -Message "[DLP-Script] $(Get-DateTime) - No Applicable Site for $batchFile" -LogFilePath $smartLogfile }
                 }
@@ -1502,7 +1502,7 @@ if ($dailyRuns) {
     $minutes = '{0:D2}' -f $elapsedTime.Minutes
     $seconds = '{0:D2}' -f $elapsedTime.Seconds
     $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
-    Write-Log -Message "[DLP-Script] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
+    Write-Log -Message "[DLP-Script] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $smartLogfile
 }
 if ($backup) {
     $date = Get-DateTime 2
