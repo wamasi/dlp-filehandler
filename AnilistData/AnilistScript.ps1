@@ -600,15 +600,15 @@ function Invoke-AnilistApiDateRange {
         } | ConvertTo-Json
         $response = Invoke-Request -rUrl $url -rBody $body
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
-        $c = $response.Content.data.page | ConvertFrom-Json
-        $allResponses += $c.airingSchedules
+        $c = $response.Content | ConvertFrom-Json
+        $allResponses += $c.data.page.airingSchedules
         | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, `
             airingAt, episode, @{name = 'episodes'; expression = { $_.media.episodes } }, @{name = 'TitleEnglish'; expression = { $_.media.title.english } }, @{name = 'TitleRomanji'; expression = { $_.media.title.romaji } }, `
         @{name = 'TitleNative'; expression = { $_.media.title.native } }, @{name = 'Genres'; expression = { $_.media.genres -join ', ' } }, `
         @{name = 'Status'; expression = { $_.media.status } }, @{name = 'Season'; expression = { $_.media.season } }, @{name = 'SeasonYear'; expression = { $_.media.seasonYear } } , `
         @{name = 'StartDate'; expression = { "$($_.media.startDate.month)/$($_.media.startDate.day)/$($_.media.startDate.year)" } } , `
         @{name = 'EndDate'; expression = { "$($_.media.endDate.month)/$($_.media.endDate.day)/$($_.media.endDate.year)" } }, @{name = 'externalLinks'; expression = { $_.media.externalLinks } }
-        $nextPage = $c.pageInfo.hasNextPage
+        $nextPage = $c.data.page.pageInfo.hasNextPage
         if ($nextPage) {
             $pageNum++
             Write-Host "Next Page: $pageNum"
@@ -673,7 +673,7 @@ function Invoke-AnilistApiURL {
         $nextPage = $c.data.page.pageInfo.hasNextPage
         $s = $c.data.page.media | Select-Object @{name = 'ShowId'; expression = { $_.id } }, externalLinks
         $uIDlist += $s
-        Write-Host "added: $($s.count)"
+        Write-Host "$mediaFilter `nadded: $($s.count)"
         if ($nextPage) { $pageNum++; Write-Host "Next Page: $pageNum" }
         if ($remaining -le 6) {
             Start-Sleep -Seconds 60
@@ -1047,7 +1047,12 @@ if ($updateAnilistURLs) {
         $oShowIdList = ($MediaID_NotIn -replace ' ', '' ) -split ','
     }
     else {
-        $oShowIdList = $csvFileData | Select-Object -ExpandProperty ShowId -Unique
+        if ($Automated) {
+            $oShowIdList = $csvFileData | Where-Object { [DateTime]::ParseExact($_.airingFullTime, 'MM/dd/yyyy HH:mm:ss', $null) -ge $today } | Select-Object -ExpandProperty ShowId -Unique
+        }
+        else {
+            $oShowIdList = $csvFileData | Select-Object -ExpandProperty ShowId -Unique
+        }
     }
     for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
         $chunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
