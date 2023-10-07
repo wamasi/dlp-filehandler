@@ -351,7 +351,7 @@ function Invoke-AnilistApiShowDate {
         @{name = 'Status'; expression = { $_.status } }, @{name = 'Season'; expression = { $_.season } }, @{name = 'SeasonYear'; expression = { $_.seasonYear } } , `
         @{name = 'StartDate'; expression = { "$($_.startDate.month)/$($_.startDate.day)/$($_.startDate.year)" } }, `
         @{name = 'EndDate'; expression = { "$($_.endDate.month)/$($_.endDate.day)/$($_.endDate.year)" } }, externalLinks
-        if ($nextPage) { $pageNum++; Write-Host "Next Page: $pageNum - $start/$end" }
+        if ($nextPage -eq 'true') { $pageNum++; Write-Host "Next Page: $pageNum - $start/$end" }
         if ($remaining -le 5) {
             Write-Host 'Pausing for 60 second(s).'
             Start-Sleep -Seconds 60
@@ -437,7 +437,7 @@ function Invoke-AnilistApiShowSeason {
         @{name = 'Status'; expression = { $_.status } }, @{name = 'Season'; expression = { $_.season } }, @{name = 'SeasonYear'; expression = { $_.seasonYear } } , `
         @{name = 'StartDate'; expression = { "$($_.startDate.month)/$($_.startDate.day)/$($_.startDate.year)" } }, `
         @{name = 'EndDate'; expression = { "$($_.endDate.month)/$($_.endDate.day)/$($_.endDate.year)" } }, externalLinks
-        if ($nextPage) {
+        if ($nextPage -eq 'true') {
             $pageNum++
             if ($season) {
                 Write-Host "Next Page: $season - $year - $pageNum"
@@ -502,7 +502,7 @@ function Invoke-AnilistApiEpisode {
         $s = $c.data.page.airingSchedules | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, episode, airingAt
         $ae += $s
         Write-Host "added: $($s.count)"
-        if ($nextPage) { $pageNum++; Write-Host "Next Page: $pageNum" }
+        if ($nextPage -eq 'true') { $pageNum++; Write-Host "Next Page: $pageNum" }
         if ($remaining -le 6) {
             Start-Sleep -Seconds 60
         }
@@ -609,10 +609,7 @@ function Invoke-AnilistApiDateRange {
         @{name = 'StartDate'; expression = { "$($_.media.startDate.month)/$($_.media.startDate.day)/$($_.media.startDate.year)" } } , `
         @{name = 'EndDate'; expression = { "$($_.media.endDate.month)/$($_.media.endDate.day)/$($_.media.endDate.year)" } }, @{name = 'externalLinks'; expression = { $_.media.externalLinks } }
         $nextPage = $c.data.page.pageInfo.hasNextPage
-        if ($nextPage) {
-            $pageNum++
-            Write-Host "Next Page: $pageNum"
-        }
+        if ($nextPage -eq 'true') { $pageNum++;Write-Host "Next Page: $pageNum" }
         if ($remaining -le 5) {
             Start-Sleep -Seconds 60
         }
@@ -673,8 +670,8 @@ function Invoke-AnilistApiURL {
         $nextPage = $c.data.page.pageInfo.hasNextPage
         $s = $c.data.page.media | Select-Object @{name = 'ShowId'; expression = { $_.id } }, externalLinks
         $uIDlist += $s
-        Write-Host "$mediaFilter `nadded: $($s.count)"
-        if ($nextPage) { $pageNum++; Write-Host "Next Page: $pageNum" }
+        Write-Host "added: $($s.count)"
+        if ($nextPage -eq 'true') { $pageNum++; Write-Host "Next Page: $pageNum" }
         if ($remaining -le 6) {
             Start-Sleep -Seconds 60
         }
