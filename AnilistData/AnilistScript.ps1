@@ -2,6 +2,8 @@
 param(
     [Alias('A')]
     [switch]$Automated,
+    [Alias('AA')]
+    [switch]$All,
     [Alias('G')]
     [switch]$GenerateAnilistFile,
     [Alias('U')]
@@ -182,14 +184,26 @@ function Set-CSVFormatting {
     if ((Test-Path $csvPath)) {
         $csvd = Import-Csv $csvPath
         foreach ($d in $csvd) {
-            $parts = $($d.AiringTime) -split ':'
-            $d.AiringTime = "$($parts[0].PadLeft(2, '0')):$($parts[1])"
-            $d.AiringFullTime = Get-Date $($d.AiringFullTime) -Format 'MM/dd/yyyy HH:mm:ss'
-            $d.episode = '{0:D2}' -f [int]$d.episode
-            $d.TotalEpisodes = '{0:D2}' -f [int]$d.TotalEpisodes
+            if ($d.AiringTime -notin ':', '') {
+                $parts = $($d.AiringTime) -split ':'
+                $d.AiringTime = "$($parts[0].PadLeft(2, '0')):$($parts[1])"
+            }
+            if ($d.AirDate -ne '') {
+                $d.AirDate = Get-Date $($d.AirDate) -Format 'MM/dd/yyyy'
+            }
+            if ($d.StartDate -ne '') {
+                $d.StartDate = Get-Date $($d.StartDate) -Format 'MM/dd/yyyy'
+            }
+            if ($d.AiringFullTime -ne '') {
+                $d.AiringFullTime = Get-Date $($d.AiringFullTime) -Format 'MM/dd/yyyy HH:mm:ss'
+            }
+            if ($d.EndDate -ne '') {
+                $d.EndDate = Get-Date $($d.EndDate) -Format 'MM/dd/yyyy'
+            }
             switch ($d.download) {
                 'True' { $d.download = 'True' }
                 'False' { $d.download = 'False' }
+                default { $d.download = 'False' }
             }
         }
         $csvd | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvPath -NoTypeInformation
@@ -207,6 +221,9 @@ function Update-Records {
         if ($s) {
             foreach ($property in $s.PSObject.Properties.Name) {
                 if ($property -eq 'Download') {
+                    $newData[$property] = $s.$property
+                }
+                elseif ($property -eq 'Watching') {
                     $newData[$property] = $s.$property
                 }
                 elseif ($s.$property -eq $t.$property) {
@@ -482,7 +499,8 @@ function Invoke-AnilistApiEpisode {
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $c = $response.Content | ConvertFrom-Json
         $nextPage = $c.data.page.pageInfo.hasNextPage
-        $ae += $c.data.page.airingSchedules | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, episode, airingAt
+        $s = $c.data.page.airingSchedules | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, episode, airingAt
+        $ae += $s
         Write-Host "added: $($s.count)"
         if ($nextPage) { $pageNum++; Write-Host "Next Page: $pageNum" }
         if ($remaining -le 6) {
@@ -582,17 +600,15 @@ function Invoke-AnilistApiDateRange {
         } | ConvertTo-Json
         $response = Invoke-Request -rUrl $url -rBody $body
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
-        $c = $response.Content | ConvertFrom-Json
-        $s = $c.data.page.airingSchedules
+        $c = $response.Content.data.page | ConvertFrom-Json
+        $allResponses += $c.airingSchedules
         | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, `
             airingAt, episode, @{name = 'episodes'; expression = { $_.media.episodes } }, @{name = 'TitleEnglish'; expression = { $_.media.title.english } }, @{name = 'TitleRomanji'; expression = { $_.media.title.romaji } }, `
         @{name = 'TitleNative'; expression = { $_.media.title.native } }, @{name = 'Genres'; expression = { $_.media.genres -join ', ' } }, `
         @{name = 'Status'; expression = { $_.media.status } }, @{name = 'Season'; expression = { $_.media.season } }, @{name = 'SeasonYear'; expression = { $_.media.seasonYear } } , `
         @{name = 'StartDate'; expression = { "$($_.media.startDate.month)/$($_.media.startDate.day)/$($_.media.startDate.year)" } } , `
         @{name = 'EndDate'; expression = { "$($_.media.endDate.month)/$($_.media.endDate.day)/$($_.media.endDate.year)" } }, @{name = 'externalLinks'; expression = { $_.media.externalLinks } }
-        $nextPage = $c.data.page.pageInfo.hasNextPage
-        $allResponses += $s
-        $nextPage = $aniapi.data.Page.pageInfo.hasNextPage
+        $nextPage = $c.pageInfo.hasNextPage
         if ($nextPage) {
             $pageNum++
             Write-Host "Next Page: $pageNum"
@@ -655,8 +671,9 @@ function Invoke-AnilistApiURL {
         [int]$remaining = $response.Headers.'X-RateLimit-Remaining'[0]
         $c = $response.Content | ConvertFrom-Json
         $nextPage = $c.data.page.pageInfo.hasNextPage
-        $uIDlist += $c.data.page.media | Select-Object @{name = 'ShowId'; expression = { $_.id } }, externalLinks
-        Write-Host "added: $($uIDlist.count)"
+        $s = $c.data.page.media | Select-Object @{name = 'ShowId'; expression = { $_.id } }, externalLinks
+        $uIDlist += $s
+        Write-Host "added: $($s.count)"
         if ($nextPage) { $pageNum++; Write-Host "Next Page: $pageNum" }
         if ($remaining -le 6) {
             Start-Sleep -Seconds 60
@@ -738,10 +755,7 @@ if ($GenerateAnilistFile) {
             $title = $a.TitleNative
         }
         $genres = $a.genres -join ', '
-        $totalEpisodes = $a.episodes
-        if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) { $totalEpisodes = '00' }
-        $episode = '{0:D2}' -f [int]$episode
-        $totalEpisodes = '{0:D2}' -f [int]$totalEpisodes
+        $totalEpisodes = if ($a.episodes -eq '' -or $null -eq $a.episodes) { $totalEpisodes = 0 } else { $a.episodes }
         $season = if (-not [string]::IsNullOrEmpty($a.season)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($a.season).ToLower()) }
         else {
             ''
@@ -762,12 +776,7 @@ if ($GenerateAnilistFile) {
             $site = $firstPreferredSite.Site
             $url = $firstPreferredSite.url
             $url = ($url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
-            if (($url -in $badURLs) -or ($site -eq 'HIDIVE' -and $totalEpisodes -eq '00') -or ($site -in 'Hulu', 'Netflix')) {
-                $download = $false
-            }
-            else {
-                $download = $True
-            }
+
             Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $download - $url" -LogFilePath $anilistLogfile
             $r = [PSCustomObject]@{
                 ShowId        = $a.ShowId
@@ -781,7 +790,8 @@ if ($GenerateAnilistFile) {
                 Site          = $site
                 URL           = $url
                 Genres        = $genres
-                Download      = $download
+                Download      = $false
+                Watching      = $false
             }
             $anime += $r
         }
@@ -806,7 +816,8 @@ if ($GenerateAnilistFile) {
         $site = $s.site
         $url = $s.url
         $genres = $s.genres
-        $download = $s.download
+        $download = $s.Download
+        $watching = $s.Watching
         foreach ($e in ($allEpisodes | Where-Object { $_.ShowId -eq $showId })) {
             $episodeId = $e.EpisodeId
             $episode = $e.episode
@@ -835,8 +846,17 @@ if ($GenerateAnilistFile) {
                 URL            = $url
                 Genres         = $genres
                 Download       = $download
+                Watching       = $watching
             }
             $data += $a
+        }
+    }
+    $groupedData = $data | Where-Object { $_.TotalEpisodes -eq 0 } | Group-Object -Property 'ShowId'
+    foreach ($group in $groupedData) {
+        $id = $group.Name
+        $max = [int](($group.Group | Measure-Object -Property 'Episode' -Maximum).Maximum)
+        $data | Where-Object { $_.ShowId -eq $id } | ForEach-Object {
+            $_.TotalEpisodes = $max
         }
     }
     Write-Output "[Setup] $(Get-DateTime) - Creating $csvFilePath"
@@ -860,9 +880,14 @@ if ($updateAnilistCSV) {
         Write-Log -Message "[Check] $(Get-DateTime) - File does not exist:  $csvFilePath" -LogFilePath $anilistLogfile
         Exit-Script
     }
-    $startDate = $today
+    if ($All) {
+        $startDate = $csvStartDate
+    }
+    else {
+        $startDate = $today
+    }
     $start = 0
-    if ($Automated) { $maxDay = 8 } else { $maxDay = ($csvEndDate - $today).days }
+    if ($Automated) { $maxDay = 8 } else { $maxDay = ($csvEndDate - $startDate).days }
     Set-CSVFormatting -csvPath $csvFilePath
     $csvFileData = Import-Csv $csvFilePath
     $chunkedIdList = @()
@@ -901,10 +926,8 @@ if ($updateAnilistCSV) {
         $EpisodeId = $ur.EpisodeId
         $episode = $ur.episode
         $totalEpisodes = $ur.episodes
-        if ( $episode -eq '' -or $null -eq $episode) { $episode = '00' }
-        if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) { $totalEpisodes = '00' }
-        $episode = '{0:D2}' -f [int]$episode
-        $totalEpisodes = '{0:D2}' -f [int]$totalEpisodes
+        if ( $episode -eq '' -or $null -eq $episode) { $episode = 0 }
+        if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) { $totalEpisodes = 0 }
         $genres = $ur.genres -join ', '
         $seasonYear = $ur.seasonYear
         $season = if (-not [string]::IsNullOrEmpty($ur.season)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($ur.season).ToLower()) }
@@ -940,7 +963,6 @@ if ($updateAnilistCSV) {
         If ($firstPreferredSite) {
             $site = $firstPreferredSite.site
             $url = ($firstPreferredSite.url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
-            if (($url -in $badURLs) -or ($site -eq 'HIDIVE' -and $totalEpisodes -eq '00') -or ($site -in 'Hulu', 'Netflix')) { $download = $false } else { $download = $True }
             Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $episode/$totalEpisodes - $download - $url" -LogFilePath $anilistLogfile
             $ue = [PSCustomObject]@{
                 ShowId         = $showId
@@ -960,12 +982,21 @@ if ($updateAnilistCSV) {
                 Site           = $site
                 URL            = $url
                 Genres         = $genres
-                Download       = $download
+                Download       = $false
+                Watching       = $false
             }
             $updatedRecords += $ue
         }
     }
     $newData = Update-Records -source $csvFileData -target $updatedRecords
+    $groupedData = $newData | Where-Object { $_.TotalEpisodes -eq 0 } | Group-Object -Property 'ShowId'
+    foreach ($group in $groupedData) {
+        $id = $group.Name
+        $max = [int](($group.Group | Measure-Object -Property 'Episode' -Maximum).Maximum)
+        $newData | Where-Object { $_.ShowId -eq $id } | ForEach-Object {
+            $_.TotalEpisodes = $max
+        }
+    }
     Write-Output "[Generate] $(Get-DateTime) - Updating $csvFilePath"
     $newData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
 }
@@ -1024,7 +1055,7 @@ if ($updateAnilistURLs) {
 }
 If ($setDownload) {
     do {
-        $sdType = Read-Host 'Set downloads by (S)eason or (D)ate?'
+        $sdType = Read-Host 'Set [Watching] by (S)eason or (D)ate?'
         switch ($sdType) {
             'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
             'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
@@ -1040,39 +1071,41 @@ If ($setDownload) {
     do {
         $f = Read-Host 'Update All(A), True(T), False(F)'
         switch ($f) {
-            'a' { $sContent = $pContent | Select-Object Title, TotalEpisodes, Site, URL, Download -Unique }
-            't' { $sContent = $pContent | Where-Object { $_.download -eq $True } | Select-Object Title, TotalEpisodes, Site, URL, Download -Unique }
-            'f' { $sContent = $pContent | Where-Object { $_.download -eq $false } | Select-Object Title, TotalEpisodes, Site, URL, Download -Unique }
+            'a' { $sContent = $pContent }
+            't' { $sContent = $pContent | Where-Object { $_.Watching -eq $True } }
+            'f' { $sContent = $pContent | Where-Object { $_.Watching -eq $false } }
             Default { Write-Output 'Enter a valid response(a/t/f)' }
         }
     } while ( $f -notin 'a', 't', 'f' )
+    $uniqueShowIDs = $sContent | Select-Object -ExpandProperty ShowId -Unique
+    $sContent = $sContent | Where-Object { $_.ShowId -in $uniqueShowIDs } | Select-Object ShowId, Title, Site, URL, Download, Watching -Unique 
     [int]$counter = 1
     $counts = $sContent.count
     Write-Host "Total items: $counts"
     foreach ($c in $sContent) {
-        do {
-            if (($c.url -in $badURLs ) -or ($c.site -eq 'HIDIVE' -and $c.TotalEpisodes -eq '00')) {
-                Write-Output "[Debug] $(Get-DateTime) - $counter/$counts - URL or site condition met: $($c.URL), $($c.site), $($c.TotalEpisodes)"
-                Write-Output "$($spacer)`nTotal Episodes: $($c.TotalEpisodes) - URL: $($c.URL)"
-                $r = 'no'
-            }
-            else {
-                $r = Read-Host "$($spacer)`n$($counter)/$($counts) - Total Episodes: $($c.TotalEpisodes) - URL: $($c.URL)`nAdd $($c.title) [$($c.download)]?(Y/N/Blank)"
-            }
+        do { 
+            $r = Read-Host "$($spacer)`n$($counter)/$($counts) - $($c.site) - $($c.URL)`nAdd $($c.title) [$($c.Watching)]?(Y/N/Blank)"
             switch ($r) {
-                { 'y', 'yes' -contains $_ } { $c.download = $True; $counter++ }
-                { 'n', 'no' -contains $_ } { $c.download = $false; $counter++ }
-                { '' -contains $_ } { [bool]$c.download = $c.download; $counter++ }
+                { 'y', 'yes' -contains $_ } { $c.Watching = $True; $counter++ }
+                { 'n', 'no' -contains $_ } { $c.Watching = $false; $counter++ }
+                { '' -contains $_ } { $c.Watching = $c.Watching; $counter++ }
                 Default { Write-Output 'Enter a valid response(y/n/blank)' }
             }
-            Write-Output "[Setup] $(Get-DateTime) - Setting $($c.title) to [$($c.download)]$spacer"
+            if ($c.Watching -eq $True -and $c.URL -notin $badURLs) {
+                $c.download = $True
+            }
+            else {
+                $c.download = $false
+            }
+            Write-Output "[Setup] $(Get-DateTime) - Setting $($c.title) watch status to [$($c.Watching)] and download status to [$($c.download)]$spacer"
         } while ( $r -notin 'y', 'yes', 'n', 'no' , '' )
     }
     foreach ($record in $pContent) {
-        $matchingRecord = $sContent | Where-Object { $_.title -eq $record.title -and $_.URL -eq $record.URL }
+        $matchingRecord = $sContent | Where-Object { $_.ShowId -eq $record.ShowId }
         if ($matchingRecord) {
             foreach ($m in $matchingRecord) {
                 $record.download = $m.download
+                $record.Watching = $m.Watching
             }
         }
     }
@@ -1122,7 +1155,7 @@ If ($generateBatchFile) {
         $itemsToCopy | Where-Object { $_.Name -eq 'Site' } | ForEach-Object {
             Remove-Item $_.FullName -Recurse
         }
-        $baseData = $rawData | Where-Object { $_.download -eq $true }
+        $baseData = $rawData | Where-Object { $_.download -eq $true -and $_.Watching -eq $true }
         $uniqueSites = $baseData | Select-Object -ExpandProperty Site -Unique
         foreach ($site in $uniqueSites) {
             $siteData = $baseData | Where-Object { $_.Site -eq $site }
@@ -1186,7 +1219,7 @@ If ($generateBatchFile) {
         }
         $rawData = (Import-Csv $csvFilePath) | Where-Object { $_.site -notin 'Hulu', 'Netflix' }
         | Select-Object SeasonYear, Season, Title, TotalEpisodes, AirDay, Site, URL, Download -Unique | Sort-Object Site, { $weekdayOrder[$_.AirDay] }, AiringTime, Title
-        $baseData = $rawData | Where-Object { $_.download -eq $true }
+        $baseData = $rawData | Where-Object { $_.download -eq $true -and $_.Watching -eq $true }
         $years = $baseData | Select-Object -ExpandProperty SeasonYear -Unique
         foreach ($y in $years) {
             $seasons = $baseData | Where-Object { $_.seasonYear -eq $y } | Select-Object -ExpandProperty season -Unique
@@ -1362,7 +1395,6 @@ If ($sendDiscord) {
     $config.Save($configFilePath)
     Start-Sleep -Seconds 2
 }
-
 if ($dailyRuns) {
     if ((Test-Path $dlpScript)) {
         Get-ChildItem $siteBatFolder | ForEach-Object {
