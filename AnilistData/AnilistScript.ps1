@@ -1054,22 +1054,33 @@ if ($updateAnilistURLs) {
     $csvFileData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
 }
 If ($setDownload) {
-    do {
-        $sdType = Read-Host 'Set [Watching] by (S)eason or (D)ate?'
-        switch ($sdType) {
-            'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
-            'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
-            Default { Write-Output 'Enter S or D' }
-        }
-        if (!(Test-Path $csvFilePath)) {
-            $sdType = 'NA'
-            Write-Host "File does not exist: $csvFilePath"
-        }
-    } while ( $sdType -notin 'S', 'D' )
+    if ($Automated) {
+        $sdType = 'D'
+    }
+    else {
+        do {
+            $sdType = Read-Host 'Set [Watching] by (S)eason or (D)ate?'
+        } while ( $sdType -notin 'S', 'D' )
+    }
+    switch ($sdType) {
+        'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
+        'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
+        Default { Write-Output 'Enter S or D' }
+    }
+    if (!(Test-Path $csvFilePath)) {
+        $sdType = 'NA'
+        Write-Host "File does not exist: $csvFilePath"
+        Exit-Script
+    }
     Set-CSVFormatting $csvFilePath
     $pContent = Import-Csv $csvFilePath
     do {
-        $f = Read-Host 'Update All(A), True(T), False(F)'
+        if ($Automated) {
+            $f = 'a'
+        }
+        else {
+            $f = Read-Host 'Update All(A), True(T), False(F)'
+        }
         switch ($f) {
             'a' { $sContent = $pContent }
             't' { $sContent = $pContent | Where-Object { $_.Watching -eq $True } }
@@ -1084,7 +1095,12 @@ If ($setDownload) {
     Write-Host "Total items: $counts"
     foreach ($c in $sContent) {
         do { 
-            $r = Read-Host "$($spacer)`n$($counter)/$($counts) - $($c.site) - $($c.URL)`nAdd $($c.title) [$($c.Watching)]?(Y/N/Blank)"
+            if ($Automated) {
+                $r = ''
+            }
+            else {
+                $r = Read-Host "$($spacer)`n$($counter)/$($counts) - $($c.site) - $($c.URL)`nAdd $($c.title) [$($c.Watching)]?(Y/N/Blank)"
+            }
             switch ($r) {
                 { 'y', 'yes' -contains $_ } { $c.Watching = $True; $counter++ }
                 { 'n', 'no' -contains $_ } { $c.Watching = $false; $counter++ }
@@ -1097,7 +1113,7 @@ If ($setDownload) {
             else {
                 $c.download = $false
             }
-            Write-Output "[Setup] $(Get-DateTime) - Setting $($c.title) watch status to [$($c.Watching)] and download status to [$($c.download)]$spacer"
+            Write-Output "[Setup] $(Get-DateTime) - $($counter-1) - Setting $($c.title) watch status to [$($c.Watching)] and download status to [$($c.download)]$spacer"
         } while ( $r -notin 'y', 'yes', 'n', 'no' , '' )
     }
     foreach ($record in $pContent) {
@@ -1284,7 +1300,7 @@ If ($sendDiscord) {
     $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv"
     Set-CSVFormatting $csvFilePath
     if (Test-Path $csvFilePath ) {
-        $origin = (Import-Csv $csvFilePath) | Where-Object { $_.Download -eq $True } | Group-Object -Property Site
+        $origin = (Import-Csv $csvFilePath) | Where-Object { $_.Watching -eq $True } | Group-Object -Property Site
         $siteNames = $origin.Name
         $siteList = @()
         foreach ($s in $siteNames) {
@@ -1319,7 +1335,7 @@ If ($sendDiscord) {
                     else {
                         $totalEpisodes = '??'
                     }
-                    $v = '```' + ("$($airingtime)`n$($_.Title)`n$episode/$totalEpisodes") + '```'
+                    $v = '```' + ("$($airingtime) - D:[$($_.download)]`n$($_.Title)`n$($episode)/$($totalEpisodes)") + '```'
                     Write-Log -Message "[Discord] $(Get-DateTime) - $($airingtime) - $($_.Title) - $episode/$totalEpisodes" -LogFilePath $anilistLogfile
                     $fieldValueRelease += $v
                     $showCount++
