@@ -864,11 +864,12 @@ if ($GenerateAnilistFile) {
     $data | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
     $stopwatch.Stop()
     $elapsedTime = $stopwatch.Elapsed
+    $days = '{0:D2}' -f $elapsedTime.Days
     $hours = '{0:D2}' -f $elapsedTime.Hours
     $minutes = '{0:D2}' -f $elapsedTime.Minutes
     $seconds = '{0:D2}' -f $elapsedTime.Seconds
     $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
-    Write-Log -Message "[Generate] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
+    Write-Log -Message "[Generate] $(Get-DateTime) - Time taken: $($days):$($hours):$($minutes):$($seconds).$($milliseconds)" -LogFilePath $anilistLogfile
 }
 if ($updateAnilistCSV) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -1011,11 +1012,12 @@ if ($updateAnilistCSV) {
     $newData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
     $stopwatch.Stop()
     $elapsedTime = $stopwatch.Elapsed
+    $days = '{0:D2}' -f $elapsedTime.Days
     $hours = '{0:D2}' -f $elapsedTime.Hours
     $minutes = '{0:D2}' -f $elapsedTime.Minutes
     $seconds = '{0:D2}' -f $elapsedTime.Seconds
     $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
-    Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
+    Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Time taken: $($days):$($hours):$($minutes):$($seconds).$($milliseconds)" -LogFilePath $anilistLogfile
 
 }
 if ($updateAnilistURLs) {
@@ -1073,11 +1075,12 @@ if ($updateAnilistURLs) {
     $csvFileData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
     $stopwatch.Stop()
     $elapsedTime = $stopwatch.Elapsed
+    $days = '{0:D2}' -f $elapsedTime.Days
     $hours = '{0:D2}' -f $elapsedTime.Hours
     $minutes = '{0:D2}' -f $elapsedTime.Minutes
     $seconds = '{0:D2}' -f $elapsedTime.Seconds
     $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
-    Write-Log -Message "[UpdateURL] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
+    Write-Log -Message "[UpdateURL] $(Get-DateTime) - Time taken: $($days):$($hours):$($minutes):$($seconds).$($milliseconds)" -LogFilePath $anilistLogfile
 
 }
 If ($setDownload) {
@@ -1158,11 +1161,12 @@ If ($setDownload) {
     $pContent | Export-Csv -Path $csvFilePath -NoTypeInformation
     $stopwatch.Stop()
     $elapsedTime = $stopwatch.Elapsed
+    $days = '{0:D2}' -f $elapsedTime.Days
     $hours = '{0:D2}' -f $elapsedTime.Hours
     $minutes = '{0:D2}' -f $elapsedTime.Minutes
     $seconds = '{0:D2}' -f $elapsedTime.Seconds
     $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
-    Write-Log -Message "[SetDownload] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
+    Write-Log -Message "[SetDownload] $(Get-DateTime) - Time taken: $($days):$($hours):$($minutes):$($seconds).$($milliseconds)" -LogFilePath $anilistLogfile
 }
 If ($generateBatchFile) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -1324,12 +1328,13 @@ If ($generateBatchFile) {
     }
     
     $stopwatch.Stop()
+    $days = '{0:D2}' -f $elapsedTime.Days
     $elapsedTime = $stopwatch.Elapsed
     $hours = '{0:D2}' -f $elapsedTime.Hours
     $minutes = '{0:D2}' -f $elapsedTime.Minutes
     $seconds = '{0:D2}' -f $elapsedTime.Seconds
     $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
-    Write-Log -Message "[Batch] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
+    Write-Log -Message "[Batch] $(Get-DateTime) - Time taken: $($days):$($hours):$($minutes):$($seconds).$($milliseconds)" -LogFilePath $anilistLogfile
 }
 If ($sendDiscord) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -1458,11 +1463,12 @@ If ($sendDiscord) {
     $config.Save($configFilePath)
     $stopwatch.Stop()
     $elapsedTime = $stopwatch.Elapsed
+    $days = '{0:D2}' -f $elapsedTime.Days
     $hours = '{0:D2}' -f $elapsedTime.Hours
     $minutes = '{0:D2}' -f $elapsedTime.Minutes
     $seconds = '{0:D2}' -f $elapsedTime.Seconds
     $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
-    Write-Log -Message "[Discord] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
+    Write-Log -Message "[Discord] $(Get-DateTime) - Time taken: $($days):$($hours):$($minutes):$($seconds).$($milliseconds)" -LogFilePath $anilistLogfile
     Start-Sleep -Seconds 2
 }
 if ($dailyRuns) {
@@ -1498,11 +1504,12 @@ if ($dailyRuns) {
     }
     $stopwatch.Stop()
     $elapsedTime = $stopwatch.Elapsed
+    $days = '{0:D2}' -f $elapsedTime.Days
     $hours = '{0:D2}' -f $elapsedTime.Hours
     $minutes = '{0:D2}' -f $elapsedTime.Minutes
     $seconds = '{0:D2}' -f $elapsedTime.Seconds
     $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
-    Write-Log -Message "[DLP-Script] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $smartLogfile
+    Write-Log -Message "[DLP-Script] $(Get-DateTime) - Time taken: $($days):$($hours):$($minutes):$($seconds).$($milliseconds)" -LogFilePath $smartLogfile
 }
 if ($backup) {
     $date = Get-DateTime 2
