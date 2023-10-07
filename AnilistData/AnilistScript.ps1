@@ -704,10 +704,12 @@ else {
 }
 if (!(Test-Path $csvFolder)) { New-Item $csvFolder -ItemType Directory }
 if ($GenerateAnilistFile) {
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     if ($Automated) {
         $aType = 'D'
         if ($today.DayOfWeek -ne 'Monday') {
             Write-Host "Today is $($today.DayOfWeek). Automation not running until Monday."
+            $stopwatch.Stop()
             Exit-Script
         }
     }
@@ -776,7 +778,6 @@ if ($GenerateAnilistFile) {
             $site = $firstPreferredSite.Site
             $url = $firstPreferredSite.url
             $url = ($url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
-
             Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $download - $url" -LogFilePath $anilistLogfile
             $r = [PSCustomObject]@{
                 ShowId        = $a.ShowId
@@ -859,10 +860,18 @@ if ($GenerateAnilistFile) {
             $_.TotalEpisodes = $max
         }
     }
-    Write-Output "[Setup] $(Get-DateTime) - Creating $csvFilePath"
+    Write-Output "[Generate] $(Get-DateTime) - Creating $csvFilePath"
     $data | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
+    $stopwatch.Stop()
+    $elapsedTime = $stopwatch.Elapsed
+    $hours = '{0:D2}' -f $elapsedTime.Hours
+    $minutes = '{0:D2}' -f $elapsedTime.Minutes
+    $seconds = '{0:D2}' -f $elapsedTime.Seconds
+    $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
+    Write-Log -Message "[Generate] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
 }
 if ($updateAnilistCSV) {
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     if ($Automated) { $aType = 'D' }
     else {
         do {
@@ -877,7 +886,8 @@ if ($updateAnilistCSV) {
         'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
     }
     if (!(Test-Path $csvFilePath)) {
-        Write-Log -Message "[Check] $(Get-DateTime) - File does not exist:  $csvFilePath" -LogFilePath $anilistLogfile
+        Write-Log -Message "[UpdateCSV] $(Get-DateTime) - File does not exist:  $csvFilePath" -LogFilePath $anilistLogfile
+        $stopwatch.Stop()
         Exit-Script
     }
     if ($All) {
@@ -997,10 +1007,19 @@ if ($updateAnilistCSV) {
             $_.TotalEpisodes = $max
         }
     }
-    Write-Output "[Generate] $(Get-DateTime) - Updating $csvFilePath"
+    Write-Output "[UpdateCSV] $(Get-DateTime) - Updating $csvFilePath"
     $newData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
+    $stopwatch.Stop()
+    $elapsedTime = $stopwatch.Elapsed
+    $hours = '{0:D2}' -f $elapsedTime.Hours
+    $minutes = '{0:D2}' -f $elapsedTime.Minutes
+    $seconds = '{0:D2}' -f $elapsedTime.Seconds
+    $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
+    Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
+
 }
 if ($updateAnilistURLs) {
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $chunkedIdList = @()
     $urlList = @()
     $lookupTable = @{}
@@ -1052,8 +1071,17 @@ if ($updateAnilistURLs) {
         }
     }
     $csvFileData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, episode, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath
+    $stopwatch.Stop()
+    $elapsedTime = $stopwatch.Elapsed
+    $hours = '{0:D2}' -f $elapsedTime.Hours
+    $minutes = '{0:D2}' -f $elapsedTime.Minutes
+    $seconds = '{0:D2}' -f $elapsedTime.Seconds
+    $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
+    Write-Log -Message "[UpdateURL] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
+
 }
 If ($setDownload) {
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     if ($Automated) {
         $sdType = 'D'
     }
@@ -1070,6 +1098,7 @@ If ($setDownload) {
     if (!(Test-Path $csvFilePath)) {
         $sdType = 'NA'
         Write-Host "File does not exist: $csvFilePath"
+        $stopwatch.Stop()
         Exit-Script
     }
     Set-CSVFormatting $csvFilePath
@@ -1113,7 +1142,7 @@ If ($setDownload) {
             else {
                 $c.download = $false
             }
-            Write-Output "[Setup] $(Get-DateTime) - $($counter-1) - Setting $($c.title) watch status to [$($c.Watching)] and download status to [$($c.download)]$spacer"
+            Write-Output "[SetDownload] $(Get-DateTime) - $($counter-1) - Setting $($c.title) watch status to [$($c.Watching)] and download status to [$($c.download)]$spacer"
         } while ( $r -notin 'y', 'yes', 'n', 'no' , '' )
     }
     foreach ($record in $pContent) {
@@ -1125,10 +1154,18 @@ If ($setDownload) {
             }
         }
     }
-    Write-Output "[Setup] $(Get-DateTime) - Updating $csvFilePath"
+    Write-Output "[SetDownload] $(Get-DateTime) - Updating $csvFilePath"
     $pContent | Export-Csv -Path $csvFilePath -NoTypeInformation
+    $stopwatch.Stop()
+    $elapsedTime = $stopwatch.Elapsed
+    $hours = '{0:D2}' -f $elapsedTime.Hours
+    $minutes = '{0:D2}' -f $elapsedTime.Minutes
+    $seconds = '{0:D2}' -f $elapsedTime.Seconds
+    $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
+    Write-Log -Message "[SetDownload] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
 }
 If ($generateBatchFile) {
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     if ($automated) {
         $daily = 'D'
     }
@@ -1285,8 +1322,17 @@ If ($generateBatchFile) {
             }
         }
     }
+    
+    $stopwatch.Stop()
+    $elapsedTime = $stopwatch.Elapsed
+    $hours = '{0:D2}' -f $elapsedTime.Hours
+    $minutes = '{0:D2}' -f $elapsedTime.Minutes
+    $seconds = '{0:D2}' -f $elapsedTime.Seconds
+    $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
+    Write-Log -Message "[Batch] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
 }
 If ($sendDiscord) {
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $emojiList = @()
     $emojis | ForEach-Object {
         $de = [PSCustomObject]@{
@@ -1404,14 +1450,23 @@ If ($sendDiscord) {
     }
     else {
         Write-Log -Message "[Discord] $(Get-DateTime) - Anilist Season CSV not exist at: $csvFilePath" -LogFilePath $anilistLogfile
+        $stopwatch.Stop()
         Exit-Script
     }
     $config.configuration.logs.lastUpdated = $newLastUpdated
     Write-Log -Message "[Discord] $(Get-DateTime) - New lastUpdated: $newLastUpdated" -LogFilePath $anilistLogfile
     $config.Save($configFilePath)
+    $stopwatch.Stop()
+    $elapsedTime = $stopwatch.Elapsed
+    $hours = '{0:D2}' -f $elapsedTime.Hours
+    $minutes = '{0:D2}' -f $elapsedTime.Minutes
+    $seconds = '{0:D2}' -f $elapsedTime.Seconds
+    $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
+    Write-Log -Message "[Discord] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
     Start-Sleep -Seconds 2
 }
 if ($dailyRuns) {
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     if ((Test-Path $dlpScript)) {
         Get-ChildItem $siteBatFolder | ForEach-Object {
             $site = $_.Name
@@ -1439,8 +1494,15 @@ if ($dailyRuns) {
         }
     }
     else {
-        Write-Log -Message "[[DLP-Script] $(Get-DateTime) - dlp-FileHandler script not found at $dlpscript." -LogFilePath $smartLogfile
+        Write-Log -Message "[DLP-Script] $(Get-DateTime) - dlp-FileHandler script not found at $dlpscript." -LogFilePath $smartLogfile
     }
+    $stopwatch.Stop()
+    $elapsedTime = $stopwatch.Elapsed
+    $hours = '{0:D2}' -f $elapsedTime.Hours
+    $minutes = '{0:D2}' -f $elapsedTime.Minutes
+    $seconds = '{0:D2}' -f $elapsedTime.Seconds
+    $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
+    Write-Log -Message "[DLP-Script] $(Get-DateTime) - Time taken: $($hours):$($minutes):$($seconds):$($milliseconds)" -LogFilePath $anilistLogfile
 }
 if ($backup) {
     $date = Get-DateTime 2
