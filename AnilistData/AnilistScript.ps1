@@ -290,7 +290,7 @@ function Invoke-AnilistApiShowDate {
     )
     $allSeasonShows = @()
     $pageNum = 1
-    $perPageNum = 20
+    $perPageNum = 15
     $url = 'https://graphql.anilist.co'
     $headers = New-Object 'System.Collections.Generic.Dictionary[[String],[String]]'
     $headers.Add('method', 'POST')
@@ -371,7 +371,7 @@ function Invoke-AnilistApiShowSeason {
     )
     $allSeasonShows = @()
     $pageNum = 1
-    $perPageNum = 20
+    $perPageNum = 15
     $url = 'https://graphql.anilist.co'
     $headers = New-Object 'System.Collections.Generic.Dictionary[[String],[String]]'
     $headers.Add('method', 'POST')
@@ -464,7 +464,7 @@ function Invoke-AnilistApiEpisode {
     )
     $ae = @()
     $pageNum = 1
-    $perPageNum = 20
+    $perPageNum = 15
     $url = 'https://graphql.anilist.co'
     $headers = New-Object 'System.Collections.Generic.Dictionary[[String],[String]]'
     $headers.Add('method', 'POST')
@@ -525,7 +525,7 @@ function Invoke-AnilistApiDateRange {
         $ID_NOTIN
     )
     $pageNum = 1
-    $perPageNum = 20
+    $perPageNum = 15
     $url = 'https://graphql.anilist.co'
     $headers = New-Object 'System.Collections.Generic.Dictionary[[String],[String]]'
     $headers.Add('method', 'POST')
@@ -626,7 +626,7 @@ function Invoke-AnilistApiURL {
     )
     $uIDlist = @()
     $pageNum = 1
-    $perPageNum = 20
+    $perPageNum = 15
     $url = 'https://graphql.anilist.co'
     $headers = New-Object 'System.Collections.Generic.Dictionary[[String],[String]]'
     $headers.Add('method', 'POST')
