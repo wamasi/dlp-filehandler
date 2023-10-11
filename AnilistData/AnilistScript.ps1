@@ -10,6 +10,8 @@ param(
     [switch]$updateAnilistCSV,
     [Alias('UU')]
     [switch]$updateAnilistURLs,
+    [Alias('UB')]
+    [switch]$updateBlackList,
     [Alias('D')]
     [switch]$SetDownload,
     [Alias('B')]
@@ -57,6 +59,7 @@ if (!(Test-Path $configFilePath)) {
   <overrides>
     <Show id ="" EpisodeStart="" />
   </overrides>
+  <blacklist Ids="" />
 </configuration>
 '@
     New-Item $configFilePath
@@ -85,6 +88,8 @@ $batchArchiveFolder = Join-Path $rootPath -ChildPath '_archive'
 $lastUpdated = $config.configuration.logs.lastUpdated
 $emojis = $config.configuration.Discord.sites.site
 $badchar = $config.configuration.characters.char
+$blacklistIds = $config.configuration.blacklist.Ids
+$blacklistIdsList = if (-not [string]::IsNullOrEmpty($blacklistIds)) { ($blacklistIds -replace ' ', '') -split ',' } else { $null }
 $csvFolder = Join-Path $scriptRoot -ChildPath 'anilist'
 $badURLs = 'https://www.crunchyroll.com/', 'https://www.crunchyroll.com', 'https://www.hidive.com/', 'https://www.hidive.com'
 $supportSites = 'Crunchyroll', 'HIDIVE', 'Netflix', 'Hulu'
@@ -286,6 +291,8 @@ function Invoke-Request {
 }
 function Invoke-AnilistApiShowDate {
     param (
+        $id,
+        $notId,
         $start,
         $end
     )
@@ -298,12 +305,31 @@ function Invoke-AnilistApiShowDate {
     $headers.Add('authority', 'graphql.anilist.co')
     $headers.Add('Content', 'application/json')
     $headers.Add('Content-Type', 'application/json')
+    $m = @()
+    if ($id) {
+        $mediaFilter = "id: $id"
+        $m += $mediaFilter
+    }
+    if ($notId) {
+        if ($notId -like '*,*') {
+            $mediaFilter = "id_not_In: [$id]"
+            $m += $mediaFilter
+        }
+        else {
+            $mediaFilter = "id_not: $id"
+            $m += $mediaFilter
+        }
+    }
+    $mediaFilter = "airingAt_greater: $start, airingAt_lesser: $end"
+    $m += $mediaFilter
+    $m = $m -join ', '
+    Write-Host "[UpdateCSV] $(Get-DateTime) Start Page: $pageNum"
     do {
         $initialBody = [PSCustomObject]@{
             query = @"
 {
   Page(page: $pageNum, perPage: $perPageNum) {
-    airingSchedules(airingAt_greater: $start, airingAt_lesser: $end, sort: TIME) {
+    airingSchedules($m, sort: TIME) {
       media {
         id
         title {
@@ -367,6 +393,7 @@ function Invoke-AnilistApiShowDate {
 function Invoke-AnilistApiShowSeason {
     param (
         $id,
+        $notId,
         $year,
         $season
     )
@@ -379,20 +406,34 @@ function Invoke-AnilistApiShowSeason {
     $headers.Add('authority', 'graphql.anilist.co')
     $headers.Add('Content', 'application/json')
     $headers.Add('Content-Type', 'application/json')
+    $m = @()
     if ($id) {
         $mediaFilter = "id: $id"
         Write-Host "Start Page: $id - $pageNum"
+        $m += $mediaFilter
     }
-    else {
+    if ($notId) {
+        if ($notId -like '*,*') {
+            $mediaFilter = "id_not_In: [$id]"
+            $m += $mediaFilter
+        }
+        else {
+            $mediaFilter = "id_not: $id"
+            $m += $mediaFilter
+        }
+    }
+    if ($year) {
         $mediaFilter = "seasonYear: $year, season: $season"
+        $m += $mediaFilter
         Write-Host "Start Page: $season - $year - $pageNum"
     }
+    $m = $m -join ', '
     do {
         $initialBody = [PSCustomObject]@{
             query = @"
 {
   Page(page: $pageNum, perPage: $perPageNum) {
-    media($mediaFilter, type: ANIME) {
+    media($m, type: ANIME) {
       id
       episodes
       title {
@@ -735,11 +776,23 @@ if ($GenerateAnilistFile) {
         # Fetching the rest by CBY/PBY and season
         foreach ($seasonName in $seasonOrder.Keys) {
             if ($seasonName -eq 'FALL') {
-                $sShow = Invoke-AnilistApiShowSeason -year $pby -season $seasonName
+                if ($blacklistIdsList) {
+                    $sShow = Invoke-AnilistApiShowSeason -year $pby -season $seasonName -notId
+                    $allShows += $sShow
+                }
+                else {
+                    $sShow = Invoke-AnilistApiShowSeason -year $pby -season $seasonName
+                    $allShows += $sShow
+                }
+            }
+            if ($blacklistIdsList) {
+                $sShow = Invoke-AnilistApiShowSeason -year $cby -season $seasonName -notId
                 $allShows += $sShow
             }
-            $sShow = Invoke-AnilistApiShowSeason -year $cby -season $seasonName
-            $allShows += $sShow
+            else {
+                $sShow = Invoke-AnilistApiShowSeason -year $cby -season $seasonName
+                $allShows += $sShow
+            }
         }
     }
     else {
@@ -924,7 +977,14 @@ if ($updateAnilistCSV) {
     for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
         $chunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
     }
+    if ($blacklistIds) {
+        $oShowIdList += $blacklistIds
+        for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
+            $blacklistChunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
+        }
+    }
     $dateCounter = 0
+    Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Total ShowIDs: $($oShowIdList.Count)" -LogFilePath $anilistLogfile
     while ($currentDay -le $endDay) {
         $endDate = $currentDay.AddDays($daysPerIteration - 1)
         if ($endDate -gt $endDay) {
@@ -933,15 +993,18 @@ if ($updateAnilistCSV) {
         $startUnix, $endUnix = Get-FullUnixDay -Date $currentDay
         $eStartUnix, $eEndUnix = Get-FullUnixDay -Date $endDate
         Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Iteration $($dateCounter + 1) - $($currentDay) - $($endDate) - $startUnix - $eStartUnix" -LogFilePath $anilistLogfile
-        foreach ($c in $chunkedIdList) {
-            Write-Host "[UpdateCSV] $(Get-DateTime) - Running IDs: $c"
             if ($MediaID_NotIn -or $newShowCheck) {
-                $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $eStartUnix -ID_NOTIN $c
+                foreach ($b in $blacklistChunkedIdList) {
+                    Write-Host "[UpdateCSV] $(Get-DateTime) - Excluding IDs: $b"
+                $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $eStartUnix -ID_NOTIN $b
+                }
             }
             else {
+                foreach ($c in $chunkedIdList) {
+                Write-Host "[UpdateCSV] $(Get-DateTime) - Including IDs: $c"
                 $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $eStartUnix -ID_IN $c
+                }
             }
-        }
         $currentDay = $endDate.AddDays(1)
         $dateCounter++
     }
@@ -1100,6 +1163,30 @@ if ($updateAnilistURLs) {
     $seconds = '{0:D2}' -f $elapsedTime.Seconds
     $milliseconds = '{0:D2}' -f $elapsedTime.Milliseconds
     Write-Log -Message "[UpdateURL] $(Get-DateTime) - Time taken: $($days):$($hours):$($minutes):$($seconds).$($milliseconds)" -LogFilePath $anilistLogfile
+}
+if ($updateBlackList) {
+    if ($Automated) { $aType = 'D' }
+    else {
+        do {
+            $aType = Read-Host 'Run for (S)eason or (D)ate?'
+            if ($aType -notin 'S', 'D') {
+                Write-Output 'Enter S or D'
+            }
+        } while ( $aType -notin 'S', 'D' )
+    }
+    switch ($aType) {
+        'S' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_S_$($pbyShort)-$($cbyShort).csv" }
+        'D' { $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv" }
+    }
+    Set-CSVFormatting -csvPath $csvFilePath
+    $csvFileData = Import-Csv $csvFilePath
+    $newBacklistIds = $csvFileData | Where-Object { $_.Watching -eq $false } | Select-Object -ExpandProperty ShowId -Unique
+    $blacklistIdsList += $newBacklistIds
+    $newBlacklistIdsList = ($blacklistIdsList | Select-Object -Unique | Sort-Object) -join ','
+    $config.configuration.blacklist.Ids = $newBlacklistIdsList
+    $config.Save($configFilePath)
+    $newCSVData = $csvFileData | Where-Object {$_.ShowId -notin $blacklistIdsList}
+    $newCSVData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, { [Int]$_.'Episode' }, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath -IncludeTypeInformation
 }
 If ($setDownload) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
