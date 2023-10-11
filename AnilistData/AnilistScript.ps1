@@ -105,6 +105,7 @@ $data = @()
 $anime = @()
 $updatedRecordCalls = @()
 $updatedRecords = @()
+$daysPerIteration = 30
 $chunkSize = 20
 $SeasonDates = @(
     [PSCustomObject]@{Season = 'FALL'; Ordinal = 1 ; StartDate = "10/01/$pby"; EndDate = "12/31/$pby" }
@@ -351,7 +352,7 @@ function Invoke-AnilistApiShowDate {
         @{name = 'Status'; expression = { $_.status } }, @{name = 'Season'; expression = { $_.season } }, @{name = 'SeasonYear'; expression = { $_.seasonYear } } , `
         @{name = 'StartDate'; expression = { "$($_.startDate.month)/$($_.startDate.day)/$($_.startDate.year)" } }, `
         @{name = 'EndDate'; expression = { "$($_.endDate.month)/$($_.endDate.day)/$($_.endDate.year)" } }, externalLinks
-        if ($nextPage -eq 'true') { $pageNum++; Write-Host "Next Page: $pageNum - $start/$end" }
+        if ($nextPage -eq 'true') { $pageNum++; Write-Host "[UpdateCSV] $(Get-DateTime) Next Page: $pageNum - $start/$end" }
         if ($remaining -le 5) {
             Write-Host 'Pausing for 60 second(s).'
             Start-Sleep -Seconds 60
@@ -440,10 +441,10 @@ function Invoke-AnilistApiShowSeason {
         if ($nextPage -eq 'true') {
             $pageNum++
             if ($season) {
-                Write-Host "Next Page: $season - $year - $pageNum"
+                Write-Host "[UpdateCSV] $(Get-DateTime) - Next Page: $season - $year - $pageNum"
             }
             else {
-                Write-Host "Next Page: $id - $pageNum"
+                Write-Host "[UpdateCSV] $(Get-DateTime) - Next Page: $id - $pageNum"
             }
         }
         if ($remaining -le 5) {
@@ -501,7 +502,7 @@ function Invoke-AnilistApiEpisode {
         $nextPage = $c.data.page.pageInfo.hasNextPage
         $s = $c.data.page.airingSchedules | Select-Object @{name = 'ShowId'; expression = { $_.media.id } }, @{name = 'EpisodeId'; expression = { $_.id } }, episode, airingAt
         $ae += $s
-        if ($nextPage -eq 'true') { $pageNum++; Write-Host "Next Page: $pageNum" }
+        if ($nextPage -eq 'true') { $pageNum++; Write-Host "[UpdateCSV] $(Get-DateTime) - Next Page: $pageNum" }
         if ($remaining -le 6) {
             Start-Sleep -Seconds 60
         }
@@ -610,7 +611,7 @@ function Invoke-AnilistApiDateRange {
         @{name = 'EndDate'; expression = { "$($_.media.endDate.month)/$($_.media.endDate.day)/$($_.media.endDate.year)" } }, @{name = 'externalLinks'; expression = { $_.media.externalLinks } }
         $allResponses += $s
         $nextPage = $c.data.page.pageInfo.hasNextPage
-        if ($nextPage -eq 'true') { $pageNum++; Write-Host "Next Page: $pageNum" }
+        if ($nextPage -eq 'true') { $pageNum++; Write-Host "[UpdateCSV] $(Get-DateTime) - Next Page: $pageNum" }
         if ($remaining -le 5) {
             Start-Sleep -Seconds 60
         }
@@ -672,7 +673,7 @@ function Invoke-AnilistApiURL {
         $nextPage = $c.data.page.pageInfo.hasNextPage
         $s = $c.data.page.media | Select-Object @{name = 'ShowId'; expression = { $_.id } }, externalLinks
         $uIDlist += $s
-        if ($nextPage -eq 'true') { $pageNum++; Write-Host "Next Page: $pageNum" }
+        if ($nextPage -eq 'true') { $pageNum++; Write-Host "[UpdateCSV] $(Get-DateTime) - Next Page: $pageNum" }
         if ($remaining -le 6) {
             Start-Sleep -Seconds 60
         }
@@ -896,8 +897,13 @@ if ($updateAnilistCSV) {
     else {
         $startDate = $today
     }
-    $start = 0
-    if ($Automated) { $maxDay = 8 } else { $maxDay = ($csvEndDate - $startDate).days }
+    $currentDay = $startDate
+    if ($Automated) { 
+        $endDay = $today.AddDays(14) 
+    } 
+    else { 
+        $endDay = (Get-Date $csvEndDate -Hour 0 -Minute 0 -Second 0 -Millisecond 0).AddDays(1)
+    }
     Set-CSVFormatting -csvPath $csvFilePath
     $csvFileData = Import-Csv $csvFilePath
     $chunkedIdList = @()
@@ -916,20 +922,26 @@ if ($updateAnilistCSV) {
     for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
         $chunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
     }
-    while ($start -lt $maxDay) {
-        $start++
-        $startUnix, $endUnix = Get-FullUnixDay -Date $startDate
-        Write-Log -Message "[UpdateCSV] $(Get-DateTime) - $($start)/$($maxDay) - $startDate - $startUnix - $endUnix" -LogFilePath $anilistLogfile
+    $dateCounter = 0
+    while ($currentDay -le $endDay) {
+        $endDate = $currentDay.AddDays($daysPerIteration - 1)
+        if ($endDate -gt $endDay) {
+            $endDate = $endDay
+        }
+        $startUnix, $endUnix = Get-FullUnixDay -Date $currentDay
+        $eStartUnix, $eEndUnix = Get-FullUnixDay -Date $endDate
         foreach ($c in $chunkedIdList) {
+            Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Iteration $($dateCounter + 1) - $($currentDay) - $($endDate) - $startUnix - $eStartUnix" -LogFilePath $anilistLogfile
             Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Running IDs: $c" -LogFilePath $anilistLogfile
             if ($MediaID_NotIn -or $newShowCheck) {
-                $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $endUnix -ID_NOTIN $c
+                $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $eStartUnix -ID_NOTIN $c
             }
             else {
-                $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $endUnix -ID_IN $c
+                $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $eStartUnix -ID_IN $c
             }
         }
-        $startDate = $startDate.AddDays(1)
+        $currentDay = $endDate.AddDays(1)
+        $dateCounter++
     }
     foreach ($ur in $updatedRecordCalls | Sort-Object ShowId, EpisodeId) {
         $ShowId = $ur.ShowId
@@ -973,6 +985,7 @@ if ($updateAnilistCSV) {
         If ($firstPreferredSite) {
             $site = $firstPreferredSite.site
             $url = ($firstPreferredSite.url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
+            $download = $false
             Write-Log -Message "[UpdateCSV] $(Get-DateTime) - $site - $title - $episode/$totalEpisodes - $download - $url" -LogFilePath $anilistLogfile
             $ue = [PSCustomObject]@{
                 ShowId         = [int]$showId
@@ -992,7 +1005,7 @@ if ($updateAnilistCSV) {
                 Site           = $site
                 URL            = $url
                 Genres         = $genres
-                Download       = $false
+                Download       = $download
                 Watching       = $false
             }
             $updatedRecords += $ue
