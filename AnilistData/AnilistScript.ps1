@@ -89,6 +89,7 @@ $lastUpdated = $config.configuration.logs.lastUpdated
 $emojis = $config.configuration.Discord.sites.site
 $badchar = $config.configuration.characters.char
 $blacklistIds = $config.configuration.blacklist.Ids
+$ShowOverrides = $config.configuration.overrides.show
 $blacklistIdsList = if (-not [string]::IsNullOrEmpty($blacklistIds)) { ($blacklistIds -replace ' ', '') -split ',' } else { $null }
 $csvFolder = Join-Path $scriptRoot -ChildPath 'anilist'
 $badURLs = 'https://www.crunchyroll.com/', 'https://www.crunchyroll.com', 'https://www.hidive.com/', 'https://www.hidive.com'
@@ -993,18 +994,18 @@ if ($updateAnilistCSV) {
         $startUnix, $endUnix = Get-FullUnixDay -Date $currentDay
         $eStartUnix, $eEndUnix = Get-FullUnixDay -Date $endDate
         Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Iteration $($dateCounter + 1) - $($currentDay) - $($endDate) - $startUnix - $eStartUnix" -LogFilePath $anilistLogfile
-            if ($MediaID_NotIn -or $newShowCheck) {
-                foreach ($b in $blacklistChunkedIdList) {
-                    Write-Host "[UpdateCSV] $(Get-DateTime) - Excluding IDs: $b"
+        if ($MediaID_NotIn -or $newShowCheck) {
+            foreach ($b in $blacklistChunkedIdList) {
+                Write-Host "[UpdateCSV] $(Get-DateTime) - Excluding IDs: $b"
                 $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $eStartUnix -ID_NOTIN $b
-                }
             }
-            else {
-                foreach ($c in $chunkedIdList) {
+        }
+        else {
+            foreach ($c in $chunkedIdList) {
                 Write-Host "[UpdateCSV] $(Get-DateTime) - Including IDs: $c"
                 $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $eStartUnix -ID_IN $c
-                }
             }
+        }
         $currentDay = $endDate.AddDays(1)
         $dateCounter++
     }
@@ -1185,7 +1186,7 @@ if ($updateBlackList) {
     $newBlacklistIdsList = ($blacklistIdsList | Select-Object -Unique | Sort-Object) -join ','
     $config.configuration.blacklist.Ids = $newBlacklistIdsList
     $config.Save($configFilePath)
-    $newCSVData = $csvFileData | Where-Object {$_.ShowId -notin $blacklistIdsList}
+    $newCSVData = $csvFileData | Where-Object { $_.ShowId -notin $blacklistIdsList }
     $newCSVData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, { [Int]$_.'Episode' }, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath -IncludeTypeInformation
 }
 If ($setDownload) {
@@ -1338,11 +1339,18 @@ If ($generateBatchFile) {
                 $dayNum = $weekdayOrder[$weekday]
                 $urls = @()
                 foreach ($entry in $weekdayData) {
+                    $showId = $entry.ShowId
                     $showUrl = $entry.URL
-                    $totalEpisodes = $entry.TotalEpisodes
-                    if ($totalEpisodes -eq 'NA') { $totalEpisodes = 0 }
-                    if ($site -eq 'HIDIVE' -and $totalEpisodes -gt 0) {
-                        for ($i = 1; $i -le $totalEpisodes; $i++) {
+                    [int]$totalEpisodes = $entry.TotalEpisodes
+                    if ($showId -in $ShowOverrides.id) {
+                        [int]$startEpNum = $ShowOverrides | Where-Object { $_.id -eq $showId } | Select-Object -ExpandProperty EpisodeStart -Unique
+                        $totalEpisodes = $totalEpisodes + $startEpNum
+                    }
+                    else {
+                        [int]$startEpNum = 1
+                    }
+                    if ($site -eq 'HIDIVE') {
+                        for ($i = $startEpNum; $i -lt $totalEpisodes; $i++) {
                             $lastPart = $showUrl -replace '/season-\d+', '' -replace '.*/', ''
                             $v = "https://www.hidive.com/stream/$lastPart"
                             $seasonNumber = [regex]::Match($showUrl, '/season-(\d+)').Groups[1].Value
@@ -1398,13 +1406,20 @@ If ($generateBatchFile) {
                         foreach ($b in $batch) {
                             $site = $sd
                             $p = Join-Path $baseSeasonPath -ChildPath "$y\$s\$sd"
-                            if (!(Test-Path $p)) { New-Item $p -ItemType Directory }
-                            $url = $b.URL
-                            $totalEpisodes = $b.TotalEpisodes
-                            if ($totalEpisodes -eq 'NA') { $totalEpisodes = 0 }
-                            if ($site -eq 'HIDIVE' -and $totalEpisodes -gt 0) {
-                                for ($i = 1; $i -le $totalEpisodes; $i++) {
-                                    $lastPart = $url -replace '/season-\d+', '' -replace '.*/', ''
+                            if (!(Test-Path $p)) { New-Item $p -ItemType Directory }                            
+                            $showId = $b.ShowId
+                            $showUrl = $b.URL
+                            [int]$totalEpisodes = $b.TotalEpisodes
+                            if ($showId -in $ShowOverrides.id) {
+                                [int]$startEpNum = $ShowOverrides | Where-Object { $_.id -eq $showId } | Select-Object -ExpandProperty EpisodeStart -Unique
+                                $totalEpisodes = $totalEpisodes + $startEpNum
+                            }
+                            else {
+                                [int]$startEpNum = 1
+                            }
+                            if ($site -eq 'HIDIVE') {
+                                for ($i = $startEpNum; $i -le $totalEpisodes; $i++) {
+                                    $lastPart = $showUrl -replace '/season-\d+', '' -replace '.*/', ''
                                     $v = "https://www.hidive.com/stream/$lastPart"
                                     $seasonNumber = [regex]::Match($url, '/season-(\d+)').Groups[1].Value
                                     $seasonNumber = '{0:D2}' -f [int]$seasonNumber
