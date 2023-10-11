@@ -551,7 +551,7 @@ function Invoke-AnilistApiDateRange {
             $mediaFilter = $mediaFilter + ", mediaId_not: $($ID_NOTIN)"
         }
     }
-    Write-Log -Message "[UpdateCSV] $(Get-DateTime) - $start - Starting on page $pageNum" -LogFilePath $anilistLogfile
+    Write-Host "[UpdateCSV] $(Get-DateTime) - $start - Starting on page $pageNum"
     do {
         $body = [PSCustomObject]@{
             query         = @"
@@ -762,7 +762,7 @@ if ($GenerateAnilistFile) {
         else {
             ''
         }
-        $seasonYear = $a.SeasonYear
+        $seasonYear = if (-not [string]::IsNullOrEmpty($a.seasonYear)) { $a.seasonYear } else { '' }
         $status = if (-not [string]::IsNullOrEmpty($a.status)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($a.status).ToLower()) }
         else {
             ''
@@ -777,6 +777,8 @@ if ($GenerateAnilistFile) {
         If ($firstPreferredSite) {
             $site = $firstPreferredSite.Site
             $url = $firstPreferredSite.url
+            $download = $false
+            $watching = $false
             $url = ($url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
             Write-Log -Message "[Generate] $(Get-DateTime) - $site - $title - $download - $url" -LogFilePath $anilistLogfile
             $r = [PSCustomObject]@{
@@ -791,13 +793,13 @@ if ($GenerateAnilistFile) {
                 Site          = $site
                 URL           = $url
                 Genres        = $genres
-                Download      = $false
-                Watching      = $false
+                Download      = $download
+                Watching      = $watching
             }
             $anime += $r
         }
     }
-    $idList = $anime | Select-Object ShowId -Unique | ForEach-Object { $_.ShowId }
+    $idList = $anime | Select-Object ShowId -Unique | Sort-Object Site, Title | ForEach-Object { $_.ShowId }
     $chunkedIdList = @()
     for ($i = 0; $i -lt $idList.Count; $i += $chunkSize) {
         $chunkedIdList += ($idList[$i..($i + $chunkSize - 1)] -join ', ')
@@ -810,7 +812,7 @@ if ($GenerateAnilistFile) {
         $title = $s.Title
         $totalEpisodes = $s.TotalEpisodes
         $season = $s.season
-        $seasonYear = $s.seasonYear
+        $seasonYear = if (-not [string]::IsNullOrEmpty($s.seasonYear)) { $s.seasonYear } else { '' }
         $Status = $s.Status
         $startDate = $s.startDate
         $endDate = $s.endDate
@@ -898,10 +900,10 @@ if ($updateAnilistCSV) {
         $startDate = $today
     }
     $currentDay = $startDate
-    if ($Automated) { 
-        $endDay = $today.AddDays(14) 
-    } 
-    else { 
+    if ($Automated) {
+        $endDay = $today.AddDays(14)
+    }
+    else {
         $endDay = (Get-Date $csvEndDate -Hour 0 -Minute 0 -Second 0 -Millisecond 0).AddDays(1)
     }
     Set-CSVFormatting -csvPath $csvFilePath
@@ -916,7 +918,7 @@ if ($updateAnilistCSV) {
     else {
         $oShowIdList = $csvFileData | Where-Object {
             $dateObject = [DateTime]::ParseExact($_.AirDate, 'MM/dd/yyyy', $null)
-            $dateObject -ge $today }
+            $dateObject -ge $startDate }
         | Select-Object -ExpandProperty ShowId -Unique
     }
     for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
@@ -930,9 +932,9 @@ if ($updateAnilistCSV) {
         }
         $startUnix, $endUnix = Get-FullUnixDay -Date $currentDay
         $eStartUnix, $eEndUnix = Get-FullUnixDay -Date $endDate
+        Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Iteration $($dateCounter + 1) - $($currentDay) - $($endDate) - $startUnix - $eStartUnix" -LogFilePath $anilistLogfile
         foreach ($c in $chunkedIdList) {
-            Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Iteration $($dateCounter + 1) - $($currentDay) - $($endDate) - $startUnix - $eStartUnix" -LogFilePath $anilistLogfile
-            Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Running IDs: $c" -LogFilePath $anilistLogfile
+            Write-Host "[UpdateCSV] $(Get-DateTime) - Running IDs: $c"
             if ($MediaID_NotIn -or $newShowCheck) {
                 $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $eStartUnix -ID_NOTIN $c
             }
@@ -951,7 +953,7 @@ if ($updateAnilistCSV) {
         if ( $episode -eq '' -or $null -eq $episode) { $episode = 0 }
         if ($totalEpisodes -eq '' -or $null -eq $totalEpisodes) { $totalEpisodes = 0 }
         $genres = $ur.genres -join ', '
-        $seasonYear = $ur.seasonYear
+        $seasonYear = if (-not [string]::IsNullOrEmpty($ur.seasonYear)) { $ur.seasonYear } else { '' }
         $season = if (-not [string]::IsNullOrEmpty($ur.season)) { ([System.Globalization.CultureInfo]::CurrentCulture).TextInfo.ToTitleCase($($ur.season).ToLower()) }
         else {
             ''
@@ -986,7 +988,7 @@ if ($updateAnilistCSV) {
             $site = $firstPreferredSite.site
             $url = ($firstPreferredSite.url -replace 'http:', 'https:' -replace '^https:\/\/www\.crunchyroll\.com$', 'https://www.crunchyroll.com/' -replace '^https:\/\/www\.hidive\.com$', 'https://www.hidive.com/').Trim()
             $download = $false
-            Write-Log -Message "[UpdateCSV] $(Get-DateTime) - $site - $title - $episode/$totalEpisodes - $download - $url" -LogFilePath $anilistLogfile
+            Write-Host "[UpdateCSV] $(Get-DateTime) - $site - $title - $episode/$totalEpisodes - $download - $url"
             $ue = [PSCustomObject]@{
                 ShowId         = [int]$showId
                 EpisodeId      = [int]$episodeId
@@ -1137,12 +1139,12 @@ If ($setDownload) {
         }
     } while ( $f -notin 'a', 't', 'f' )
     $uniqueShowIDs = $sContent | Select-Object -ExpandProperty ShowId -Unique
-    $sContent = $sContent | Where-Object { $_.ShowId -in $uniqueShowIDs } | Select-Object ShowId, Title, Site, URL, Download, Watching -Unique 
+    $sContent = $sContent | Where-Object { $_.ShowId -in $uniqueShowIDs } | Select-Object ShowId, Title, Site, URL, Download, Watching -Unique
     [int]$counter = 1
     $counts = $sContent.Count
     Write-Host "Total items: $counts"
     foreach ($c in $sContent) {
-        do { 
+        do {
             if ($Automated) {
                 $r = ''
             }
@@ -1342,7 +1344,7 @@ If ($generateBatchFile) {
             }
         }
     }
-    
+
     $stopwatch.Stop()
     $days = '{0:D2}' -f $elapsedTime.Days
     $elapsedTime = $stopwatch.Elapsed
