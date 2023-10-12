@@ -7,11 +7,11 @@ param(
     [Alias('G')]
     [switch]$GenerateAnilistFile,
     [Alias('U')]
-    [switch]$updateAnilistCSV,
+    [switch]$UpdateAnilistCSV,
     [Alias('UU')]
-    [switch]$updateAnilistURLs,
+    [switch]$UpdateAnilistURLs,
     [Alias('UB')]
-    [switch]$updateBlackList,
+    [switch]$UpdateBlackList,
     [Alias('D')]
     [switch]$SetDownload,
     [Alias('B')]

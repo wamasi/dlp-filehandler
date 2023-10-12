@@ -128,9 +128,11 @@ Discord (optional):
 | Arguments/Switches | Abbreviation | Description | Notes |
  :--- | :--- | :--- | :--- |
 |Automated|-A| Allows automated run of script based on hardcoded values||
+|All|-All| When updaing the CSV file it will run for all dates instead of greater than today's date||
 |GenerateAnilistFile|-G|Generates either a csv file of anime based on Season or Dates||
-|updateAnilistCSV|-U|Updates the generated csv for any changed data since created||
-|updateAnilistURLs|-UU|Updates only the URLs in the CSV if they have changed||
+|UpdateAnilistCSV|-U|Updates the generated csv for any changed data since created||
+|UpdateAnilistURLs|-UU|Updates only the URLs in the CSV if they have changed||
+|UpdateBlackList|-UB|Updates blacklist of show IDs used to ignore/delete records of IDs from being returned when generating a new CSV or updating existing data||
 |SetDownload|-D|Allows users to specify whether to track a given show||
 |GenerateBatchFile|-B|Creates batch files used for separate script based on days of the week||
 |SendDiscord|-SD|Sends list of shows airing that day that are marked as watching||
