@@ -1872,7 +1872,7 @@ if ($site) {
                 # Series Folder name change
                 foreach ($e in ($overrideEpisodeList | Where-Object { $_.overrideType -eq 'Series' })) {
                     if ($vsEpisodeRaw -match $($e.filenamePattern)) {
-                        $vsSeries = (Get-Culture).TextInfo.ToTitleCase((Format-Filename -InputStr $($e.fileReplaceText)))
+                        $vsSeries = (Get-Culture).TextInfo.ToTitleCase($e.fileReplaceText)
                         Write-Output "[Processing] $(Get-DateTime) - Override Series Pattern: `"$($e.filenamePattern)`""
                         Write-Output "[Processing] $(Get-DateTime) - Override Series CHANGED: `"$vsSeries`""
                     }
