@@ -1374,7 +1374,7 @@ If ($generateBatchFile) {
                         foreach ($b in $batch) {
                             $site = $sd
                             $p = Join-Path $baseSeasonPath -ChildPath "$y\$s\$sd"
-                            if (!(Test-Path $p)) { New-Item $p -ItemType Directory }                            
+                            if (!(Test-Path $p)) { New-Item $p -ItemType Directory }
                             $showId = $b.ShowId
                             $showUrl = $b.URL
                             [int]$totalEpisodes = $b.TotalEpisodes
