@@ -1578,7 +1578,7 @@ if ($dailyRuns) {
                     'HIDIVE' {
                         Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $currentWeekday - $batchFile" -LogFilePath $smartLogfile
                         $return = pwsh.exe $dlpScript -sn Hidive -d -c -mk -f -se -a -al ja -sl en -sd -overrideBatch $batchFile
-                        $message = $return -match '\[DLP-Script\]*' | ForEach-Object { $_ }
+                        $message = $return -match '\[DLP-Script\]*' | ForEach-Object { $_.Trim()}
                         Write-Log -Message "$message" -LogFilePath $smartLogfile
                     }
                     Default { Write-Log -Message "[DLP-Script] $(Get-DateTime) - No Applicable Site for $batchFile" -LogFilePath $smartLogfile }

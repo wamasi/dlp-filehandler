@@ -534,7 +534,7 @@ function Exit-Script {
     else {
         Rename-Item -Path $logTemp -NewName $logFile
     }
-    return "[DLP-Script] $(Get-DateTime) - $siteName - Ran for $($totalRuntime) - Downloaded $vsvTotCount with $vsvErrorCount errors"
+    return "[DLP-Script] $(Get-DateTime) - $siteNameO - Ran for $($totalRuntime) - Downloaded $vsvTotCount with $vsvErrorCount errors"
 }
 # Function to make API requests to Sonarr
 function Invoke-SonarrApi {
@@ -1517,7 +1517,8 @@ if ($site) {
         $SiteNameList += , ($siteFolderId, $SiteNameID)
     }
     $siteFolderIdName = $SiteNameList | Where-Object { $_ -eq $site }
-    $siteName = $siteNameParams.siteName.ToLower()
+    $siteNameO = $siteNameParams.siteName
+    $siteName = $siteNameO.ToLower()
     $siteNameRaw = $siteNameParams.siteName
     $siteFolderDirectory = Join-Path -Path $scriptDirectory -ChildPath 'sites'
     $siteUser = $siteNameParams.username
@@ -1866,70 +1867,66 @@ if ($site) {
             $OSeason = $overrideEpisodeList | Where-Object { $_.overrideType -eq 'Season' }
             $subfolders = Get-ChildItem -Path $siteSrc -Directory
             foreach ($subfolder in $subfolders) {
-                Write-Host "Processing files in subfolder: $($subfolder.Name)"
+                Write-Output "[Processing] $(Get-DateTime) - Processing files in subfolder: $($subfolder.Name)"
                 $newfoldername = ''
                 $files = Get-ChildItem -Path $subfolder.FullName -File -Recurse
-                foreach ($file in $files) {
-                    Write-Host "File: $($file.Name)"
-                    # name files here
-                    if ($file.Extension -eq '.mkv') {
-                        $formattedName = Format-Filename -InputStr $file.BaseName
+                foreach ($f in $files) {
+                    $oldfullPath = $f.FullName
+                    Write-Output "[Processing] $(Get-DateTime) - Checking Filename: `"$oldfullPath`""
+                    if ($f.Extension -eq '.mkv') {
+                        $formattedName = Format-Filename -InputStr $f.BaseName
                     }
                     else {
-                        $inputString = $file.BaseName
+                        $inputString = $f.BaseName
                         $lastPeriodIndex = $inputString.LastIndexOf('.')
                         $formattedName = (Format-Filename -InputStr ($inputString.Substring(0, $lastPeriodIndex))) + '.' + $inputString.Substring($lastPeriodIndex + 1)
                     }
-                    Write-Output "Formatted name: $formattedName"
+                    Write-Output "[Processing] $(Get-DateTime) - Formatted name: $formattedName"
                     if ($OSeries.count -gt 0) {
                         foreach ($e in $OSeries) {
                             if ($formattedName -match $($e.filenamePattern)) {
-                                #series filename change
                                 $pattern = $e.filenamePattern
                                 $replacementText = $e.fileReplaceText
                                 $renamedFilename = ($formattedName -replace $pattern, "$replacementText`$2$replacementText`$4")
-                                Write-Output "NEW NAME!! `n$formattedName`n$renamedFileName"
                                 $newfoldername = (Get-Culture).TextInfo.ToTitleCase($replacementText)
                                 Write-Output "[Processing] $(Get-DateTime) - Override Series Pattern: `"$($pattern)`""
                                 Write-Output "[Processing] $(Get-DateTime) - Override Series CHANGED: `"$renamedFilename`""
                                 break
                             }
                             else {
-                                $renamedFilename = $file.BaseName
+                                $renamedFilename = $f.BaseName
                             }
                         }
                     }
                     else {
-                        $renamedFilename = $file.BaseName
+                        $renamedFilename = $f.BaseName
                     }
                     if ($OSeason.count -gt 0) {
-                        # Season filename change
                         foreach ($o in $OSeason) {
                             if ($renamedFilename -match $($o.filenamePattern)) {
                                 $pattern = $o.filenamePattern
                                 $replacementText = $o.fileReplaceText
-                                $overrideFilename = ($renamedFilename -replace $pattern, "`$1$replacementText`$3") + $file.Extension
+                                $newBaseName = ($renamedFilename -replace $pattern, "`$1$replacementText`$3") + $f.Extension
                                 Write-Output "[Processing] $(Get-DateTime) - Override Season Pattern: `"$($pattern)`""
-                                Write-Output "[Processing] $(Get-DateTime) - Override Season CHANGED: `"$overrideFilename`""
+                                Write-Output "[Processing] $(Get-DateTime) - Override Season CHANGED: `"$newBaseName`""
                                 break
                             }
                             else {
-                                $overrideFilename = $renamedFilename + $file.Extension
+                                $newBaseName = $renamedFilename + $f.Extension
                             }
                         }
                     }
                     else {
-                        $overrideFilename = (Get-Culture).TextInfo.ToTitleCase($renamedFilename) + $file.Extension
+                        $newBaseName = (Get-Culture).TextInfo.ToTitleCase($renamedFilename) + $f.Extension
                     }
-                    $fullPath = $file.FullName
-                    Write-Output "Writing $fullPath to $overrideFilename"
-                    Rename-Item $fullPath -NewName $overrideFilename -Verbose
+                    Write-Output "[Processing] $(Get-DateTime) - Writing $oldfullPath to $newBaseName"
+                    Rename-Item $oldfullPath -NewName $newBaseName -Verbose
                 }
                 if ($newfoldername) {
                     #rename folder here
                     Rename-Item $($subfolder.FullName) -NewName $newfoldername -Verbose
                 }
-                Write-Host "end of Subfolder: $($subfolder.Name)"
+                Write-Output "[Processing] $(Get-DateTime) - End of Subfolder: $($subfolder.Name)"
             }
         }
         else {
@@ -2184,11 +2181,11 @@ if ($site) {
                                     }
                                     $rfc = Invoke-SonarrApi -url 'command' -method 'POST' -body ($refreshCommand | ConvertTo-Json)
                                     foreach ($fc in $rfc) {
-                                        Write-Host "[Sonarr] $(Get-DateTime) - $($fc.commandName): $($fc.body.completionMessage) - $($seriesTitle) - $($seriesPath)"
+                                        Write-Output "[Sonarr] $(Get-DateTime) - $($fc.commandName): $($fc.body.completionMessage) - $($seriesTitle) - $($seriesPath)"
                                     }
                                     $rsc = Invoke-SonarrApi -url 'command' -method 'POST' -body ($rescanCommand | ConvertTo-Json)
                                     foreach ($sc in $rsc) {
-                                        Write-Host "[Sonarr] $(Get-DateTime) - $($sc.commandName): $($sc.body.completionMessage) - $($seriesTitle) - $($seriesPath)"
+                                        Write-Output "[Sonarr] $(Get-DateTime) - $($sc.commandName): $($sc.body.completionMessage) - $($seriesTitle) - $($seriesPath)"
                                     }
                                     Start-Sleep 1
                                     $i++
@@ -2216,11 +2213,11 @@ if ($site) {
                                 }
                             }
                             else {
-                                Write-Host "[Sonarr] - No series found in Sonarr for $sonarrSeriesFolderPath"
+                                Write-Output "[Sonarr] - No series found in Sonarr for $sonarrSeriesFolderPath"
                             }
                         }
                         else {
-                            Write-Host '[Sonarr] - No series found in Sonarr'
+                            Write-Output '[Sonarr] - No series found in Sonarr'
                         }
                         break
                     }
