@@ -1902,12 +1902,13 @@ if ($site) {
                 else {
                     $renamedFilename = $formattedFilename
                 }
+                $renamedFilename = (Get-Culture).TextInfo.ToTitleCase($renamedFilename)
                 if ($OSeason.count -gt 0) {
                     foreach ($o in $OSeason) {
                         if ($renamedFilename -match $($o.filenamePattern)) {
                             $pattern = $o.filenamePattern
                             $replacementText = $o.fileReplaceText
-                            $newBaseName = ($renamedFilename -replace $pattern, "`$1$replacementText`$3") + $f.Extension
+                            $newBaseName = ($renamedFilename -replace $pattern, "`$1$replacementText`$3")
                             Write-Output "[Processing] $(Get-DateTime) - Override Season Pattern: `"$($pattern)`""
                             Write-Output "[Processing] $(Get-DateTime) - Override Season CHANGED: `"$newBaseName`""
                             break
@@ -1918,18 +1919,17 @@ if ($site) {
                     }
                 }
                 else {
-                    $newBaseName = (Get-Culture).TextInfo.ToTitleCase($renamedFilename) + $f.Extension
+                    $newBaseName = $renamedFilename
                 }
+                $newBaseName =  (Get-Culture).TextInfo.ToTitleCase($newBaseName) + $f.Extension
                 Write-Output "[Processing] $(Get-DateTime) - Writing $oldfullPath to $newBaseName"
                 Rename-Item $oldfullPath -NewName $newBaseName -Verbose
             }
-            if ($newfoldername) {
-                Rename-Item $subFolderFullname -NewName $newfoldername
+            if (-not $newfoldername) {
+                $newfoldername = (Format-Filename -InputStr $subFolderName)
             }
-            else {
-                $newfoldername = Format-Filename -InputStr $subFolderName
-                Rename-Item $subFolderFullname -NewName $newfoldername
-            }
+            $newfoldername = (Get-Culture).TextInfo.ToTitleCase($newfoldername)
+            Rename-Item $subFolderFullname -NewName $newfoldername
             Write-Output "[Processing] $(Get-DateTime) - End of Subfolder: $newfoldername"
         }
         
