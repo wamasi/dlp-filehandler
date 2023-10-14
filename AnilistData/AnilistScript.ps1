@@ -22,8 +22,6 @@ param(
     [switch]$DebugScript,
     [Alias('I')]
     [string]$MediaID_In,
-    [Alias('NI')]
-    [string]$MediaID_NotIn,
     [Alias('NSC')]
     [switch]$newShowCheck,
     [Alias('DR')]
@@ -563,9 +561,7 @@ function Invoke-AnilistApiDateRange {
         [Parameter(Mandatory = $true)]
         $end,
         [Parameter(Mandatory = $false)]
-        $ID_IN,
-        [Parameter(Mandatory = $false)]
-        $ID_NOTIN
+        $ID_IN
     )
     $pageNum = 1
     $perPageNum = 15
@@ -583,14 +579,6 @@ function Invoke-AnilistApiDateRange {
         }
         else {
             $mediaFilter = $mediaFilter + ", mediaId: $($ID_IN)"
-        }
-    }
-    if ($null -ne $ID_NOTIN) {
-        if ($ID_NOTIN -like '*,*') {
-            $mediaFilter = $mediaFilter + ", mediaId_not_in: [$($ID_NOTIN)]"
-        }
-        else {
-            $mediaFilter = $mediaFilter + ", mediaId_not: $($ID_NOTIN)"
         }
     }
     Write-Host "[UpdateCSV] $(Get-DateTime) - $start - Starting on page $pageNum"
@@ -917,7 +905,7 @@ if ($GenerateAnilistFile) {
         }
     }
     Write-Output "[Generate] $(Get-DateTime) - Creating $csvFilePath"
-    $data | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, { [Int]$_.'Episode' }, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath -IncludeTypeInformation
+    $data | Where-Object { $_.ShowId -notin $blacklistIdsList } | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, { [Int]$_.'Episode' }, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath -IncludeTypeInformation
     $stopwatch.Stop()
     $elapsedTime = $stopwatch.Elapsed
     $days = '{0:D2}' -f $elapsedTime.Days
@@ -963,26 +951,12 @@ if ($updateAnilistCSV) {
     Set-CSVFormatting -csvPath $csvFilePath
     $csvFileData = Import-Csv $csvFilePath
     $chunkedIdList = @()
-    if ($MediaID_In) {
-        $oShowIdList = ($MediaID_In -replace ' ', '' ) -split ','
-    }
-    elseif ($MediaID_NotIn) {
-        $oShowIdList = ($MediaID_NotIn -replace ' ', '' ) -split ','
-    }
-    else {
-        $oShowIdList = $csvFileData | Where-Object {
-            $dateObject = [DateTime]::ParseExact($_.AirDate, 'MM/dd/yyyy', $null)
-            $dateObject -ge $startDate }
-        | Select-Object -ExpandProperty ShowId -Unique
-    }
+    $oShowIdList = $csvFileData | Where-Object {
+        $dateObject = [DateTime]::ParseExact($_.AirDate, 'MM/dd/yyyy', $null)
+        $dateObject -ge $startDate }
+    | Select-Object -ExpandProperty ShowId -Unique
     for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
         $chunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
-    }
-    if ($blacklistIds) {
-        $oShowIdList += $blacklistIds
-        for ($i = 0; $i -lt $oShowIdList.Count; $i += $chunkSize) {
-            $blacklistChunkedIdList += ($oShowIdList[$i..($i + $chunkSize - 1)] -join ', ')
-        }
     }
     $dateCounter = 0
     Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Total ShowIDs: $($oShowIdList.Count)" -LogFilePath $anilistLogfile
@@ -994,11 +968,8 @@ if ($updateAnilistCSV) {
         $startUnix, $endUnix = Get-FullUnixDay -Date $currentDay
         $eStartUnix, $eEndUnix = Get-FullUnixDay -Date $endDate
         Write-Log -Message "[UpdateCSV] $(Get-DateTime) - Iteration $($dateCounter + 1) - $($currentDay) - $($endDate) - $startUnix - $eStartUnix" -LogFilePath $anilistLogfile
-        if ($MediaID_NotIn -or $newShowCheck) {
-            foreach ($b in $blacklistChunkedIdList) {
-                Write-Host "[UpdateCSV] $(Get-DateTime) - Excluding IDs: $b"
-                $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $eStartUnix -ID_NOTIN $b
-            }
+        if ($newShowCheck) {
+            $updatedRecordCalls += Invoke-AnilistApiDateRange -start $startUnix -end $eStartUnix
         }
         else {
             foreach ($c in $chunkedIdList) {
@@ -1087,7 +1058,7 @@ if ($updateAnilistCSV) {
         }
     }
     Write-Output "[UpdateCSV] $(Get-DateTime) - Updating $csvFilePath"
-    $newData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, { [Int]$_.'Episode' }, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath -IncludeTypeInformation
+    $newData | Where-Object { $_.ShowId -notin $blacklistIdsList } | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, { [Int]$_.'Episode' }, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath -IncludeTypeInformation
     $stopwatch.Stop()
     $elapsedTime = $stopwatch.Elapsed
     $days = '{0:D2}' -f $elapsedTime.Days
@@ -1120,9 +1091,6 @@ if ($updateAnilistURLs) {
     $csvFileData = Import-Csv $csvFilePath
     if ($MediaID_In) {
         $oShowIdList = ($MediaID_In -replace ' ', '' ) -split ','
-    }
-    elseif ($MediaID_NotIn) {
-        $oShowIdList = ($MediaID_NotIn -replace ' ', '' ) -split ','
     }
     else {
         if ($Automated) {
@@ -1446,7 +1414,6 @@ If ($generateBatchFile) {
             }
         }
     }
-
     $stopwatch.Stop()
     $days = '{0:D2}' -f $elapsedTime.Days
     $elapsedTime = $stopwatch.Elapsed
