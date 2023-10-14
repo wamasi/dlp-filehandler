@@ -1866,9 +1866,11 @@ if ($site) {
         $OSeason = $overrideEpisodeList | Where-Object { $_.overrideType -eq 'Season' }
         $subfolders = Get-ChildItem -Path $siteSrc -Directory
         foreach ($subfolder in $subfolders) {
-            Write-Output "[Processing] $(Get-DateTime) - Processing files in subfolder: $($subfolder.Name)"
+            $subFolderName = $subfolder.Name
+            $subFolderFullname = $subfolder.FullName
+            Write-Output "[Processing] $(Get-DateTime) - Processing files in subfolder: $subFolderName"
             $newfoldername = ''
-            $files = Get-ChildItem -Path $subfolder.FullName -File -Recurse
+            $files = Get-ChildItem -Path $subFolderFullname -File -Recurse
             foreach ($f in $files) {
                 $oldfullPath = $f.FullName
                 Write-Output "[Processing] $(Get-DateTime) - Checking Filename: `"$oldfullPath`""
@@ -1922,10 +1924,13 @@ if ($site) {
                 Rename-Item $oldfullPath -NewName $newBaseName -Verbose
             }
             if ($newfoldername) {
-                #rename folder here
-                Rename-Item $($subfolder.FullName) -NewName $newfoldername -Verbose
+                Rename-Item $subFolderFullname -NewName $newfoldername
             }
-            Write-Output "[Processing] $(Get-DateTime) - End of Subfolder: $($subfolder.Name)"
+            else {
+                $newfoldername = Format-Filename -InputStr $subFolderName
+                Rename-Item $subFolderFullname -NewName $newfoldername
+            }
+            Write-Output "[Processing] $(Get-DateTime) - End of Subfolder: $newfoldername"
         }
         
         Get-ChildItem -Path $siteSrc -Recurse -Include "$vidType" | Sort-Object LastWriteTime | Select-Object -Unique | Get-Unique | ForEach-Object {
