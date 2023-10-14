@@ -1569,8 +1569,14 @@ if ($site) {
     }
     $overrideSeriesList = $configFile.configuration.OverrideSeries.override | Where-Object { $_.orSeriesId -ne '' -and $_.orSrcdrive -ne '' }
     $overrideEpisodeList = $configFile.configuration.OverrideEposides.override | Where-Object { $_.filenamePattern -ne '' -and $_.fileReplaceText -ne '' }
-    $discordHookUrl = $configFile.configuration.Discord.hook.url
-    $discordHookErrorURL = $configFile.configuration.Discord.hook.error
+    if ($debugScript) {
+        $discordHookUrl = $configFile.configuration.Discord.hook.debug
+        $discordHookErrorURL = $configFile.configuration.Discord.hook.debug
+
+    } else {
+        $discordHookUrl = $configFile.configuration.Discord.hook.url
+        $discordHookErrorURL = $configFile.configuration.Discord.hook.error
+    }
     $discordSiteIcon = $siteNameParams.icon.url
     $discordSiteColor = $siteNameParams.icon.color
     $discordIconDefault = $configFile.configuration.Discord.icon.Default
