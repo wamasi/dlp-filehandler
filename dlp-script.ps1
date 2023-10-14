@@ -1861,43 +1861,86 @@ if ($site) {
     # Post-processing
     $totalDownloaded = (Get-ChildItem -Path $siteSrc -Recurse -Force -File -Include "$vidType" | Select-Object * | Measure-Object).Count
     if ($totalDownloaded -gt 0) {
+        if ($overrideEpisodeList) {
+            $OSeries = $overrideEpisodeList | Where-Object { $_.overrideType -eq 'Series' }
+            $OSeason = $overrideEpisodeList | Where-Object { $_.overrideType -eq 'Season' }
+            $subfolders = Get-ChildItem -Path $siteSrc -Directory
+            foreach ($subfolder in $subfolders) {
+                Write-Host "Processing files in subfolder: $($subfolder.Name)"
+                $newfoldername = ''
+                $files = Get-ChildItem -Path $subfolder.FullName -File -Recurse
+                foreach ($file in $files) {
+                    Write-Host "File: $($file.Name)"
+                    # name files here
+                    if ($file.Extension -eq '.mkv') {
+                        $formattedName = Format-Filename -InputStr $file.BaseName
+                    }
+                    else {
+                        $inputString = $file.BaseName
+                        $lastPeriodIndex = $inputString.LastIndexOf('.')
+                        $formattedName = (Format-Filename -InputStr ($inputString.Substring(0, $lastPeriodIndex))) + '.' + $inputString.Substring($lastPeriodIndex + 1)
+                    }
+                    Write-Output "Formatted name: $formattedName"
+                    if ($OSeries.count -gt 0) {
+                        foreach ($e in $OSeries) {
+                            if ($formattedName -match $($e.filenamePattern)) {
+                                #series filename change
+                                $pattern = $e.filenamePattern
+                                $replacementText = $e.fileReplaceText
+                                $renamedFilename = ($formattedName -replace $pattern, "$replacementText`$2$replacementText`$4")
+                                Write-Output "NEW NAME!! `n$formattedName`n$renamedFileName"
+                                $newfoldername = $replacementText
+                                Write-Output "[Processing] $(Get-DateTime) - Override Series Pattern: `"$($pattern)`""
+                                Write-Output "[Processing] $(Get-DateTime) - Override Series CHANGED: `"$renamedFilename`""
+                                break
+                            }
+                            else {
+                                $renamedFilename = $file.BaseName
+                            }
+                        }
+                    }
+                    else {
+                        $renamedFilename = $file.BaseName
+                    }
+                    if ($OSeason.count -gt 0) {
+                        # Season filename change
+                        foreach ($o in $OSeason) {
+                            if ($renamedFilename -match $($o.filenamePattern)) {
+                                $pattern = $o.filenamePattern
+                                $replacementText = $o.fileReplaceText
+                                $overrideFilename = ($renamedFilename -replace $pattern, "`$1$replacementText`$3") + $file.Extension
+                                Write-Output "[Processing] $(Get-DateTime) - Override Season Pattern: `"$($pattern)`""
+                                Write-Output "[Processing] $(Get-DateTime) - Override Season CHANGED: `"$overrideFilename`""
+                                break
+                            }
+                            else {
+                                $overrideFilename = $renamedFilename + $file.Extension
+                            }
+                        }
+                    }
+                    else {
+                        $overrideFilename = $renamedFilename + $file.Extension
+                    }
+                    $fullPath = $file.FullName
+                    Write-Output "Writing $fullPath to $overrideFilename"
+                    Rename-Item $file.FullName -NewName $overrideFilename -Verbose
+                }
+                if ($newfoldername) {
+                    #rename folder here
+                    Rename-Item $($subfolder.FullName) -NewName $newfoldername -Verbose
+                }
+                Write-Host "end of Subfolder: $($subfolder.Name)"
+            }
+        }
+        else {
+            Write-Output "[Processing] $(Get-DateTime) - No filename overrides defined in config.xml"
+        }
         Get-ChildItem -Path $siteSrc -Recurse -Include "$vidType" | Sort-Object LastWriteTime | Select-Object -Unique | Get-Unique | ForEach-Object {
             [System.Collections.ArrayList]$vsEpisodeSubtitle = @{}
             $vsSite = $siteNameRaw
             $vsEpisodeRawO = $_.BaseName
-            # Add regex filename replace to override incoming filename
-            $vsEpisodeRaw = (Get-Culture).TextInfo.ToTitleCase( (Format-Filename -InputStr $vsEpisodeRawO))
-            $vsSeries = (Get-Culture).TextInfo.ToTitleCase((Format-Filename -InputStr ($(Split-Path (Split-Path $_ -Parent) -Leaf))))
-            if ($overrideEpisodeList) {
-                # Series Folder name change
-                foreach ($e in ($overrideEpisodeList | Where-Object { $_.overrideType -eq 'Series' })) {
-                    if ($vsEpisodeRaw -match $($e.filenamePattern)) {
-                        $vsSeries = (Get-Culture).TextInfo.ToTitleCase($e.fileReplaceText)
-                        Write-Output "[Processing] $(Get-DateTime) - Override Series Pattern: `"$($e.filenamePattern)`""
-                        Write-Output "[Processing] $(Get-DateTime) - Override Series CHANGED: `"$vsSeries`""
-                    }
-                    else {
-                        Write-Output "[Processing] $(Get-DateTime) - Override Series Pattern: `"$($e.filenamePattern)`""
-                        Write-Output "[Processing] $(Get-DateTime) - Override Series STAYS: `"$vsSeries`""
-                    }
-                }
-                # Season filename change
-                foreach ($e in ($overrideEpisodeList | Where-Object { $_.overrideType -eq 'Season' })) {
-                    if ($vsEpisodeRaw -match $($e.filenamePattern)) {
-                        $overrideFilename = [regex]::Replace( $vsEpisodeRaw, "$($e.filenamePattern)", "$($e.fileReplaceText)")
-                        Write-Output "[Processing] $(Get-DateTime) - Override Season Pattern: `"$($e.filenamePattern)`""
-                        Write-Output "[Processing] $(Get-DateTime) - Override Season CHANGED: `"$overrideFilename`""
-                        $vsEpisodeRaw = $overrideFilename
-                    }
-                    else {
-                        Write-Output "[Processing] $(Get-DateTime) - Override Season Pattern: `"$($e.filenamePattern)`""
-                        Write-Output "[Processing] $(Get-DateTime) - Override Season STAYS: `"$vsEpisodeRaw`""
-                    }
-                }
-            }
-            else {
-                Write-Output "[Processing] $(Get-DateTime) - Override Series/Season STAYS: `"$vsEpisodeRaw`""
-            }
+            $vsEpisodeRaw = (Get-Culture).TextInfo.ToTitleCase($vsEpisodeRawO)
+            $vsSeries = (Get-Culture).TextInfo.ToTitleCase((Split-Path (Split-Path $_ -Parent) -Leaf))
             $vsEpisode = $vsEpisodeRaw
             Write-Output "[Processing] $(Get-DateTime) - Video Found: $vsEpisode"
             # Origin directory
@@ -1951,22 +1994,7 @@ if ($site) {
                 # original directory
                 $origSubPathO = $_.FullName
                 $subtitleRawO = $_.BaseName
-                $subtitleBasenameExt = (Format-Filename -InputStr "$((Get-Culture).TextInfo.ToTitleCase($subtitleRawO))$($_.Extension)").Trim()
-                # Add regex filename replace to override incoming filename
-                if ($overrideEpisodeList) {
-                    foreach ($e in ($overrideEpisodeList | Where-Object { $_.overrideType -eq 'Season' })) {
-                        if ($subtitleBasenameExt -match $($e.filenamePattern)) {
-                            $subtitleBasenameExt = [regex]::Replace( $subtitleBasenameExt, "$($e.filenamePattern)", "$($e.fileReplaceText)")
-                            Write-Output "[Processing] $(Get-DateTime) - Override Episode Subtitle Match: $subtitleBasenameExt to $overrideSubtitleFilename"
-                        }
-                        else {
-                            Write-Output "[Processing] $(Get-DateTime) - Override Episode Subtitle not match: $subtitleBasenameExt stays $subtitleBasenameExt"
-                        }
-                    }
-                }
-                else {
-                    Write-Output "[Processing] $(Get-DateTime) - Override Episode Subtitle not match: $subtitleBasenameExt stays $subtitleBasenameExt"
-                }
+                $subtitleBasenameExt = $subtitleRawO + $_.Extension
                 $origSubPath = Join-Path $vsSeriesDirectory -ChildPath $subtitleBasenameExt
                 $subtitleBase = $subtitleBasenameExt
                 Write-Output "[Processing] $(Get-DateTime) - Subtitle Found: $subtitleBase"
