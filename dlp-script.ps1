@@ -1873,8 +1873,9 @@ if ($site) {
             $files = Get-ChildItem -Path $subFolderFullname -File -Recurse
             foreach ($f in $files) {
                 $oldfullPath = $f.FullName
+                $fileExtension = $f.Extension
                 Write-Output "[Processing] $(Get-DateTime) - Checking Filename: `"$oldfullPath`""
-                if ($f.Extension -eq '.mkv') {
+                if ($fileExtension -eq '.mkv') {
                     $formattedFilename = Format-Filename -InputStr $f.BaseName
                 }
                 else {
@@ -1914,14 +1915,14 @@ if ($site) {
                             break
                         }
                         else {
-                            $newBaseName = $renamedFilename + $f.Extension
+                            $newBaseName = $renamedFilename
                         }
                     }
                 }
                 else {
                     $newBaseName = $renamedFilename
                 }
-                $newBaseName =  (Get-Culture).TextInfo.ToTitleCase($newBaseName) + $f.Extension
+                $newBaseName =  (Get-Culture).TextInfo.ToTitleCase($newBaseName) + $fileExtension
                 Write-Output "[Processing] $(Get-DateTime) - Writing $oldfullPath to $newBaseName"
                 Rename-Item $oldfullPath -NewName $newBaseName -Verbose
             }
