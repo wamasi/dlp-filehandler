@@ -1889,7 +1889,7 @@ if ($site) {
                                 $replacementText = $e.fileReplaceText
                                 $renamedFilename = ($formattedName -replace $pattern, "$replacementText`$2$replacementText`$4")
                                 Write-Output "NEW NAME!! `n$formattedName`n$renamedFileName"
-                                $newfoldername = $replacementText
+                                $newfoldername = (Get-Culture).TextInfo.ToTitleCase($replacementText)
                                 Write-Output "[Processing] $(Get-DateTime) - Override Series Pattern: `"$($pattern)`""
                                 Write-Output "[Processing] $(Get-DateTime) - Override Series CHANGED: `"$renamedFilename`""
                                 break
@@ -1919,11 +1919,11 @@ if ($site) {
                         }
                     }
                     else {
-                        $overrideFilename = $renamedFilename + $file.Extension
+                        $overrideFilename = (Get-Culture).TextInfo.ToTitleCase($renamedFilename) + $file.Extension
                     }
                     $fullPath = $file.FullName
                     Write-Output "Writing $fullPath to $overrideFilename"
-                    Rename-Item $file.FullName -NewName $overrideFilename -Verbose
+                    Rename-Item $fullPath -NewName $overrideFilename -Verbose
                 }
                 if ($newfoldername) {
                     #rename folder here
@@ -1938,9 +1938,8 @@ if ($site) {
         Get-ChildItem -Path $siteSrc -Recurse -Include "$vidType" | Sort-Object LastWriteTime | Select-Object -Unique | Get-Unique | ForEach-Object {
             [System.Collections.ArrayList]$vsEpisodeSubtitle = @{}
             $vsSite = $siteNameRaw
-            $vsEpisodeRawO = $_.BaseName
-            $vsEpisodeRaw = (Get-Culture).TextInfo.ToTitleCase($vsEpisodeRawO)
-            $vsSeries = (Get-Culture).TextInfo.ToTitleCase((Split-Path (Split-Path $_ -Parent) -Leaf))
+            $vsEpisodeRaw = $_.BaseName
+            $vsSeries = (Split-Path (Split-Path $_ -Parent) -Leaf)
             $vsEpisode = $vsEpisodeRaw
             Write-Output "[Processing] $(Get-DateTime) - Video Found: $vsEpisode"
             # Origin directory
@@ -1949,7 +1948,7 @@ if ($site) {
             $vsSeriesDirectory = Join-Path $siteSrc -ChildPath $vsSeries
             $vsEpisodeTemp = Join-Path -Path $vsSeriesDirectory -ChildPath "$($vsEpisode).temp$($_.Extension)"
             $vsEpisodeSize = (Get-Filesize $_.FullName)[1]
-            Invoke-ExpressionConsole -SCMFN 'Processing' -SCMFP "New-Item -Path `"$vsSeriesDirectory`" -ItemType Directory -Force"
+            Invoke-ExpressionConsole -SCMFN 'Processing' -SCMFP "New-Item -Path `"$vsSeriesDirectory`" -ItemType Directory"
             # Checking if override exists for Series name in config
             $vsOverridePath = $overrideSeriesList | Where-Object { $_.orSeriesName.ToLower() -eq $vsSeries.ToLower() } | Select-Object -ExpandProperty orSrcdrive
             # Origin directory
@@ -1989,7 +1988,7 @@ if ($site) {
                 $vsDestPathDirectory = Split-Path $vsDestPathVideo -Parent
                 $vsOverridePath = [System.IO.path]::GetPathRoot($vsDestPath)
             }
-            Get-ChildItem -Path $siteSrc -Recurse -Include $subType | Where-Object { $_.FullName -match $vsEpisodeRawO } | Select-Object Name, FullName, BaseName, Extension -Unique | ForEach-Object {
+            Get-ChildItem -Path $siteSrc -Recurse -Include $subType | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object Name, FullName, BaseName, Extension -Unique | ForEach-Object {
                 [System.Collections.ArrayList]$episodeSubtitles = @{}
                 # original directory
                 $origSubPathO = $_.FullName
