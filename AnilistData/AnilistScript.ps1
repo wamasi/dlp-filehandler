@@ -78,13 +78,14 @@ $siteBatFolder = Join-Path $scriptRoot -ChildPath 'batch\site'
 $logFolder = Join-Path $scriptRoot -ChildPath 'log'
 $anilistLogfile = Join-Path $logFolder -ChildPath 'anilistSeason.log'
 $smartLogfile = Join-Path $logFolder -ChildPath 'smartDL.log'
-$backupPath = $configData.configuration.Directory.backup.location
+$dlpSites = $config.configuration.Sites.site | Where-Object { $_.command -ne '' } | Sort-Object sitename
+$backupPath = $config.configuration.Directory.backup.location
 $discordSiteIcon = $config.configuration.Discord.icon.default
 $siteFooterIcon = $config.configuration.Discord.icon.footerIcon
 $rootPath = Join-Path $scriptRoot -ChildPath 'batch'
 $batchArchiveFolder = Join-Path $rootPath -ChildPath '_archive'
 $lastUpdated = $config.configuration.logs.lastUpdated
-$emojis = $config.configuration.Discord.sites.site
+$emojis = $config.configuration.Sites.site
 $badchar = $config.configuration.characters.char
 $blacklistIds = $config.configuration.blacklist.Ids
 $ShowOverrides = $config.configuration.overrides.show
@@ -1561,28 +1562,27 @@ If ($sendDiscord) {
 if ($dailyRuns) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     if ((Test-Path $dlpScript)) {
-        Get-ChildItem $siteBatFolder | ForEach-Object {
-            $site = $_.Name
-            $batchFile = (Get-ChildItem $_ -Recurse | Where-Object { $_.Directory.Name -eq $site -and ($_.FullName -match "$($site).*$currentWeekday") }).FullName
-            if ($null -eq $batchFile) {
-                Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - No File for $currentWeekday" -LogFilePath $smartLogfile
+        foreach ($s in $dlpSites) {
+            $site = $s.sitename
+            $command = $s.command
+            $cmdArray = @()
+            $cmdArray += $dlpScript
+            Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - Initial Command: $($s.command)" -LogFilePath $smartLogfile
+            $batchFile = (Get-ChildItem $siteBatFolder -Recurse | Where-Object { $_.Directory.Name -eq $site -and (($_.FullName -match "$($site).*$currentWeekday")) }).FullName
+            if ($batchFile) {
+                Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $currentWeekday - $batchFile" -LogFilePath $smartLogfile
+                $cArgs = $command -split ' ' | Where-Object { $_ -ne '' }
+                foreach ($c in $cArgs) {
+                    $a = $c.trim()
+                    $cmdArray += $a
+                }
+                $cmdArray += '-overridebatch'
+                $cmdArray += $batchFile
+                Start-Process -FilePath 'pwsh.exe' -ArgumentList $cmdArray -Wait -NoNewWindow
+                
             }
             else {
-                switch ($site) {
-                    'Crunchyroll' {
-                        Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $currentWeekday - $batchFile" -LogFilePath $smartLogfile
-                        $return = pwsh.exe $dlpScript -sn Crunchyroll -d -l -mk -f -a -al ja -sl en -sd -overrideBatch $batchFile
-                        $message = $return -match '\[DLP-Script\]*' | ForEach-Object { $_ }
-                        Write-Log -Message "$message" -LogFilePath $smartLogfile
-                    }
-                    'HIDIVE' {
-                        Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $currentWeekday - $batchFile" -LogFilePath $smartLogfile
-                        $return = pwsh.exe $dlpScript -sn Hidive -d -c -mk -f -se -a -al ja -sl en -sd -overrideBatch $batchFile
-                        $message = $return -match '\[DLP-Script\]*' | ForEach-Object { $_.Trim()}
-                        Write-Log -Message "$message" -LogFilePath $smartLogfile
-                    }
-                    Default { Write-Log -Message "[DLP-Script] $(Get-DateTime) - No Applicable Site for $batchFile" -LogFilePath $smartLogfile }
-                }
+                Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - No File for $currentWeekday" -LogFilePath $smartLogfile
             }
         }
     }

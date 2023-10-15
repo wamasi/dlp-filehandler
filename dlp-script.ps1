@@ -1930,13 +1930,16 @@ if ($site) {
                 }
                 $newBaseName =  (Get-Culture).TextInfo.ToTitleCase($newBaseName) + $fileExtension
                 Write-Output "[Processing] $(Get-DateTime) - Writing $oldfullPath to $newBaseName"
-                Rename-Item $oldfullPath -NewName $newBaseName -Verbose
+                Rename-Item $oldfullPath -NewName $newBaseName
             }
             if (-not $newfoldername) {
                 $newfoldername = (Format-Filename -InputStr $subFolderName)
             }
             $newfoldername = (Get-Culture).TextInfo.ToTitleCase($newfoldername)
-            Rename-Item $subFolderFullname -NewName $newfoldername
+            if ($subFolderName -ne $newfoldername) {
+                Write-Output "[Processing] $(Get-DateTime) - Renaming Subfolder: $subFolderName to $newfoldername"
+                Rename-Item $subFolderFullname -NewName $newfoldername
+            }
             Write-Output "[Processing] $(Get-DateTime) - End of Subfolder: $newfoldername"
         }
         
