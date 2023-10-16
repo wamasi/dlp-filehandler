@@ -1565,10 +1565,8 @@ if ($dailyRuns) {
         foreach ($s in $dlpSites) {
             $site = $s.sitename
             $command = $s.command
-            $cmdArray = @()
-            $cmdArray += $dlpScript
-            Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - Initial Command: $($s.command)" -LogFilePath $smartLogfile
-            $batchFile = (Get-ChildItem $siteBatFolder -Recurse | Where-Object { $_.Directory.Name -eq $site -and (($_.FullName -match "$($site).*$currentWeekday")) }).FullName
+            $cmdArray = @($dlpScript)
+            $batchFile = (Get-ChildItem $siteBatFolder -Recurse | Where-Object { $_.Directory.Name -eq $site -and (($_.FullName -match "$($site).*$currentWeekday")) } | Select-Object -First 1).FullName
             if ($batchFile) {
                 Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $currentWeekday - $batchFile" -LogFilePath $smartLogfile
                 $cArgs = $command -split ' ' | Where-Object { $_ -ne '' }
@@ -1579,7 +1577,6 @@ if ($dailyRuns) {
                 $cmdArray += '-overridebatch'
                 $cmdArray += $batchFile
                 Start-Process -FilePath 'pwsh.exe' -ArgumentList $cmdArray -Wait -NoNewWindow
-                
             }
             else {
                 Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - No File for $currentWeekday" -LogFilePath $smartLogfile

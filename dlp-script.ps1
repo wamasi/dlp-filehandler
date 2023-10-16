@@ -534,7 +534,7 @@ function Exit-Script {
     else {
         Rename-Item -Path $logTemp -NewName $logFile
     }
-    return "[DLP-Script] $(Get-DateTime) - $siteNameO - Ran for $($totalRuntime) - Downloaded $vsvTotCount with $vsvErrorCount errors"
+    exit
 }
 # Function to make API requests to Sonarr
 function Invoke-SonarrApi {
