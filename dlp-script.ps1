@@ -460,6 +460,32 @@ function Remove-Spaces {
     $removeSpacesContent = $removeSpacesContent.Trim()
     [System.IO.File]::WriteAllText($removeSpacesFile, $removeSpacesContent)
 }
+
+function Remove-ArchiveLine {
+    param (
+        $siteN,
+        $arc,
+        $eURL
+    )
+    $siteN = $siteN.ToLower()
+    switch ($siteN) {
+        'crunchyroll' { $updateA = $eURL -replace 'https://www.crunchyroll.com/watch/', "$($siteN)beta "; Write-Output "[UpdatingUrl] $(Get-DateTime) - Site Found: $updateA" }
+        'hidive' { $updateA = $eURL -replace 'https://www.hidive.com/stream/', "$($siteN) "; Write-Output "[UpdatingUrl] $(Get-DateTime) - Site Found: $updateA" }
+        Default { Write-Output "[UpdatingUrl] $(Get-DateTime) - No Site Found: $eURL" }
+    }
+    if ($updateA) {
+        $l = Get-Content $arc
+        $f = $l | Where-Object { $_ -ne $updateA }
+        $f | Set-Content -Path $arc
+        $c = (Get-Content $arc | Where-Object { $_ -eq $updateA } | Measure-Object -Line)
+        if ($c -eq 0) {
+            Write-Output "[UpdatingUrl] $(Get-DateTime) - OK - Not Found in $($arc): $updateA"
+        }
+        else {
+            Write-Output "[UpdatingUrl] $(Get-DateTime) - ERROR - Found in $($arc): $updateA"
+        }
+    }
+}
 # Setup exting script
 function Exit-Script {
     $scriptStopWatch.Stop()
@@ -1506,7 +1532,7 @@ if ($site) {
     $srcBackup = Join-Path -Path $backupDrive -ChildPath 'yt-dlp'
     $srcDriveSharedFonts = Join-Path -Path $srcBackup -ChildPath 'fonts'
     # Site specific params
-    $siteParams = $configFile.configuration.credentials.site | Where-Object { $_.siteName -ne '' -or $_.sitename -ne $null } #| Select-Object 'siteName', 'username', 'password', 'plexlibraryid', 'parentfolder', 'subfolder', 'font', 'fbtype', 'useSonarr', 'usePlex', 'icon'
+    $siteParams = $configFile.configuration.credentials.site | Where-Object { $_.siteName -ne '' -or $_.sitename -ne $null }
     $siteNameParams = $siteParams | Where-Object { $_.siteName.ToLower() -eq $site } | Select-Object * -First 1
     $siteNameCount = 0
     $SiteNameList = @()
@@ -1573,7 +1599,8 @@ if ($site) {
         $discordHookUrl = $configFile.configuration.Discord.hook.debug
         $discordHookErrorURL = $configFile.configuration.Discord.hook.debug
 
-    } else {
+    }
+    else {
         $discordHookUrl = $configFile.configuration.Discord.hook.url
         $discordHookErrorURL = $configFile.configuration.Discord.hook.error
     }
@@ -1874,13 +1901,13 @@ if ($site) {
         foreach ($subfolder in $subfolders) {
             $subFolderName = $subfolder.Name
             $subFolderFullname = $subfolder.FullName
-            Write-Output "[Processing] $(Get-DateTime) - Processing files in subfolder: $subFolderName"
+            Write-Output "[PreProcessing] $(Get-DateTime) - Processing files in subfolder: $subFolderName"
             $newfoldername = ''
             $files = Get-ChildItem -Path $subFolderFullname -File -Recurse
             foreach ($f in $files) {
                 $oldfullPath = $f.FullName
                 $fileExtension = $f.Extension
-                Write-Output "[Processing] $(Get-DateTime) - Checking Filename: `"$oldfullPath`""
+                Write-Output "[PreProcessing] $(Get-DateTime) - Checking Filename: `"$oldfullPath`""
                 if ($fileExtension -eq '.mkv') {
                     $formattedFilename = Format-Filename -InputStr $f.BaseName
                 }
@@ -1889,7 +1916,7 @@ if ($site) {
                     $lastPeriodIndex = $subBaseName.LastIndexOf('.')
                     $formattedFilename = (Format-Filename -InputStr ($subBaseName.Substring(0, $lastPeriodIndex))) + '.' + $subBaseName.Substring($lastPeriodIndex + 1)
                 }
-                Write-Output "[Processing] $(Get-DateTime) - Formatted name: $formattedFilename"
+                Write-Output "[PreProcessing] $(Get-DateTime) - Formatted name: $formattedFilename"
                 if ($OSeries.count -gt 0) {
                     foreach ($e in $OSeries) {
                         if ($formattedFilename -match $($e.filenamePattern)) {
@@ -1897,8 +1924,8 @@ if ($site) {
                             $replacementText = $e.fileReplaceText
                             $renamedFilename = ($formattedFilename -replace $pattern, "$replacementText`$2$replacementText`$4")
                             $newfoldername = (Get-Culture).TextInfo.ToTitleCase($replacementText)
-                            Write-Output "[Processing] $(Get-DateTime) - Override Series Pattern: `"$($pattern)`""
-                            Write-Output "[Processing] $(Get-DateTime) - Override Series CHANGED: `"$renamedFilename`""
+                            Write-Output "[PreProcessing] $(Get-DateTime) - Override Series Pattern: `"$($pattern)`""
+                            Write-Output "[PreProcessing] $(Get-DateTime) - Override Series CHANGED: `"$renamedFilename`""
                             break
                         }
                         else {
@@ -1916,8 +1943,8 @@ if ($site) {
                             $pattern = $o.filenamePattern
                             $replacementText = $o.fileReplaceText
                             $newBaseName = ($renamedFilename -replace $pattern, "`$1$replacementText`$3")
-                            Write-Output "[Processing] $(Get-DateTime) - Override Season Pattern: `"$($pattern)`""
-                            Write-Output "[Processing] $(Get-DateTime) - Override Season CHANGED: `"$newBaseName`""
+                            Write-Output "[PreProcessing] $(Get-DateTime) - Override Season Pattern: `"$($pattern)`""
+                            Write-Output "[PreProcessing] $(Get-DateTime) - Override Season CHANGED: `"$newBaseName`""
                             break
                         }
                         else {
@@ -1928,8 +1955,8 @@ if ($site) {
                 else {
                     $newBaseName = $renamedFilename
                 }
-                $newBaseName =  (Get-Culture).TextInfo.ToTitleCase($newBaseName) + $fileExtension
-                Write-Output "[Processing] $(Get-DateTime) - Writing $oldfullPath to $newBaseName"
+                $newBaseName = (Get-Culture).TextInfo.ToTitleCase($newBaseName) + $fileExtension
+                Write-Output "[PreProcessing] $(Get-DateTime) - Writing $oldfullPath to $newBaseName"
                 Rename-Item $oldfullPath -NewName $newBaseName
             }
             if (-not $newfoldername) {
@@ -1937,12 +1964,12 @@ if ($site) {
             }
             $newfoldername = (Get-Culture).TextInfo.ToTitleCase($newfoldername)
             if ($subFolderName -ne $newfoldername) {
-                Write-Output "[Processing] $(Get-DateTime) - Renaming Subfolder: $subFolderName to $newfoldername"
+                Write-Output "[PreProcessing] $(Get-DateTime) - Renaming Subfolder: $subFolderName to $newfoldername"
                 Rename-Item $subFolderFullname -NewName $newfoldername
             }
-            Write-Output "[Processing] $(Get-DateTime) - End of Subfolder: $newfoldername"
+            Write-Output "[PreProcessing] $(Get-DateTime) - End of Subfolder: $newfoldername"
         }
-        
+
         Get-ChildItem -Path $siteSrc -Recurse -Include "$vidType" | Sort-Object LastWriteTime | Select-Object -Unique | Get-Unique | ForEach-Object {
             [System.Collections.ArrayList]$vsEpisodeSubtitle = @{}
             $vsSite = $siteNameRaw
@@ -1954,28 +1981,24 @@ if ($site) {
             $vsSeriesDirectoryO = $_.DirectoryName
             # New directory
             $vsSeriesDirectory = Join-Path $siteSrc -ChildPath $vsSeries
+            $vsEpisodePath = $_.FullName
             $vsEpisodeTemp = Join-Path -Path $vsSeriesDirectory -ChildPath "$($vsEpisode).temp$($_.Extension)"
             $vsEpisodeSize = (Get-Filesize $_.FullName)[1]
-            Invoke-ExpressionConsole -SCMFN 'Processing' -SCMFP "New-Item -Path `"$vsSeriesDirectory`" -ItemType Directory"
             # Checking if override exists for Series name in config
             $vsOverridePath = $overrideSeriesList | Where-Object { $_.orSeriesName.ToLower() -eq $vsSeries.ToLower() } | Select-Object -ExpandProperty orSrcdrive
-            # Origin directory
-            $vsEpisodePathO = $_.FullName
-            # New directory
-            $vsEpisodePath = Join-Path -Path $vsSeriesDirectory -ChildPath "$($vsEpisode)$($_.Extension)"
             # Run FFprobe to get video information resolution, video and audio codecs against origin filepath
-            $ffprobeResVideoCodec = & ffprobe.exe -v error -select_streams v:0 -show_entries stream='height,codec_name' -of csv=p=0 "$vsEpisodePathO"
+            $ffprobeResVideoCodec = & ffprobe.exe -v error -select_streams v:0 -show_entries stream='height,codec_name' -of csv=p=0 "$vsEpisodePath"
             $codec, $height = $ffprobeResVideoCodec.Split(',')
             $vsEpisodeRes = "${height}p"
             $vsEpisodeVideoCodec = $codec.ToUpper()
-            $ffprobeAudioCodec = & ffprobe.exe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$vsEpisodePathO"
+            $ffprobeAudioCodec = & ffprobe.exe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$vsEpisodePath"
             $vsEpisodeAudioCodec = $($ffprobeAudioCodec.Trim()).ToUpper()
             # Run FFprobe to get video duration against origin filepath
-            $ffprobeRuntime = & ffprobe.exe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$vsEpisodePathO"
+            $ffprobeRuntime = & ffprobe.exe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$vsEpisodePath"
             $duration = [TimeSpan]::FromSeconds([double]::Parse($ffprobeRuntime ))
             $vsEpisodeDuration = "$([math]::Floor($duration.TotalHours)):$($duration.Minutes.ToString('00')):$($duration.Seconds.ToString('00'))"
-            $vsEpisodeDateO = ffprobe.exe -v quiet -show_entries format_tags='DATE' -of default=nw=1:nk=1 "$vsEpisodePathO"
-            $vsEpisodeUrl = ffprobe.exe -v quiet -show_entries format_tags='COMMENT' -of default=nw=1:nk=1 "$vsEpisodePathO"
+            $vsEpisodeDateO = ffprobe.exe -v quiet -show_entries format_tags='DATE' -of default=nw=1:nk=1 "$vsEpisodePath"
+            $vsEpisodeUrl = ffprobe.exe -v quiet -show_entries format_tags='COMMENT' -of default=nw=1:nk=1 "$vsEpisodePath"
             Write-Output "[Processing] $(Get-DateTime) - Episode Release Date(Orig.): $($vsEpisodeDateO) - $($vsEpisode)"
             if ($null -eq $vsEpisodeDateO -or $vsEpisodeDateO.trim() -eq '') {
                 $vsEpisodeDateO = Get-Date -Format 'yyyyMMdd'
@@ -1996,14 +2019,10 @@ if ($site) {
                 $vsDestPathDirectory = Split-Path $vsDestPathVideo -Parent
                 $vsOverridePath = [System.IO.path]::GetPathRoot($vsDestPath)
             }
-            Get-ChildItem -Path $siteSrc -Recurse -Include $subType | Where-Object { $_.FullName -match $vsEpisodeRaw } | Select-Object Name, FullName, BaseName, Extension -Unique | ForEach-Object {
+            Get-ChildItem -Path $siteSrc -Recurse -Include $subType | Where-Object { $_.BaseName -like "$vsEpisodeRaw*" } | Select-Object Name, FullName, BaseName, Extension -Unique | ForEach-Object {
                 [System.Collections.ArrayList]$episodeSubtitles = @{}
-                # original directory
-                $origSubPathO = $_.FullName
-                $subtitleRawO = $_.BaseName
-                $subtitleBasenameExt = $subtitleRawO + $_.Extension
-                $origSubPath = Join-Path $vsSeriesDirectory -ChildPath $subtitleBasenameExt
-                $subtitleBase = $subtitleBasenameExt
+                $origSubPath = $_.FullName
+                $subtitleBase = $_.BaseName + $_.Extension
                 Write-Output "[Processing] $(Get-DateTime) - Subtitle Found: $subtitleBase"
                 if ($vsOverridePath) {
                     $overrideSubPath = $origSubPath.Replace($siteSrc, $vsDestPath)
@@ -2013,13 +2032,9 @@ if ($site) {
                 }
                 $episodeSubtitles = @{ subtitleBase = $subtitleBase; origSubPath = $origSubPath; overrideSubPath = $overrideSubPath }
                 [void]$vsEpisodeSubtitle.Add($episodeSubtitles)
-                # Move subs from original directory to new directory
-                Invoke-ExpressionConsole -SCMFN 'Processing' -SCMFP "Move-Item -Path `"$origSubPathO`" -Destination `"$origSubPath`" -Verbose"
             }
             $vsFinalPathVideo = ''
             $vsFilebotTitle = ''
-            # Move video file after all subs are moved from original directory to new directory
-            Invoke-ExpressionConsole -SCMFN 'Processing' -SCMFP "Move-Item -Path `"$vsEpisodePathO`" -Destination `"$vsEpisodePath`" -Verbose"
             foreach ($i in $_) {
                 $VideoStatus = [VideoStatus]::new($vsSite, $vsSeries, $vsEpisode, $vsEpisodeDuration, $vsEpisodeSize, $vsEpisodeRes, $vsEpisodeVideoCodec, $vsEpisodeAudioCodec, `
                         $vsSeriesDirectory, $vsEpisodeRaw, $vsEpisodeTemp, $vsEpisodePath, $vsOverridePath, $vsDestPathBase, $vsDestPath, $vsDestPathDirectory, `
@@ -2297,6 +2312,12 @@ if ($site) {
                 Invoke-Discord -site $fieldSite -series $fieldSeries -episode $fieldEpisode -siteIcon $discordSiteIcon -color $discordSiteColor -subtitle $fieldSubtitle `
                     -episodeSize $fieldSize -quality $fieldQuality -videoCodec $fieldVideoCodec -audioCodec $fieldAudioCodec -duration $fieldDuration -release $fieldRelease `
                     -episodeURL $fieldEpisodeUrl -episodeDate $fieldEpisodeDate -siteFooterIcon $discordFooterIconDefault -siteFooterText $fieldFooterText -DiscordSiteUrl $discordUrl
+            }
+        }
+        If ($archive) {
+            $vsCompletedFilesList | Where-Object { $_._vsErrored -eq $True } | ForEach-Object {
+                $eURL = $_._vsEpisodeUrl
+                Remove-ArchiveLine -siteN $site -arc $archiveFile -eURL $eURL
             }
         }
         Write-Output "[Processing] $(Get-DateTime) - Errored Files: $vsvErrorCount/$vsvTotCount"

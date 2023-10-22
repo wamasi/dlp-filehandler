@@ -35,6 +35,7 @@ if (!(Test-Path $configFilePath)) {
     $baseXML = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
+  <Automated>D</Automated>
   <Directory>
     <backup location="D:\Backup" />
   </Directory>
@@ -55,7 +56,7 @@ if (!(Test-Path $configFilePath)) {
     </sites>
   </Discord>
   <overrides>
-    <Show id ="" EpisodeStart="" />
+    <Show id ="" EpisodeStart="" overrideURL=""/>
   </overrides>
   <blacklist Ids="" />
 </configuration>
@@ -65,12 +66,13 @@ if (!(Test-Path $configFilePath)) {
     Write-Host "No config found. Configure xml file: $configFilePath"
     exit
 }
-[xml]$config = Get-Content $configFilePath
+[xml]$configData = Get-Content $configFilePath
+$config = $configData.configuration
 if ($debugScript) {
-    $discordHookUrl = $config.configuration.Discord.hook.TestServerUrl
+    $discordHookUrl = $config.Discord.hook.TestServerUrl
 }
 else {
-    $discordHookUrl = $config.configuration.Discord.hook.ScheduleServerUrl
+    $discordHookUrl = $config.Discord.hook.ScheduleServerUrl
 }
 $dlpPath = Resolve-Path "$scriptRoot\.."
 $dlpScript = Join-Path $dlpPath -ChildPath '\dlp-script.ps1'
@@ -78,17 +80,18 @@ $siteBatFolder = Join-Path $scriptRoot -ChildPath 'batch\site'
 $logFolder = Join-Path $scriptRoot -ChildPath 'log'
 $anilistLogfile = Join-Path $logFolder -ChildPath 'anilistSeason.log'
 $smartLogfile = Join-Path $logFolder -ChildPath 'smartDL.log'
-$dlpSites = $config.configuration.Sites.site | Where-Object { $_.command -ne '' } | Sort-Object sitename
-$backupPath = $config.configuration.Directory.backup.location
-$discordSiteIcon = $config.configuration.Discord.icon.default
-$siteFooterIcon = $config.configuration.Discord.icon.footerIcon
+$dlpSites = $config.Sites.site | Where-Object { $_.command -ne '' } | Sort-Object sitename
+$aDefault = $config.Automated
+$backupPath = $config.Directory.backup.location
+$discordSiteIcon = $config.Discord.icon.default
+$siteFooterIcon = $config.Discord.icon.footerIcon
 $rootPath = Join-Path $scriptRoot -ChildPath 'batch'
 $batchArchiveFolder = Join-Path $rootPath -ChildPath '_archive'
-$lastUpdated = $config.configuration.logs.lastUpdated
-$emojis = $config.configuration.Sites.site
-$badchar = $config.configuration.characters.char
-$blacklistIds = $config.configuration.blacklist.Ids
-$ShowOverrides = $config.configuration.overrides.show
+$lastUpdated = $config.logs.lastUpdated
+$emojis = $config.Sites.site
+$badchar = $config.characters.char
+$blacklistIds = $config.blacklist.Ids
+$ShowOverrides = $config.overrides.show
 $blacklistIdsList = if (-not [string]::IsNullOrEmpty($blacklistIds)) { ($blacklistIds -replace ' ', '') -split ',' } else { $null }
 $csvFolder = Join-Path $scriptRoot -ChildPath 'anilist'
 $badURLs = 'https://www.crunchyroll.com/', 'https://www.crunchyroll.com', 'https://www.hidive.com/', 'https://www.hidive.com'
@@ -737,7 +740,7 @@ if (!(Test-Path $csvFolder)) { New-Item $csvFolder -ItemType Directory }
 if ($GenerateAnilistFile) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     if ($Automated) {
-        $aType = 'D'
+        $aType = $aDefault
         if ($today.DayOfWeek -ne 'Monday') {
             Write-Host "Today is $($today.DayOfWeek). Automation not running until Monday."
             $stopwatch.Stop()
@@ -760,7 +763,7 @@ if ($GenerateAnilistFile) {
     $dStartUnix = Get-FullUnixDay $csvStartDate
     $dEndunix = Get-FullUnixDay $csvEndDate
     if ($aType -eq 's') {
-        # Fetching One Piece by ID since its season is 1999
+        # Fetching One Piece by ID since its seasonYear is 1999
         $sShow = Invoke-AnilistApiShowSeason -id 21
         $allShows += $sShow
         # Fetching the rest by CBY/PBY and season
@@ -918,7 +921,7 @@ if ($GenerateAnilistFile) {
 }
 if ($updateAnilistCSV) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    if ($Automated) { $aType = 'D' }
+    if ($Automated) { $aType = $aDefault }
     else {
         do {
             $aType = Read-Host 'Run for (S)eason or (D)ate?'
@@ -1075,7 +1078,7 @@ if ($updateAnilistURLs) {
     $chunkedIdList = @()
     $urlList = @()
     $lookupTable = @{}
-    if ($Automated) { $aType = 'D' }
+    if ($Automated) { $aType = $aDefault }
     else {
         do {
             $aType = Read-Host 'Run for (S)eason or (D)ate?'
@@ -1135,7 +1138,7 @@ if ($updateAnilistURLs) {
     Write-Log -Message "[UpdateURL] $(Get-DateTime) - Time taken: $($days):$($hours):$($minutes):$($seconds).$($milliseconds)" -LogFilePath $anilistLogfile
 }
 if ($updateBlackList) {
-    if ($Automated) { $aType = 'D' }
+    if ($Automated) { $aType = $aDefault }
     else {
         do {
             $aType = Read-Host 'Run for (S)eason or (D)ate?'
@@ -1153,7 +1156,7 @@ if ($updateBlackList) {
     $newBacklistIds = $csvFileData | Where-Object { $_.Watching -eq $false } | Select-Object -ExpandProperty ShowId -Unique
     $blacklistIdsList += $newBacklistIds
     $newBlacklistIdsList = ($blacklistIdsList | Select-Object -Unique | Sort-Object) -join ','
-    $config.configuration.blacklist.Ids = $newBlacklistIdsList
+    $config.blacklist.Ids = $newBlacklistIdsList
     $config.Save($configFilePath)
     $newCSVData = $csvFileData | Where-Object { $_.ShowId -notin $blacklistIdsList }
     $newCSVData | Sort-Object Site, SeasonYear, { $SeasonOrder[$_.Season] }, Title, { [Int]$_.'Episode' }, TotalEpisodes | Select-Object * -Unique | Export-Csv $csvFilePath -IncludeTypeInformation
@@ -1161,7 +1164,7 @@ if ($updateBlackList) {
 If ($setDownload) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     if ($Automated) {
-        $sdType = 'D'
+        $sdType = $aDefault
     }
     else {
         do {
@@ -1246,7 +1249,7 @@ If ($setDownload) {
 If ($generateBatchFile) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     if ($automated) {
-        $daily = 'D'
+        $daily = $aDefault
     }
     else {
         do {
@@ -1313,7 +1316,16 @@ If ($generateBatchFile) {
                     [int]$totalEpisodes = $entry.TotalEpisodes
                     if ($showId -in $ShowOverrides.id) {
                         [int]$startEpNum = $ShowOverrides | Where-Object { $_.id -eq $showId } | Select-Object -ExpandProperty EpisodeStart -Unique
-                        $totalEpisodes = $totalEpisodes + $startEpNum
+                        if ($startEpNum) {
+                            $totalEpisodes = $totalEpisodes + $startEpNum
+                        }
+                        else {
+                            [int]$startEpNum = 1
+                        }
+                        $overrideURL = $ShowOverrides | Where-Object { $_.id -eq $showId } | Select-Object -ExpandProperty overrideURL -Unique
+                        if ($overrideURL) {
+                            $showUrl = $overrideURL
+                        }
                     }
                     else {
                         [int]$startEpNum = 1
@@ -1381,7 +1393,16 @@ If ($generateBatchFile) {
                             [int]$totalEpisodes = $b.TotalEpisodes
                             if ($showId -in $ShowOverrides.id) {
                                 [int]$startEpNum = $ShowOverrides | Where-Object { $_.id -eq $showId } | Select-Object -ExpandProperty EpisodeStart -Unique
-                                $totalEpisodes = $totalEpisodes + $startEpNum
+                                if ($startEpNum) {
+                                    $totalEpisodes = $totalEpisodes + $startEpNum
+                                }
+                                else {
+                                    [int]$startEpNum = 1
+                                }
+                                $overrideURL = $ShowOverrides | Where-Object { $_.id -eq $showId } | Select-Object -ExpandProperty overrideURL -Unique
+                                if ($overrideURL) {
+                                    $showUrl = $overrideURL
+                                }
                             }
                             else {
                                 [int]$startEpNum = 1
@@ -1546,9 +1567,9 @@ If ($sendDiscord) {
         $stopwatch.Stop()
         Exit-Script
     }
-    $config.configuration.logs.lastUpdated = $newLastUpdated
+    $configData.configuration.logs.lastUpdated = $newLastUpdated
     Write-Log -Message "[Discord] $(Get-DateTime) - New lastUpdated: $newLastUpdated" -LogFilePath $anilistLogfile
-    $config.Save($configFilePath)
+    $configData.Save($configFilePath)
     $stopwatch.Stop()
     $elapsedTime = $stopwatch.Elapsed
     $days = '{0:D2}' -f $elapsedTime.Days
