@@ -2314,8 +2314,8 @@ if ($site) {
                     -episodeURL $fieldEpisodeUrl -episodeDate $fieldEpisodeDate -siteFooterIcon $discordFooterIconDefault -siteFooterText $fieldFooterText -DiscordSiteUrl $discordUrl
             }
         }
-        If ($archive) {
-            $vsCompletedFilesList | Where-Object { $_._vsErrored -eq $True } | ForEach-Object {
+        If ($archive -and $mkvMerge) {
+            $vsCompletedFilesList | Where-Object { $_._vsMKVCompleted -eq $false } | ForEach-Object {
                 $eURL = $_._vsEpisodeUrl
                 Remove-ArchiveLine -siteN $site -arc $archiveFile -eURL $eURL
             }

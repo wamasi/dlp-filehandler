@@ -1248,7 +1248,7 @@ If ($setDownload) {
 }
 If ($generateBatchFile) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    if ($automated) {
+    if ($Automated) {
         $daily = $aDefault
     }
     else {
@@ -1266,17 +1266,18 @@ If ($generateBatchFile) {
     }
     $cutoffStart = $today.AddDays(-7)
     $cutoffEnd = $today.AddDays(7)
-    Write-Host "Generate Daily: $dateBatch; Generate Seasonal: $seasonBatch"
+    Write-Host "[Batch] $(Get-DateTime) - Generate Daily: $dateBatch; Generate Seasonal: $seasonBatch"
     $date = Get-DateTime 2
-    $newBackupPath = Join-Path $batchArchiveFolder -ChildPath "batch_$date"
-    if (!(Test-Path $newBackupPath)) { New-Item $newBackupPath -ItemType Directory }
-    $sourceDirectory = $rootPath
-    $destinationDirectory = $newBackupPath
-    if (!(Test-Path $destinationDirectory)) { New-Item -Path $destinationDirectory -ItemType Directory }
-    $itemsToCopy = Get-ChildItem -Path $sourceDirectory | Where-Object { $_.Name -ne '_archive' }
-    $itemsToCopy | ForEach-Object {
-        $destinationPath = Join-Path -Path $destinationDirectory -ChildPath $_.Name
-        Copy-Item -Path $_.FullName -Destination $destinationPath -Recurse
+    if (-not $Automated) {
+        $newBackupPath = Join-Path $batchArchiveFolder -ChildPath "batch_$date"
+        if (!(Test-Path $newBackupPath)) { New-Item $newBackupPath -ItemType Directory }
+        $sourceDirectory = $rootPath
+        $destinationDirectory = $newBackupPath
+        if (!(Test-Path $destinationDirectory)) { New-Item -Path $destinationDirectory -ItemType Directory }
+        Get-ChildItem -Path $sourceDirectory | Where-Object { $_.Name -ne '_archive' } | ForEach-Object {
+            $destinationPath = Join-Path -Path $destinationDirectory -ChildPath $_.Name
+            Copy-Item -Path $_.FullName -Destination $destinationPath -Recurse
+        }
     }
     if ($dateBatch -eq $True) {
         $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_D_$($pbyShort)-$($cbyShort).csv"
@@ -1351,6 +1352,9 @@ If ($generateBatchFile) {
                     }
                 }
                 $urls = $urls | Select-Object -Unique
+                foreach ($u in $urls) {
+                    Write-Log -Message "[Batch] $(Get-DateTime) - $($site) - $weekday - $u" -LogFilePath $anilistLogfile
+                }
                 # Write to a text file named by the Site-Weekday combination
                 $fileName = Join-Path $siteRootPath -ChildPath "$($site)-$($dayNum)-$($weekday)"
                 Write-Log -Message "[Batch] $(Get-DateTime) - $($site) - $weekday - $($urls.Count) - $fileName" -LogFilePath $anilistLogfile
