@@ -2314,10 +2314,15 @@ if ($site) {
                     -episodeURL $fieldEpisodeUrl -episodeDate $fieldEpisodeDate -siteFooterIcon $discordFooterIconDefault -siteFooterText $fieldFooterText -DiscordSiteUrl $discordUrl
             }
         }
+        # IF MKV Merge failed, then remove from archive file so it can retry again on next run
         If ($archive -and $mkvMerge) {
-            $vsCompletedFilesList | Where-Object { $_._vsMKVCompleted -eq $false } | ForEach-Object {
-                $eURL = $_._vsEpisodeUrl
-                Remove-ArchiveLine -siteN $site -arc $archiveFile -eURL $eURL
+            $eList = $vsCompletedFilesList | Where-Object { $_._vsMKVCompleted -eq $false }
+            $eCount = ( $eList | Measure-Object).Count
+            if ($eCount -gt 0 ) {
+                $eList | ForEach-Object {
+                    $eURL = $_._vsEpisodeUrl
+                    Remove-ArchiveLine -siteN $site -arc $archiveFile -eURL $eURL
+                }
             }
         }
         Write-Output "[Processing] $(Get-DateTime) - Errored Files: $vsvErrorCount/$vsvTotCount"
