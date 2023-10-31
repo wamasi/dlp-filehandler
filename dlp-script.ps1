@@ -2288,7 +2288,21 @@ if ($site) {
                 $fieldEpisodeUrl = $_._vsEpisodeUrl
                 $fieldEpisodeDate = $_._vsEpisodeDate
                 if ($_._vsErrored -eq $true) {
-                    $fieldRelease = "Error: $($_._vsEpisode)"
+                    $errorList = @()
+                    if ($subtitleEdit -and $_._vsSECompleted -eq $false) {
+                        $errorList += 'SubtitleEdit'
+                    }
+                    if ($mkvMerge -and $_._vsMKVCompleted -eq $false) {
+                        $errorList += 'MKVMerge'
+                    }
+                    if ($filebot -and $_._vsFBCompleted -eq $false) {
+                        $errorList += 'Filebot'
+                    }
+                    if ($_._vsMoveCompleted -eq $false) {
+                        $errorList += 'FileMove'
+                    }
+                    $fe = $errorList -join ', '
+                    $fieldRelease = "Errored on $($fe): $($_._vsEpisode)"
                     $discordUrl = $discordHookErrorURL
                 }
                 else {
@@ -2300,12 +2314,7 @@ if ($site) {
                     }
                     $discordUrl = $discordHookURL
                 }
-                $filePath = if ($_._vsFinalPathVideo.trim() -ne '') {
-                    $_._vsFinalPathVideo
-                }
-                Else {
-                    $_._vsDestPathVideo
-                }
+                $filePath = if ($_._vsFinalPathVideo.trim() -ne '') { $_._vsFinalPathVideo } Else { $_._vsDestPathVideo }
                 $f = Get-DiskSpace $filePath
                 $fieldFooterText = "$($f.RootName): $($f.FreeSpaceFormatted)/$($f.TotalSpaceFormatted) - $($f.PercentageFree)% Free/$($f.PercentageUsed)% Used"
                 Write-Output "[Discord] $(Get-DateTime) - Sending $occurrenceCount/$occurrenceTotal."
