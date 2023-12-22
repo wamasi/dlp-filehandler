@@ -1,6 +1,6 @@
 <#
 .Synopsis
-   Script to run yt-dlp, mkvmerge, subtitle edit, filebot and a python script for downloading and processing videos
+   Script to run yt-dlp, mkvmerge, subtitle edit, and filebot for downloading and processing videos
 .EXAMPLE
    Runs the script using the mySiteHere as a manual run with the defined config using login, cookies, archive file, mkvmerge, and sends out a discord message
    D:\_DL\dlp-script.ps1 -sn mySiteHere -l -c -mk -a -sd

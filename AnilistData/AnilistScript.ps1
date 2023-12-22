@@ -35,9 +35,9 @@ if (!(Test-Path $configFilePath)) {
     $baseXML = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
-  <Automated>D</Automated>
+  <automated>D</automated>
   <Directory>
-    <backup location="D:\Backup" />
+    <backup location="" />
   </Directory>
   <characters>
     <char>’</char>
@@ -46,20 +46,22 @@ if (!(Test-Path $configFilePath)) {
     <keeplog emptylogskeepdays="0" filledlogskeepdays="7" />
     <lastUpdated></lastUpdated>
   </Logs>
+  <Sites>
+    <site siteName="HIDIVE" command="-sn Hidive -d -l -c -mk -f -se -a -al ja -sl en -sd" DiscordEmoji="" />
+    <site siteName="Crunchyroll" command="-sn Crunchyroll -d -l -mk -f -a -al ja -sl en -sd" DiscordEmoji="" />
+    <site siteName="Default" command="" DiscordEmoji="" />
+  </Sites>
   <Discord>
-    <hook ScheduleServerUrl="" MediaServerUrl="" />
-    <icon default="" author="" footerIcon="" Color="" />
-    <sites>
-      <site siteName="" emoji="" />
-      <site siteName="" emoji="" />
-      <site siteName="Default" emoji="" />
-    </sites>
+    <hook ScheduleServerUrl="" TestServerUrl="" MediaServerUrl="" />
+    <icon default="" author="" footerIcon="" Color="8359053" />
   </Discord>
   <overrides>
-    <Show id ="" EpisodeStart="" overrideURL=""/>
+    <Show id="" EpisodeStart="" overrideURL="" />
+    <Show id="" EpisodeStart="" overrideURL="" />
   </overrides>
   <blacklist Ids="" />
 </configuration>
+
 '@
     New-Item $configFilePath
     Set-Content $configFilePath -Value $baseXML
@@ -103,7 +105,14 @@ $now = Get-Date
 $today = Get-Date $now -Hour 0 -Minute 0 -Second 0 -Millisecond 0
 $currentweekday = Get-Date $today -Format 'dddd'
 $cby = (Get-Date $today -Format 'yyyy').ToString()
-$pby = (Get-Date(($today).AddYears(-1)) -Format 'yyyy').ToString()
+$cby, $pby = if (($today).Month -eq 12) {
+    (Get-Date ($today.AddYears(1)) -Format 'yyyy').ToString()
+    (Get-Date ($today) -Format 'yyyy').ToString()
+}
+else {
+    (Get-Date $today -Format 'yyyy').ToString()
+    (Get-Date(($today).AddYears(-1)) -Format 'yyyy').ToString()
+}
 $cbyShort = $cby.Substring(2)
 $pbyShort = $pby.Substring(2)
 $csvFilePath = Join-Path $csvFolder -ChildPath "anilistSeason_$($pbyShort)-$($cbyShort).csv"
@@ -186,6 +195,20 @@ function Exit-Script {
     }
     exit
 }
+
+function Test-DateFormat {
+    param (
+        $Date
+    )
+    $pattern = '^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/\d{4}$'
+    if ($Date -match $pattern) {
+        Return $true
+    }
+    else {
+        Return $false
+    }
+}
+
 function Set-CSVFormatting {
     param (
         $csvPath
@@ -197,17 +220,29 @@ function Set-CSVFormatting {
                 $parts = $($d.AiringTime) -split ':'
                 $d.AiringTime = "$($parts[0].PadLeft(2, '0')):$($parts[1])"
             }
-            if ($d.AirDate -ne '') {
+            if (-not [string]::IsNullOrEmpty($d.AirDate)) {
                 $d.AirDate = Get-Date $($d.AirDate) -Format 'MM/dd/yyyy'
             }
-            if ($d.StartDate -ne '') {
-                $d.StartDate = Get-Date $($d.StartDate) -Format 'MM/dd/yyyy'
-            }
-            if ($d.AiringFullTime -ne '') {
+            if (-not [string]::IsNullOrEmpty($d.AiringFullTime)) {
                 $d.AiringFullTime = Get-Date $($d.AiringFullTime) -Format 'MM/dd/yyyy HH:mm:ss'
             }
-            if ($d.EndDate -ne '') {
-                $d.EndDate = Get-Date $($d.EndDate) -Format 'MM/dd/yyyy'
+            if (-not [string]::IsNullOrEmpty($d.StartDate)) {
+                $ds = Test-DateFormat $d.StartDate
+                if ($ds -eq $true) {
+                    $d.StartDate = Get-Date $($d.StartDate) -Format 'MM/dd/yyyy'
+                }
+                else {
+                    $d.startDate = ''
+                }
+            }
+            if (-not [string]::IsNullOrEmpty($d.EndDate)) {
+                $de = Test-DateFormat $d.endDate
+                if ($de -eq $true) {
+                    $d.EndDate = Get-Date $($d.EndDate) -Format 'MM/dd/yyyy'
+                }
+                else {
+                    $d.EndDate = ''
+                }
             }
             switch ($d.download) {
                 'True' { $d.download = 'True' }
@@ -860,8 +895,8 @@ if ($GenerateAnilistFile) {
         $season = $s.season
         $seasonYear = if (-not [string]::IsNullOrEmpty($s.seasonYear)) { $s.seasonYear } else { '' }
         $Status = $s.Status
-        $startDate = $s.startDate
-        $endDate = $s.endDate
+        $startDate = if ((Test-DateFormat $s.startDate) -eq $true) { $s.startDate } else { '' }
+        $endDate = if ((Test-DateFormat $s.endDate) -eq $true) { $s.endDate } else { '' }
         $site = $s.site
         $url = $s.url
         $genres = $s.genres
@@ -872,7 +907,8 @@ if ($GenerateAnilistFile) {
             $episode = $e.episode
             $airingFullTime = Get-UnixToLocal -unixTime $e.airingAt
             $airingFullTimeFixed = Get-Date $airingFullTime -Format 'MM/dd/yyyy HH:mm:ss'
-            $airingDate = Get-Date $airingFullTime -Format 'MM/dd/yyyy'
+            $airingDateA = Get-Date $airingFullTime -Format 'MM/dd/yyyy'
+            $airingDate = if ((Test-DateFormat ($airingDateA)) -eq $true) { $airingDateA } else { '' }
             $airingTime = Get-Date $airingFullTime -Format 'HH:mm'
             $weekday = Get-Date $airingFullTime -Format 'dddd'
             Write-Output "$title - $episode - $airingFullTimeFixed - $genres"
@@ -1015,6 +1051,8 @@ if ($updateAnilistCSV) {
         $airingFullTime = Get-UnixToLocal -unixTime $ur.airingAt
         $airingFullTimeFixed = Get-Date $airingFullTime -Format 'MM/dd/yyyy HH:mm:ss'
         $airingDate = Get-Date $airingFullTime -Format 'MM/dd/yyyy'
+        $airingDateA = Get-Date $airingFullTime -Format 'MM/dd/yyyy'
+        $airingDate = if ((Test-DateFormat ($airingDateA)) -eq $true) { $airingDateA } else { '' }
         $airingTime = Get-Date $airingFullTime -Format 'HH:mm'
         $weekday = Get-Date $airingFullTime -Format 'dddd'
         # Find the first preferred site
@@ -1332,7 +1370,7 @@ If ($generateBatchFile) {
                         [int]$startEpNum = 1
                     }
                     if ($site -eq 'HIDIVE') {
-                        for ($i = $startEpNum; $i -lt $totalEpisodes; $i++) {
+                        for ($i = $startEpNum; $i -le $totalEpisodes; $i++) {
                             $lastPart = $showUrl -replace '/season-\d+', '' -replace '.*/', ''
                             $v = "https://www.hidive.com/stream/$lastPart"
                             $seasonNumber = [regex]::Match($showUrl, '/season-(\d+)').Groups[1].Value
@@ -1594,13 +1632,13 @@ if ($dailyRuns) {
             $batchFile = (Get-ChildItem $siteBatFolder -Recurse | Where-Object { $_.Directory.Name -eq $site -and (($_.FullName -match "$($site).*$currentWeekday")) } | Select-Object -First 1).FullName
             if ($batchFile) {
                 Write-Log -Message "[DLP-Script] $(Get-DateTime) - $site - $currentWeekday - $batchFile" -LogFilePath $smartLogfile
-                $cArgs = $command -split ' ' | Where-Object { $_ -ne '' }
+                $cArgs = "-sn $site -overridebatch $batchFile "
+                $cArgs += ($command -split ' ' | Where-Object { $_ -ne '' })
                 foreach ($c in $cArgs) {
                     $a = $c.trim()
                     $cmdArray += $a
                 }
-                $cmdArray += '-overridebatch'
-                $cmdArray += $batchFile
+                Write-Output "[DLP-Script] $(Get-DateTime) - $site Command: $cmdArray"
                 Start-Process -FilePath 'pwsh.exe' -ArgumentList $cmdArray -Wait -NoNewWindow
             }
             else {
